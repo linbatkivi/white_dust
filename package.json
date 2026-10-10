@@ -1,0 +1,20 @@
+{
+  "name": "de-white-dust",
+  "version": "13.0.0",
+  "description": "SUPERHOT x Counter-Strike multiplayer FPS (de_white_dust, de_nuke, de_ancient) – PBR, SSAO, bloom, flashbang/molotov, holdvåben, crosshair-indstillinger",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/nav.js white_dust && node test/nav.js nuke && node test/nav.js ancient && node test/nav.js inferno && node test/nav.js havn && node test/havn.js && node test/visuals.js && node test/integration.js && WD_QA_STRICT=1 node test/mapqa.js",
+    "test:e2e": "node test/e2e.js",
+    "map:svg": "node test/mapsvg.js",
+    "qa": "node test/mapqa.js"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "dependencies": {
+    "ws": "^8.21.3"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,37 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "wd-server",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3100,
+      "autoPort": true
+    },
+    {
+      "name": "wd-test",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "WD_TEST=1",
+        "PORT=3200",
+        "node",
+        "server.js"
+      ],
+      "port": 3200
+    },
+    {
+      "name": "wd-fast",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "WD_TEST=1",
+        "WD_FAST=1",
+        "PORT=3300",
+        "node",
+        "server.js"
+      ],
+      "port": 3300
+    }
+  ]
+}

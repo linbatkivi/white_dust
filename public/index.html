@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>DE_WHITE_DUST</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/main.css">
+<script src="/shared/nuke_data.js"></script>
+<script src="/shared/inferno_data.js"></script>
+<script src="/shared/canals_data.js"></script>
+<script src="/shared/havn_data.js"></script>
+<script src="/shared/ancient_data.js"></script>
+<script src="/shared/wd.js"></script>
+</head>
+<body>
+
+<canvas id="gl"></canvas>
+
+<!-- ============================================================ HOVEDMENU ============================================================ -->
+<section id="scr-menu" class="screen">
+  <canvas id="logo3d" class="logo3d"></canvas>
+  <div class="menu-wrap">
+    <div id="logoSlot" class="logo-slot" title="Klik på medaljonen"></div>
+    <h1 class="logo">WHITE<span class="logo-us">_</span>DUST<span class="cursor">▮</span></h1>
+    <p class="tagline">et FPS uden farver. og uden nåde.</p>
+
+    <div class="name-row">
+      <label for="nameInput">DIT NAVN</label>
+      <input id="nameInput" maxlength="14" placeholder="Spiller" autocomplete="off">
+    </div>
+
+    <div class="menu-actions">
+      <button id="btnCreate" class="btn btn-primary">LAV PARTY</button>
+      <button id="btnShowJoin" class="btn btn-ghost">JOIN</button>
+      <button id="btnSettings" class="btn btn-ghost btn-icon" title="Indstillinger (crosshair, mus, lyd)">⚙ INDSTILLINGER</button>
+      <button id="btnInventory" class="btn btn-ghost btn-icon" title="Agenter og våben-skins">◆ INVENTAR</button>
+    </div>
+
+    <div id="joinRow" class="join-row hidden">
+      <input id="codeInput" class="code-input" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="0000">
+      <button id="btnJoin" class="btn btn-primary">GÅ IND</button>
+    </div>
+
+    <p id="menuErr" class="err-msg"></p>
+  </div>
+  <div class="menu-foot">
+    <span class="hint hint-touch">TOUCH &nbsp;·&nbsp; JOYSTICK TIL VENSTRE &nbsp;·&nbsp; TRÆK FOR AT KIGGE &nbsp;·&nbsp; HOLD SKYD/KAST · SLIP FOR AT KASTE</span>
+    <span class="hint hint-mouse">MUS + TASTATUR &nbsp;·&nbsp; WASD BEVÆG &nbsp;·&nbsp; VENSTREKLIK SKYD / HOLD FOR KAST &nbsp;·&nbsp; HØJREKLIK UNDERHÅNDSKAST &nbsp;·&nbsp; 3 KNIV · 4 GRANATER · Q FORRIGE · F INSPICÉR</span>
+  </div>
+</section>
+
+<!-- ============================================================ VENTERUM ============================================================ -->
+<section id="scr-lobby" class="screen hidden">
+  <div class="lobby-wrap">
+    <div class="lobby-head">
+      <div class="code-badge">
+        <span class="code-label">PARTY-KODE</span>
+        <span id="lobbyCode" class="code-big">----</span>
+      </div>
+      <button id="btnCopyCode" class="btn btn-tiny">KOPIÉR LINK</button>
+    </div>
+
+    <div class="map-pick">
+      <div class="map-pick-head"><span class="map-label">MAP POOL</span>
+        <span class="vmode"><button id="btnVmodePremier" class="vm-btn" data-vmode="premier" title="Holdene skiftes til at stemme baner ud – den sidste bane spilles">PREMIER</button><button id="btnVmodeHost" class="vm-btn" data-vmode="host" title="Værten vælger banen">VÆRT VÆLGER</button></span>
+        <span id="mapHostHint" class="map-host-hint">værten vælger banen</span></div>
+      <div id="mapCards" class="map-cards"></div>
+      <div id="mapDesc" class="map-desc"></div>
+    </div>
+    <h2 class="lobby-title">VÆLG HOLD</h2>
+    <div class="team-pick">
+      <div class="team-col team-hij">
+        <button id="btnTeamHij" class="team-btn">HIJACKERS <span id="cntHij" class="team-cnt">0/5</span></button>
+        <ul id="listHij" class="lobby-list"></ul>
+      </div>
+      <div class="team-col team-swat">
+        <button id="btnTeamSwat" class="team-btn">SWAT <span id="cntSwat" class="team-cnt">0/5</span></button>
+        <ul id="listSwat" class="lobby-list"></ul>
+      </div>
+    </div>
+    <div class="team-none">
+      <div class="team-none-head"><span>UDEN HOLD — fordeles automatisk</span><button id="btnTeamAuto" class="btn btn-tiny">VÆLG AUTO</button></div>
+      <ul id="lobbyList" class="lobby-list"></ul>
+    </div>
+    <p id="lobbyBalance" class="lobby-balance"></p>
+
+    <div class="lobby-foot">
+      <p id="lobbyHint" class="lobby-hint">Venter på at værten starter spillet…</p>
+      <button id="btnStart" class="btn btn-primary hidden">START SPIL</button>
+      <button id="btnInventoryLobby" class="btn btn-ghost">◆ INVENTAR</button>
+      <button id="btnLeave" class="btn btn-ghost">FORLAD</button>
+    </div>
+  </div>
+</section>
+
+<!-- v20: sejrs-sekvens (victory.js) – tidsat efter music_win.mp3 -->
+<section id="victory" class="victory">
+  <div class="vc-wash"></div>
+  <div class="vc-rays"></div>
+  <div class="vc-stripes"></div>
+  <canvas id="vcFx" class="vc-fx"></canvas>
+  <div class="vc-bar top"></div><div class="vc-bar bot"></div>
+  <div class="vc-slash"></div>
+  <div class="vc-stage">
+    <div id="vcKicker" class="vc-kicker"></div>
+    <div id="vcTitle" class="vc-title"></div>
+    <div id="vcSub" class="vc-sub"></div>
+    <div class="vc-score"><span id="vcScoreA" class="vs-n swat">0</span><span class="vs-dash">—</span><span id="vcScoreB" class="vs-n hij">0</span></div>
+  </div>
+  <div class="vc-mvpcard"><div class="mvp-crown">★</div><div class="mvp-l">KAMPENS MVP</div><div id="vcMvpName" class="mvp-n"></div><div id="vcMvpStats" class="mvp-s"></div></div>
+  <div class="vc-boardwrap"><div class="vb-title">LEADERBOARD</div><div id="vcBoard" class="vc-board"></div></div>
+  <div class="vc-flash"></div>
+  <button id="vcSkip" class="vc-skip">SPRING OVER ›</button>
+</section>
+
+<!-- v20: PREMIER-banevalg – holdene skiftes til at bandlyse baner; den sidste spilles -->
+<section id="veto" class="veto hidden">
+  <div class="veto-bg"></div>
+  <div class="veto-wrap">
+    <div class="veto-head">
+      <div class="veto-title">PREMIER <span>BANEVALG</span></div>
+      <div id="vetoTurn" class="veto-turn"></div>
+      <div class="veto-timer"><i id="vetoBar"></i></div>
+      <div id="vetoHint" class="veto-hint"></div>
+    </div>
+    <div id="vetoCards" class="veto-cards"></div>
+    <div id="vetoFinal" class="veto-final hidden"><div class="vf-label">BANEN ER</div><div id="vetoFinalName" class="vf-name"></div></div>
+  </div>
+</section>
+
+<!-- ============================================================ IN-GAME HUD ============================================================ -->
+<div id="hud" class="hidden">
+  <div id="nameTags" class="name-tags"></div>
+  <!-- v17: chat nede i venstre hjørne (Y = alle, U = holdet) -->
+  <div id="chat" class="chat"><div id="chatLog" class="chat-log"></div>
+    <div id="chatRow" class="chat-row hidden"><span id="chatMode" class="chat-mode">ALLE</span><input id="chatInput" class="chat-input" maxlength="120" autocomplete="off" spellcheck="false"></div></div>
+  <div id="areaName" class="area-name"></div>
+  <div id="scopeOv" class="scope-ov hidden"></div>
+  <!-- topbjælke: score, timer, half -->
+  <div class="hud-top">
+    <div class="score-pill side-swat"><span class="side-tag">SWAT</span><span id="scoreSwat">0</span></div>
+    <div class="round-info">
+      <div id="roundTimer" class="round-timer">0:00</div>
+      <div id="roundLabel" class="round-label">RUNDE 1</div>
+    </div>
+    <div class="score-pill side-hij"><span id="scoreHij">0</span><span class="side-tag">HIJ</span></div>
+  </div>
+
+  <div id="bombTimerWrap" class="bomb-timer-wrap hidden">
+    <div id="bombTimerBar" class="bomb-timer-bar"></div>
+    <div id="bombTimerTxt" class="bomb-timer-txt">C4 ⟡ 0:40</div>
+  </div>
+
+  <!-- minimap + aktuel placering (callout) -->
+  <canvas id="minimap" width="200" height="200"></canvas>
+  <div id="locName" class="loc-name"></div>
+  <div id="netStats" class="net-stats hidden"></div>
+
+  <!-- crosshair (tegnes på canvas ud fra indstillingerne: længde, tykkelse, gap, farve, prik, kontur, alpha) -->
+  <canvas id="crosshair" class="crosshair"></canvas>
+  <canvas id="crosshairHit" class="crosshair crosshair-hit"></canvas>
+  <div id="hitmarker" class="hitmarker"></div>
+
+  <!-- skade-retning -->
+  <div id="dmgIndicators" class="dmg-indicators"></div>
+
+  <!-- handling: plant/defuse progress -->
+  <div id="actBar" class="act-bar hidden">
+    <div class="act-bar-label" id="actLabel">PLANTER…</div>
+    <div class="act-bar-track"><div id="actFill" class="act-bar-fill"></div></div>
+  </div>
+  <div id="promptPick" class="prompt-e prompt-pick hidden"></div>
+  <div id="promptE" class="prompt-e hidden">HOLD <b>E</b> FOR AT PLANTE</div>
+  <!-- ild: orange kant-glød når man står i flammerne -->
+  <div id="burnOv" class="burn-ov hidden"></div>
+
+  <!-- bund: liv, våben, hold -->
+  <div class="hud-bottom">
+    <div class="hp-block">
+      <div class="hp-label">LIV</div>
+      <div class="hp-row">
+        <div class="hp-bar"><div id="hpFill" class="hp-fill"></div></div>
+        <div id="hpNum" class="hp-num">100</div>
+      </div>
+      <div id="sideTag" class="side-indicator">SWAT</div>
+      <div id="bombCarry" class="bomb-carry hidden">☢ BÆRER C4</div>
+    </div>
+    <div class="weapon-block">
+      <div id="weaponName" class="weapon-name">USP-S</div>
+      <div id="skinName" class="skin-name"></div>
+      <div class="ammo-row">
+        <span id="ammoMag">12</span><span class="ammo-sep">/</span><span id="ammoRes">36</span>
+      </div>
+      <div id="reloadBar" class="reload-bar hidden">
+        <div id="reloadFill" class="reload-fill"></div>
+        <span class="reload-label">GENLADER</span>
+      </div>
+      <div id="slotRow" class="slot-row"></div>
+    </div>
+    <div class="money-block">
+      <div class="money-label">$</div>
+      <div id="moneyNum" class="money-num">800</div>
+    </div>
+  </div>
+  <!-- v12: indtjening (kill-belønning, plant/desarmering, runde-bonus) -->
+  <div id="payFeed" class="pay-feed"></div>
+
+  <!-- killfeed -->
+  <div id="killfeed" class="killfeed"></div>
+
+  <!-- runde-slut banner -->
+  <div id="roundBanner" class="round-banner hidden"></div>
+  <!-- v12: dramatisk rundeafslutning (vinder, betingelse, MVP, indtjening, nedtælling) -->
+  <div id="roundEnd" class="re hidden"></div>
+  <div id="gameOverBanner" class="gameover-banner hidden"></div>
+
+  <!-- død / spectator -->
+  <div id="deadOverlay" class="dead-overlay hidden">
+    <div class="dead-title">DU ER DØD</div>
+    <div id="deadSub" class="dead-sub">følger holdet…</div>
+  </div>
+
+  <!-- scoreboard (Tab) -->
+  <div id="scoreboard" class="scoreboard hidden">
+    <div class="sb-team sb-swat">
+      <h3>SWAT</h3>
+      <table><tbody id="sbSwat"></tbody></table>
+    </div>
+    <div class="sb-team sb-hij">
+      <h3>HIJACKERS</h3>
+      <table><tbody id="sbHij"></tbody></table>
+    </div>
+  </div>
+
+  <!-- købsmulighed (tryk B) -->
+  <div id="buyHint" class="buy-hint-hud hidden"></div>
+</div>
+
+<!-- v14: købshjulet (CS:GO-stil) i nyt design: kategorier → våben i samme ring, 3D-renderede våben i sektorerne, pengene i midten;
+     sidepanel med info-kort (statistik ved hover), udstyr/salg, holdets økonomi og ønsker -->
+<div id="buyWheel" class="bw2 hidden">
+  <div class="bw2-wrap">
+    <div class="bw2-ring"><svg id="bwSvg" class="bw2-svg" viewBox="-236 -236 472 472"></svg></div>
+    <aside class="bw2-side">
+      <div class="bw2-top"><div class="bw-money"><span>$</span><b id="bwMoney">0</b></div><div id="bwTimer" class="bw-timer"></div></div>
+      <div class="bw-mode"><button id="bwModeBuy" class="sel">KØB</button><button id="bwModeReq">ØNSK FRA HOLDET</button></div>
+      <div id="bwInfo" class="bw2-info"></div>
+      <h4>DIT UDSTYR <small>køb i denne runde kan sælges</small></h4>
+      <ul id="bwInv" class="bw-list"></ul>
+      <button id="bwDrop" class="bw-act">SMID PRIMÆRVÅBEN (G)</button>
+      <h4>HOLDETS ØKONOMI <small>loss/win predictor</small></h4>
+      <div id="bwEco" class="bw-eco"></div>
+      <h4>HOLDETS ØNSKER</h4>
+      <ul id="bwReqs" class="bw-list"></ul>
+      <button id="bwClose" class="bw-act bw-close">LUK <kbd>B</kbd></button>
+    </aside>
+  </div>
+  <div class="bw2-hint"><span><kbd>1</kbd>–<kbd>4</kbd> kategori</span><span><kbd>1</kbd>–<kbd>6</kbd> våben</span><span><kbd>0</kbd> tilbage</span><span>klik på eget våben = sælg</span></div>
+</div>
+
+<!-- klik-for-at-spille (pointer lock genstart) — ligger UDENFOR #hud, som har pointer-events:none på alle børn -->
+<div id="clickToPlay" class="click-to-play hidden">
+  <div class="ctp-box">
+    <div class="ctp-title"><span class="only-mouse">KLIK FOR AT SIGTE</span><span class="only-touch">PAUSE</span></div>
+    <div class="ctp-sub"><span class="only-mouse">musen er frigivet — klik på skærmen for at fortsætte</span><span class="only-touch">tryk på skærmen for at fortsætte</span></div>
+    <div class="ctp-actions">
+      <button id="btnSettingsGame" class="btn btn-ghost">⚙ INDSTILLINGER</button>
+      <button id="btnInventoryGame" class="btn btn-ghost">◆ INVENTAR</button>
+      <button id="btnRestart" class="btn btn-primary hidden">NYT SPIL (GENSTART)</button>
+      <button id="btnEndGame" class="btn btn-ghost hidden">AFSLUT TIL VENTEVÆRELSET</button>
+      <button id="btnLeaveGame" class="btn btn-ghost">FORLAD SPIL</button>
+    </div>
+  </div>
+</div>
+
+<!-- flashbang: efterbillede (frosset skærmbillede) + intenst hvidt lag -->
+<div id="flashOv" class="flash-ov hidden"><canvas id="flashImg"></canvas><div id="flashWhite"></div></div>
+
+<!-- indstillinger (crosshair-editor med forhåndsvisning, mus-sensitivitet, master-volumen) – gemmes i localStorage -->
+<div id="settings" class="settings hidden"></div>
+
+<!-- inventar: agenter (spillerfigurer + varianter) og våben-skins med 3D-forhåndsvisning – gemmes i localStorage og deles med de andre spillere -->
+<div id="inventory" class="settings hidden"></div>
+
+<!-- banen bygges (bagt lys beregnes) -->
+<div id="loadingMap" class="loading-map hidden"><div class="lm-box"><div class="lm-title">BYGGER BANEN</div><div id="loadingMapName" class="lm-sub">beregner lys og skygger…</div><div class="lm-bar"><i></i></div></div></div>
+
+<!-- fejl-toast (netværk osv) -->
+<div id="toast" class="toast hidden"></div>
+
+<script type="importmap">{ "imports": { "three": "/vendor/three.module.min.js" } }</script>
+<script type="module" src="/js/app.js"></script>
+</body>
+</html>

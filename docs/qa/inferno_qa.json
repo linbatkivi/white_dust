@@ -1,0 +1,13 @@
+{
+ "id": "inferno",
+ "floaters": [],
+ "leaks": [],
+ "summary": {
+  "id": "inferno",
+  "floaters": 0,
+  "leaks": 0,
+  "empty": 7.2,
+  "median": 39.8,
+  "dark": 2.9
+ }
+}
