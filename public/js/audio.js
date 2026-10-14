@@ -72,6 +72,39 @@ export function createAudio() {
     const g = ctx.createGain(); g.gain.value = o.vol === undefined ? 1 : o.vol; src.connect(g); g.connect(dst);
     src.start(o.t || ctx.currentTime); return src;
   }
+  /* ---------------- v22: CINE-LYDE (intro-cutscene og MVP-film; Pixabay, tools/sounds/prep_cine.py) ----------------
+     Hentes først når de skal bruges (cinePreload), så de ikke forsinker indlæsningen af banen. cine(name, {vol, rate, at, loop, pos}) */
+  const CINE = ['truck_arrive', 'truck_brake', 'air_hiss', 'van_doors', 'metal_door', 'idle', 'rev', 'pickup', 'skid', 'brake_squeal', 'car_door', 'land', 'steps', 'gear', 'cock', 'reload',
+    'radio', 'battlecry', 'arrive_fx', 'boom', 'braam', 'hit', 'whoosh', 'rise', 'slowmo', 'heart', 'casings'].map(n => 'cine_' + n);
+  let cineLoad = null;
+  function cinePreload() {
+    if (cineLoad) return cineLoad;
+    if (!ctx) build(); if (!ctx) return Promise.resolve();
+    cineLoad = Promise.all(CINE.map(async n => {
+      if (buf[n]) return; const r = await fetchRetry('/assets/sounds/' + n + '.mp3?v22', 3); if (!r) return;
+      try { buf[n] = await ctx.decodeAudioData(r); } catch (e) {}
+    }));
+    return cineLoad;
+  }
+  function cine(name, o) {
+    o = o || {}; if (!ctx || !enabled) return null;
+    const b = buf['cine_' + name]; if (!b) return null;
+    const src = ctx.createBufferSource(); src.buffer = b; src.loop = !!o.loop; src.playbackRate.value = o.rate || 1;
+    const g = ctx.createGain(); g.gain.value = o.vol === undefined ? 1 : o.vol; src.connect(g);
+    let out = g;
+    if (o.pos) { const pn = ctx.createPanner(); pn.panningModel = 'equalpower'; pn.distanceModel = 'inverse'; pn.refDistance = o.ref || 6; pn.rolloffFactor = 1;
+      pn.positionX.value = o.pos.x; pn.positionY.value = o.pos.y; pn.positionZ.value = o.pos.z; g.connect(pn); out = pn; src._pn = pn; }
+    out.connect(o.music ? musicBus : sfx);
+    const t = ctx.currentTime + (o.at || 0); src.start(t, o.offset || 0);
+    if (o.fadeIn) { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(o.vol === undefined ? 1 : o.vol, t + o.fadeIn); }
+    return {
+      src, gain: g,
+      setPos(p) { if (src._pn) { src._pn.positionX.value = p.x; src._pn.positionY.value = p.y; src._pn.positionZ.value = p.z; } },
+      setVol(v, k) { const tt = ctx.currentTime; g.gain.cancelScheduledValues(tt); g.gain.setTargetAtTime(Math.max(0.0001, v), tt, k || 0.05); },
+      setRate(r) { src.playbackRate.setTargetAtTime(r, ctx.currentTime, 0.08); },
+      stop(f) { const tt = ctx.currentTime, d = f || 0.2; try { g.gain.cancelScheduledValues(tt); g.gain.setValueAtTime(Math.max(0.0001, g.gain.value), tt); g.gain.exponentialRampToValueAtTime(0.0001, tt + d); src.stop(tt + d + 0.05); } catch (e) {} }
+    };
+  }
   /* musik (menu / sejr): <audio> → musik-bussen, så lydstyrke-skyderne virker */
   const MUSIC = {}; let curMusic = null, wantMusic = null;
   function musicEl(name) {
@@ -394,5 +427,5 @@ export function createAudio() {
     } catch (e) {}
   }
   if (typeof window !== 'undefined') try { build(); } catch (e) {}                 // v20: kontekst + afkodning straks (genoptages ved første klik)
-  return { loaded, playMusic, stopMusic, musicTime, musicPlaying, init, setListener, shot, step, impact, door, beep, boom, hiss, click, pin, throwSnd, bounce, flashbang, tinnitus, glass, ignite, fizzle, fireLoop, setVolume, setVolumes, music, ambience, stopAmbience, announce, get ready() { return ok(); }, set enabled(v) { enabled = v; } };
+  return { loaded, cine, cinePreload, playMusic, stopMusic, musicTime, musicPlaying, init, setListener, shot, step, impact, door, beep, boom, hiss, click, pin, throwSnd, bounce, flashbang, tinnitus, glass, ignite, fizzle, fireLoop, setVolume, setVolumes, music, ambience, stopAmbience, announce, get ready() { return ok(); }, set enabled(v) { enabled = v; } };
 }

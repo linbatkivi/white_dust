@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node test/nav.js white_dust && node test/nav.js nuke && node test/nav.js ancient && node test/nav.js inferno && node test/nav.js havn && node test/havn.js && node test/visuals.js && node test/integration.js && WD_QA_STRICT=1 node test/mapqa.js",
+    "test": "node test/nav.js white_dust && node test/nav.js nuke && node test/nav.js ancient && node test/nav.js inferno && node test/nav.js havn && node test/havn.js && node test/visuals.js && node test/integration.js && node test/intro.js && WD_QA_STRICT=1 node test/mapqa.js",
     "test:e2e": "node test/e2e.js",
     "map:svg": "node test/mapsvg.js",
     "qa": "node test/mapqa.js"

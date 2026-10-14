@@ -31,34 +31,33 @@ export const defaultSkin = team => team === 'hij' ? 'factory' : 'graphite';
 // Første variant = modellens egne farver.
 export const AGENTS = {
   swat: [
+    // v22: brugerens CGTrader-operatør (tools/chars/swat_cgt.py) – materialer: Top Pants Vest Gloves Boots Helmet Mask NVG Earpro Cable Patch
     { id: 'swat', name: 'SWAT-operatør', model: 'swat', variants: [
       { id: 'navy', name: 'Marineblå', rarity: 'base', col: {} },
-      { id: 'black', name: 'Sort taktisk', rarity: 'mil', col: { Top: 0x3d4046, Pants: 0x3a3d43, Vest: 0x323437, Helmet: 0x353739 } },
-      { id: 'ranger', name: 'Ranger-grøn', rarity: 'res', col: { Top: 0x687254, Pants: 0x5f684d, Vest: 0x737a5c, Helmet: 0x6a7058, Pads: 0x50553f } },
-      { id: 'urban', name: 'Urban grå', rarity: 'cls', col: { Top: 0x82868e, Pants: 0x6c7078, Vest: 0x4a4d52, Helmet: 0x5a5e64 } }
-    ] },
-    { id: 'swat2', name: 'SWAT-stormer', model: 'swat2', variants: [
-      { id: 'black', name: 'Sort', rarity: 'mil', col: {} },
-      { id: 'navy', name: 'Marineblå', rarity: 'res', col: { Top: 0x55617c, Pants: 0x4f5a72, Vest: 0x424a5a } },
-      { id: 'coyote', name: 'Coyote', rarity: 'cls', col: { Top: 0x6a7058, Pants: 0x646a52, Vest: 0xb19b7f, Helmet: 0xa38f74, Pads: 0x9a876c } },
-      { id: 'arctic', name: 'Arktisk', rarity: 'cov', col: { Top: 0xc9cdd1, Pants: 0xb7bcc1, Vest: 0xdadde0, Helmet: 0xe3e5e7, Mask: 0xe0e0dc, Gloves: 0xcfd2d4, Pads: 0xd5d8da } }
+      { id: 'black', name: 'Sort taktisk', rarity: 'mil', col: { Top: 0x3d4046, Pants: 0x3a3d43, Vest: 0x34363a, Helmet: 0x37393c, Mask: 0x2c2d2f } },
+      { id: 'ranger', name: 'Ranger-grøn', rarity: 'res', col: { Top: 0x687254, Pants: 0x5f684d, Vest: 0x737a5c, Helmet: 0x6a7058, Earpro: 0x5c6048, Mask: 0x4a4e3e } },
+      { id: 'coyote', name: 'Coyote', rarity: 'cls', col: { Top: 0x6a7058, Pants: 0x646a52, Vest: 0xb19b7f, Helmet: 0xa38f74, Earpro: 0x9a876c, Gloves: 0x8a7a63 } },
+      { id: 'urban', name: 'Urban grå', rarity: 'cov', col: { Top: 0x82868e, Pants: 0x6c7078, Vest: 0x4a4d52, Helmet: 0x5a5e64, Mask: 0x45474b } },
+      { id: 'arctic', name: 'Arktisk', rarity: 'gold', col: { Top: 0xc9cdd1, Pants: 0xb7bcc1, Vest: 0xdadde0, Helmet: 0xe3e5e7, Mask: 0xe0e0dc, Gloves: 0xcfd2d4, Earpro: 0xc8cacc, Patch: 0x2a2c30 } }
     ] }
   ],
   hij: [
+    // v22: bygget på samme krop som SWAT (tools/chars/hij_cgt.py) – materialer: Top Pants Mask Gloves Boots Vest Mag Shemagh Beanie Armband Skin
     { id: 'hij', name: 'Hijacker', model: 'hij', variants: [
-      { id: 'olive', name: 'Oliven jakke', rarity: 'base', col: {} },
-      { id: 'black', name: 'Sort jakke', rarity: 'mil', col: { Top: 0x3e4044, Pants: 0x55596a, Vest: 0x55564c } },
-      { id: 'brown', name: 'Brun læderjakke', rarity: 'res', col: { Top: 0x765945, Vest: 0x8f8667 } },
-      { id: 'red', name: 'Rød maske', rarity: 'cls', col: { Top: 0x4c4f53, Mask: 0x953135 } }
+      { id: 'olive', name: 'Oliven feltjakke', rarity: 'base', col: {} },
+      { id: 'black', name: 'Sort', rarity: 'mil', col: { Top: 0x3e4044, Pants: 0x4a4d55, Vest: 0x55564c } },
+      { id: 'urban', name: 'Urban grå', rarity: 'res', col: { Top: 0x7d8086, Pants: 0x5d6168, Vest: 0x6b6d6a, Mask: 0x2a2b2e } },
+      { id: 'red', name: 'Rød maske', rarity: 'cls', col: { Top: 0x4c4f53, Mask: 0x8a2a2e, Vest: 0x4f4c44 } }
     ] },
     { id: 'hij2', name: 'Hijacker (shemagh)', model: 'hij2', variants: [
-      { id: 'sand', name: 'Sand', rarity: 'mil', col: {} },
-      { id: 'olive', name: 'Oliven', rarity: 'res', col: { Top: 0x6d7158, Pants: 0x63664f, Vest: 0x7c7c5d } },
-      { id: 'grey', name: 'Grå', rarity: 'cls', col: { Top: 0x8a8c8e, Pants: 0x5d6064, Vest: 0x707168 } }
+      { id: 'sand', name: 'Ørken', rarity: 'mil', col: {} },
+      { id: 'olive', name: 'Oliven', rarity: 'res', col: { Top: 0x7a7f5f, Pants: 0x6e7356, Vest: 0x7c7c5d } },
+      { id: 'black', name: 'Sort shemagh', rarity: 'cls', col: { Shemagh: 0x5a5a5a, Top: 0x55575a, Pants: 0x4c4f55, Vest: 0x4a4b46 } },
+      { id: 'night', name: 'Nat', rarity: 'cov', col: { Shemagh: 0x9fb0d0, Top: 0x3c4458, Pants: 0x353b4a, Vest: 0x3d4250, Mask: 0x23252b } }
     ] },
     { id: 'hij3', name: 'Hijacker-leder', model: 'hij3', variants: [
-      { id: 'coyote', name: 'Coyote', rarity: 'cls', col: {} },
-      { id: 'black', name: 'Sort', rarity: 'cov', col: { Vest: 0x37393c, Top: 0x45484c, Pants: 0x404349 } },
+      { id: 'leather', name: 'Læderjakke', rarity: 'cls', col: {} },
+      { id: 'black', name: 'Sort', rarity: 'cov', col: { Top: 0x3a3b3e, Vest: 0x2f3033, Beanie: 0x2c2d30 } },
       { id: 'woodland', name: 'Skov', rarity: 'gold', col: { Vest: 0x646c54, Top: 0x5c6249, Pants: 0x575d47, Beanie: 0x575d47 } }
     ] }
   ]

@@ -1,12 +1,14 @@
-# Spillerfigurer (agenter) – v19
-Alle figurer bygges af `tools/chars/build.py` (Blender + MPFB) – kun CC0-materiale:
+# Spillerfigurer (agenter) – v22
+Alle fire figurer bygges på brugerens CGTrader-model "SWAT Operator" (Mixamo-rig), `tools/chars/src/swat_cgt/swat_operator.blend`:
 
-| Del | Kilde | Licens |
+| Fil | Bygges af | Indhold |
 |---|---|---|
-| Kroppe, ansigter, hud, øjne, bryn, tøj (skjorter, jakker, bukser, støvler) | MakeHuman system assets (`makehuman_system_assets_cc0`) via MPFB – https://static.makehumancommunity.org | CC0 |
-| Stoffer: hessian_230 (vest/lommer), knitted_fleece (skimaske/hue), rough_linen (shemagh), fabric_leather_01 (handsker/knæbeskyttere) | Poly Haven – https://polyhaven.com | CC0 |
-| Taktisk udstyr (plate carrier, brystrig, hjelm, høreværn, briller, skimaske, shemagh, hue, handsker, knæbeskyttere, hylster) | modelleret proceduralt i build.py | CC0 (eget) |
+| `swat.glb` | `tools/chars/swat_cgt.py` | SWAT-operatør: hjelm med 4-rørs nattesyn, høreværn, balaclava, plate carrier med "POLICE"/"SWAT"-mærker |
+| `hij.glb`, `hij2.glb`, `hij3.glb` | `tools/chars/hij_cgt.py` | Hijackere på samme krop: balaclava / shemagh / hue, brystrig med AK-magasiner, granater, radio, armbind, øjne og hud |
 
-Figurer: `swat` (SWAT-operatør), `swat2` (SWAT-stormer), `hij` (Hijacker), `hij2` (Hijacker med shemagh), `hij3` (Hijacker-leder).
-Rig: MPFB "game_engine" (pelvis/spine_01…/upperarm_r …) – drives af spillets procedurale skelet via retargeting (characters.js).
-Farvevarianter laves i spillet ved at farve materialerne (Top, Pants, Vest, Helmet, Gloves, Pads, Mask, Beanie) – ingen ekstra filer.
+- Blend-filen har ingen teksturer (den medfølgende teksturpakke hører til en anden model), så teksturerne bages i Blender (Cycles):
+  grå stofdetalje (Poly Haven CC0: rough_linen, hessian_230, knitted_fleece, fabric_leather_01) × ambient occlusion + normalkort på modellens egne UV-atlasser.
+- Shemagh-mønster, øjne og hud genereres proceduralt (eget).
+- Fælles kode: `tools/chars/cgt_base.py`. Kør fx `blender -b -P tools/chars/hij_cgt.py -- hij2 --render /tmp/r`.
+- Farvevarianter laves i spillet ved at farve materialerne (Top, Pants, Vest, Helmet, Gloves, Mask, Shemagh, Beanie, Armband …) – ingen ekstra filer.
+- Rig: Mixamo, omdøbt til spillets navne (pelvis/spine_01/spine_03/upperarm_r …; `head_end` markerer Mixamo-fingerakser i characters.js).

@@ -46,7 +46,10 @@ async function main() {
   const srv = spawn('node', [path.join(__dirname, '..', 'server.js')], { env: Object.assign({}, process.env, { PORT, WD_FAST: '1', WD_TEST: '1' }), stdio: ['ignore', 'pipe', 'pipe'] });
   let srvErr = ''; srv.stderr.on('data', d => { srvErr += d; process.stderr.write(d); });
   srv.stdout.on('data', d => process.stdout.write(d));
-  await sleep(700);
+  for (let i = 0; i < 150; i++) {                                     // vent til serveren svarer (op til 30 s – langsom disk/iCloud kan forsinke opstarten)
+    const up = await new Promise(r => { const q = require('http').get('http://127.0.0.1:' + PORT + '/', res => { res.resume(); r(true); }); q.on('error', () => r(false)); q.setTimeout(1000, () => { q.destroy(); r(false); }); });
+    if (up) break; await sleep(200);
+  }
   try {
     console.log('\n== Lobby & rum ==');
     const A = new Bot('Alice'), B = new Bot('Bob'), C = new Bot('Cleo');

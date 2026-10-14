@@ -21,6 +21,8 @@ import { createVictory } from '/js/victory.js';
 import { createLogo3D } from '/js/logo3d.js';
 import { createAgentStage } from '/js/agentstage.js';
 import { createMenuFx } from '/js/menufx.js';
+import { createIntro } from '/js/intro.js';
+import { createMvpCine } from '/js/mvpcine.js';
 import * as SK from '/js/skins.js';
 import { createInventory } from '/js/inventory.js';
 import { buildAK47 } from '/js/procguns.js';
@@ -580,7 +582,30 @@ Net.on('round', m => {
   Game.reloading = null; Game.firing = false; Game.scoped = false; Game.nade = null; Game.sprayN = 0; Game.punch.yaw = Game.punch.pitch = 0; endFlash();
   hideActBar(); BuyMenu.build();
   Renderer.onRoundStart();
+  // v22: kampstart => intro-cutscene (holdet ankommer); serveren holder købsfasen åben imens
+  if (m.intro > 600 && Game.side) {
+    Game.introUntil = performance.now() + m.intro;
+    const mates = m.players.filter(p => p.side === Game.side).map(p => ({ id: p.id, name: p.name, cos: p.cos ? SK.sanitize(p.cos) : null, me: p.id === Game.meId }));
+    const I = Renderer.intro(), go = () => {
+      const left = Game.introUntil - performance.now();
+      if (!Renderer.mapReady()) { if (left > 3500) setTimeout(go, 250); return; }       // banen bygges stadig: vent (eller spring introen over)
+      if (left > 3000 && I && !I.active) I.play({ side: Game.side, mates }, left);
+    };
+    if (I) I.preload().then(go);
+  }
 });
+/* v22: titelkort under intro-cutscenen (forsidens stil) */
+const IntroCard = {
+  show() {
+    const el = $('introCard'), swat = Game.side !== 'hij', map = 'de_' + (W && W.id ? W.id : '');
+    el.className = 'intro-card ' + (swat ? 'swat' : 'hij');
+    el.innerHTML = `<div class="ic-k"><b>${swat ? 'SWAT' : 'HIJACKERS'}</b><span>${escapeHtml(map)}</span></div>
+      <div class="ic-t">${(swat ? 'INDSATSEN BEGYNDER' : 'VI ER PÅ PLADS').split('').map((c, i) => `<span style="--i:${i}">${c === ' ' ? '&nbsp;' : c}</span>`).join('')}</div>
+      <div class="ic-s">${swat ? 'Forsvar bombepladserne · desarmér hvis den bliver plantet' : 'Plant bomben på A eller B · eliminér SWAT'}</div>`;
+    $('introBars').classList.remove('hidden'); el.classList.remove('hidden');
+  },
+  hide() { $('introCard').classList.add('hidden'); $('introBars').classList.add('hidden'); }
+};
 /* v20: sejrs-sekvens når kampen er vundet (victory.js) */
 const Victory = createVictory({ Audio, $, esc: escapeHtml, onHide: () => { document.body.classList.remove('cine'); try { Renderer.setCine(false); } catch (e) {} } });
 function startVictory(m) {
@@ -593,6 +618,7 @@ function startVictory(m) {
 let audioReady = false;
 Audio.loaded.then(() => { audioReady = true; tryLoadAck(); });
 setTimeout(() => { audioReady = true; tryLoadAck(); }, 20000);           // lyd må aldrig blokere spillet helt
+let introWaitOver = false; Net.on('load', () => { introWaitOver = false; setTimeout(() => { introWaitOver = true; tryLoadAck(); }, 15000); });   // v22: introens filer må højst forsinke 15 s
 Net.on('load', m => {
   hideVeto(); if (Victory.active) Victory.hide();
   if (m.map) setMap(m.map);
@@ -621,14 +647,14 @@ function showLoadWait() {
 }
 function tryLoadAck() {
   if (Game.phase !== 'loading' || Game.loadAcked) return;
-  if (!inited3d || !Renderer.mapReady() || !Renderer.cosReady() || !audioReady) { showLoadWait(); return; }
+  if (!inited3d || !Renderer.mapReady() || !Renderer.cosReady() || !audioReady || !(Renderer.introReady() || introWaitOver)) { showLoadWait(); return; }
   Game.loadAcked = true; Net.send({ t: 'loaded' }); showLoadWait();
 }
 Net.on('tp', m => {
   if (m.id < Game.corrId) return;
   Game.corrId = m.id;
   Game.body.onLadder = false; Game.body.x = m.x; Game.body.y = m.y; Game.body.z = m.z; Game.body.vx = 0; Game.body.vy = 0; Game.body.vz = 0; Game.body.ground = true;
-  Game.yaw = m.yaw; Game.pitch = 0;
+  Game.yaw = m.yaw; Game.pitch = 0; Game.spawnYaw = m.yaw; Game.corrIdAt = performance.now();
 });
 Net.on('self', m => {
   const prev = Game.self;
@@ -902,7 +928,7 @@ function bombCam() {
 function applyMouse(dt) {
   if (!MouseIn.x && !MouseIn.y) return;
   const bc = bombCam();
-  if (!(Game.self.alive || Game.phase === 'buy' || bc)) { MouseIn.x = MouseIn.y = 0; return; }   // død: kameraet følger holdkammeraten
+  if (!(Game.self.alive || Game.phase === 'buy' || bc) || Game.intro) { MouseIn.x = MouseIn.y = 0; return; }   // død: kameraet følger holdkammeraten; v22: ikke under introen
   const tau = (Settings.get().smooth || 0) / 1000, k = tau > 0 ? 1 - Math.exp(-dt / tau) : 1;
   let dx = MouseIn.x * k, dy = MouseIn.y * k;
   if (Math.abs(MouseIn.x - dx) < 0.02 && Math.abs(MouseIn.y - dy) < 0.02) { dx = MouseIn.x; dy = MouseIn.y; }
@@ -1035,7 +1061,7 @@ const BuyMenu = {
   },
   inZone() { const b = Game.body; return (W.spawns[Game.side] || []).some(sp => Math.hypot(b.x - sp.x, b.z - sp.z) < 14 && Math.abs(b.y - sp.y) < 3); },
   left() { return Math.max(0, (Game.buyEnd || 0) - performance.now()); },
-  canBuy() { return Game.state === 'game' && Game.self.alive && !!Game.side && this.left() > 0 && (Game.phase === 'buy' || (Game.phase === 'live' && this.inZone())); },
+  canBuy() { return !Game.intro && Game.state === 'game' && Game.self.alive && !!Game.side && this.left() > 0 && (Game.phase === 'buy' || (Game.phase === 'live' && this.inZone())); },
   build() { this._sig = ''; if (this.open) this.render(); },
   toggle() { if (this.open) this.hide(); else this.show(); },
   show() {
@@ -1094,14 +1120,20 @@ const BuyMenu = {
     if (w.kind === 'nade' && !WD.canTakeNade(inv, id)) return (inv[id] || 0) > 0 ? (this.sellable(id) ? 'sell' : 'owned') : 'full';
     return money < w.price ? 'poor' : 'ok';
   },
+  patchIcons() {                                               // v22: udfyld manglende våbenikoner på stedet
+    const team = Game.side === 'hij' ? 'hij' : 'swat'; let pending = 0;
+    for (const im of $('bwSvg').querySelectorAll('image.bw-ic')) { if (im.getAttribute('href')) continue; const ic = Renderer.gunIcon(im.dataset.ic, team); if (ic) { im.setAttribute('href', ic); im.classList.add('pop'); } else if (ic === null) pending++; }
+    if (pending) setTimeout(() => { this._iconTick = (this._iconTick || 0) + 1; if (this.open) this.render(); }, 400);
+  },
   // v14: info-kort i sidepanelet (det våben/den kategori musen peger på)
   renderInfo() {
     const el = $('bwInfo'); if (!el) return;
     const team = Game.side === 'hij' ? 'hij' : 'swat', cats = this.cats(), c = cats.find(q => q.id === this.hover);
     let id = this.hover && WEAPONS[this.hover] ? this.hover : null;
     if (!id && !c) { el.innerHTML = `<div class="bwi-empty">Peg på ${this.cat ? 'et våben' : 'en kategori'} for at se detaljer</div>`; return; }
-    if (c) { el.innerHTML = `<div class="bwi-head"><b>${c.name}</b><span>${c.items.length} valg</span></div><div class="bwi-list">${c.items.map(i => `<span>${WEAPONS[i].name}<em>$${WEAPONS[i].price}</em></span>`).join('')}</div>`; return; }
+    if (c) { el.classList.remove('swap'); void el.offsetWidth; el.classList.add('swap'); el.innerHTML = `<div class="bwi-head"><b>${c.name}</b><span>${c.items.length} valg</span></div><div class="bwi-list">${c.items.map(i => `<span>${WEAPONS[i].name}<em>$${WEAPONS[i].price}</em></span>`).join('')}</div>`; return; }
     const w = WEAPONS[id], st = this.stats(id), ic = Renderer.gunIcon(id, team), kb = WD.killReward(id), sp = Math.round(WD.speedOf(id) * 250);
+    el.classList.remove('swap'); void el.offsetWidth; el.classList.add('swap');   // v22: våbenskift i info-kortet animeres (glider ind, bjælker fyldes)
     el.innerHTML = `<div class="bwi-head"><b>${w.name}</b><span class="${(Game.self.money || 0) >= w.price ? 'ok' : 'no'}">$${w.price}</span></div>
       ${ic ? `<img class="bwi-img" src="${ic}" alt="">` : ''}
       ${st ? `<div class="bwi-stats">${st.map(([n, v]) => `<div><em>${n}</em><i style="--v:${(v * 100).toFixed(0)}%"></i></div>`).join('')}</div>` : `<div class="bwi-desc">${this.nadeDesc(id)}</div>`}
@@ -1116,11 +1148,13 @@ const BuyMenu = {
   render() {
     if (!this.open) return;
     const cats = this.cats(), team = Game.side === 'hij' ? 'hij' : 'swat', items = this.cat ? cats.find(c => c.id === this.cat).items : null;
-    const sig = [this.cat, this.mode, Game.side, Game.self.money, JSON.stringify(Game.self.inv), (Game.self.bought || []).join(), JSON.stringify(this.reqs), this._iconTick || 0].join('|');
+    const sig = [this.cat, this.mode, Game.side, Game.self.money, JSON.stringify(Game.self.inv), (Game.self.bought || []).join(), JSON.stringify(this.reqs)].join('|');
+    if (sig === this._sig && this._iconTick !== this._iconDone) { this._iconDone = this._iconTick; this.patchIcons(); }   // v22: kun nye ikoner – sæt dem ind uden at genopbygge hjulet (det gav et 'blink' midt i ind-animationen)
     if (sig !== this._sig) {
-      this._sig = sig;
-      const ak = this.cat + '|' + this.mode;                     // v21: sektorerne flyver ind ved åbning og kategoriskift (ikke ved hver pengeændring)
-      if (ak !== this._animKey) { this._animKey = ak; const sv = $('bwSvg'); sv.classList.remove('bw-enter'); void sv.getBoundingClientRect(); sv.classList.add('bw-enter'); clearTimeout(this._animT); this._animT = setTimeout(() => sv.classList.remove('bw-enter'), 900); }
+      this._sig = sig; this._iconDone = this._iconTick;
+      const ak = this.cat + '|' + this.mode, sv = $('bwSvg');                     // v21: sektorerne flyver ind ved åbning og kategoriskift (ikke ved hver pengeændring)
+      if (ak !== this._animKey) { this._animKey = ak; sv.classList.remove('bw-enter'); void sv.getBoundingClientRect(); sv.classList.add('bw-enter'); clearTimeout(this._animT); this._animT = setTimeout(() => sv.classList.remove('bw-enter'), 900); }
+      else sv.classList.remove('bw-enter');                                       // v22: genopbygning uden kategoriskift må aldrig afspille ind-animationen igen
       // v14: hjulet – sektorer med glas-gradient, lysende kant, 3D-renderet våben, navn og pris; hover skubber sektoren ud
       const list = items || cats, N = list.length, R0 = 80, R1 = 226, gap = 0.028, money = Game.self.money || 0;
       const P = (r, a) => (r * Math.cos(a)).toFixed(2) + ' ' + (r * Math.sin(a)).toFixed(2);
@@ -1135,7 +1169,7 @@ const BuyMenu = {
         const d = `M ${P(R0, a0)} L ${P(R1, a0)} A ${R1} ${R1} 0 ${big} 1 ${P(R1, a1)} L ${P(R0, a1)} A ${R0} ${R0} 0 ${big} 0 ${P(R0, a0)} Z`;
         const cx = Math.cos(am) * 152, cy = Math.sin(am) * 152, dx = (Math.cos(am) * 7).toFixed(1), dy = (Math.sin(am) * 7).toFixed(1);
         const id = items ? it : it.items[Math.min(it.items.length - 1, it.id === 'nades' ? 2 : it.id === 'rifles' ? 1 : 0)], ic = Renderer.gunIcon(id, team); if (ic === null) pending++;
-        const img = ic ? `<image href="${ic}" x="${(cx - 62).toFixed(1)}" y="${(cy - 44).toFixed(1)}" width="124" height="52" preserveAspectRatio="xMidYMid meet"/>` : '';
+        const img = `<image class="bw-ic" data-ic="${id}" ${ic ? `href="${ic}"` : ''} x="${(cx - 62).toFixed(1)}" y="${(cy - 44).toFixed(1)}" width="124" height="52" preserveAspectRatio="xMidYMid meet"/>`;
         if (!items) {
           html += `<g class="bw-sec cat" data-id="${it.id}" style="--dx:${dx}px;--dy:${dy}px;--i:${i};--ax:${(Math.cos(am) * 60).toFixed(0)}px;--ay:${(Math.sin(am) * 60).toFixed(0)}px"><path class="bw-p" d="${d}"/>${img}
             <text x="${cx}" y="${cy - 52}" class="bw-key">${i + 1}</text><text x="${cx}" y="${cy + 24}" class="bw-name">${it.name}</text>
@@ -1305,6 +1339,8 @@ const MvpStage = (() => {
     stop() { if (st) st.stop(); clearTimeout(run); }
   };
 })();
+// v22: MVP-filmen i fuld skærm (mvpcine.js); spillets eget billede sættes på pause imens
+const MvpCine = createMvpCine({ THREE, WD, chars: () => Renderer.chars(), Audio, createAgentStage, $, onStop: () => { Game.cineFull = false; document.body.classList.remove('mvpcine'); } });
 const HUD = {
   updateSelf() {
     const s = Game.self;
@@ -1407,8 +1443,16 @@ const HUD = {
       ${m.mvp ? `<div class="rx-mvp"><div class="rx-mvp-h"><span>★ RUNDENS MVP</span><b>${escapeHtml(m.mvp.name)}${m.mvp.id === Game.meId ? ' (DIG)' : ''}</b></div>
         <div class="rx-stage" id="rxStage"><div class="rx-bull">BULLSEYE</div></div><div class="rx-why">${why}</div></div>` : ''}
     </div>`;
-    if (m.mvp) MvpStage.play($('rxStage'), m.win, mvpP && mvpP.cos ? mvpP.cos.agent : null);
-    el.classList.remove('hidden');
+    // v22: med en MVP afspilles filmen i fuld skærm – rundens info (titel, stilling, penge, nedtælling) ligger som et bånd øverst i filmen
+    let film = false;
+    if (m.mvp) {
+      const ag = mvpP && mvpP.cos ? mvpP.cos.agent : null, stats = [m.mvp.k ? ['DRAB', m.mvp.k] : null, m.mvp.dmg ? ['SKADE', m.mvp.dmg] : null, ['RUNDE', Game.round], ['STILLING', m.score[0] + '–' + m.score[1]]].filter(Boolean);
+      const top = `<span class="mt-r">RUNDE ${Game.round}</span><span class="mt-w ${swat ? 's' : 'h'}">${won ? 'RUNDE VUNDET' : 'RUNDE TABT'} · ${team}</span><span class="mt-c">${cond}</span><span class="re-pay mt-p" id="rePay"></span><span class="mt-n">NÆSTE RUNDE <b id="reCount">5</b><i><em id="reBar"></em></i></span>`;
+      film = MvpCine.play({ side: m.win, agent: ag ? ag[m.win] : null, skins: mvpP && mvpP.cos ? mvpP.cos.skins : null, name: m.mvp.name, me: m.mvp.id === Game.meId, top,
+        stats: `<div class="ms-why">${why}</div>` + stats.map(([k, v]) => `<div><em>${k}</em><b>${v}</b></div>`).join('') });
+      if (film) { Game.cineFull = true; document.body.classList.add('mvpcine'); el.innerHTML = ''; el.className = 'hidden'; }
+    }
+    if (!film) el.classList.remove('hidden');
     Game.endInfo = { t0: performance.now(), ms: m.ms || 5000 };
     Game.endT = performance.now(); Game.firing = false;
     hideActBar(); this.fillEndPay(); $('deadOverlay').classList.add('hidden');
@@ -1420,7 +1464,7 @@ const HUD = {
     const el = $('rePay'), p = Game.endPay; if (!el || !p || !Game.endInfo || performance.now() - Game.endInfo.t0 > 6000) return;
     el.innerHTML = p.amt ? `<b>+$${p.amt}</b> ${p.why === 'win' ? 'sejrsbonus' : p.why === 'lossplant' ? 'tabsbonus + plant-bonus' : p.why === 'saved' ? '' : 'tabsbonus (serie ' + (p.streak || 1) + ')'}` : 'ingen tabsbonus (overlevede ved udløbet tid)';
   },
-  hideRoundEnd() { $('roundEnd').classList.add('hidden'); Game.endInfo = null; Game.endPay = null; MvpStage.stop(); },
+  hideRoundEnd() { $('roundEnd').classList.add('hidden'); Game.endInfo = null; Game.endPay = null; MvpStage.stop(); MvpCine.stop(); },
   tickRoundEnd() {
     const E = Game.endInfo; if (!E) return;
     const left = Math.max(0, E.ms - (performance.now() - E.t0));
@@ -1516,7 +1560,7 @@ $('nameInput').focus();
    ========================================================================== */
 const Renderer = (() => {
   let renderer, scene, camera, clock, pmrem = null, post = null, fxs = null;
-  let V = null, Chars = null, Weap = null;
+  let V = null, Chars = null, Weap = null, Intro = null, introLoaded = false;
   let sky = null, hemi, amb, sun, sunFar, worldGroup, decorGroup, doors = null, fxObj = null, mapObjs = [], envTex = null;
   const remoteModels = new Map();  // id -> render-state
   const tracers = [], flashes = [], tracerPool = [];
@@ -1760,6 +1804,14 @@ const Renderer = (() => {
     Chars = createCharacters(THREE, WD, { canvasTexture, derivePBR, dynMat: mkDyn, weaponModel: (id, m, team, skin) => Weap.worldModel(id, m, team, skin),
       agentTemplate: (side, key) => { const a = SK.agentOf(key || SK.defaultAgent(side), side), tpl = COS.chars[a.agent.model]; return tpl ? { tpl, variant: a.variant, key: a.key } : COS.ready ? null : { pending: true }; },
       cloneSkinned: r => cloneSkinned(THREE, r), recolor: (root, v) => SK.recolorAgent(THREE, root, v, mkDyn) });
+    // v22: intro-cutscenen (køretøj + holdet ankommer) – kører i selve banen med rendererens kamera
+    Intro = createIntro({ THREE, WD, scene: () => scene, camera: () => camera, W: () => W, chars: () => Chars, V: () => V, loadGLB, Audio, $,
+      myPos: () => Game.corrIdAt ? { x: Game.body.x, y: Game.body.y, z: Game.body.z, yaw: Game.spawnYaw !== undefined ? Game.spawnYaw : Game.yaw } : null,
+      keepMs: () => Game.phase === 'buy' ? Game.phaseEnd - performance.now() : 0,
+      matePos: id => { const r = Game.remotes.get(id); return r ? { x: r.rx, y: r.ry, z: r.rz, yaw: r.yaw } : null; },
+      onStart: () => { document.body.classList.add('intro'); Game.intro = true; BuyMenu.hide(); IntroCard.show(); },
+      onEnd: () => { document.body.classList.remove('intro'); Game.intro = false; IntroCard.hide(); if (Game.spawnYaw !== undefined) { Game.yaw = Game.spawnYaw; Game.pitch = 0; } MouseIn.x = MouseIn.y = 0; } });
+    Intro.preload().then(() => { introLoaded = true; tryLoadAck(); });
     Weap = createWeapons(THREE, WD, { canvasTexture, derivePBR, dynMat: mkDyn, withBake: (m, d) => V ? V.withBake(m, d) : m,
       gunTemplate: (id, team) => { const f = SK.GUN_FILE[id], n = f && typeof f === 'object' ? f[team === 'hij' ? 'hij' : 'swat'] : f; return n ? COS.guns[n] || null : null; },
       skinGun: (g, skinId, team, mk) => SK.skinGun(THREE, g, skinId, team, mk), knifeTemplate: m => COS.knives[m] || null });
@@ -1775,7 +1827,7 @@ const Renderer = (() => {
     const nades = new Set(['he_east', 'he_west', 'smoke_east', 'smoke_west', 'flash', 'incgren', 'molotov']);
     await Promise.all([
       ...charFiles.map(async f => { try {
-        const { scene } = await retryLoad(() => loadGLB(THREE, '/assets/chars/' + f + '.glb?v20')); scene.updateMatrixWorld(true);
+        const { scene } = await retryLoad(() => loadGLB(THREE, '/assets/chars/' + f + '.glb?v22')); scene.updateMatrixWorld(true);
         let head = null; scene.traverse(o => { if (o.isBone && (o.name === 'Head' || o.name === 'head')) head = o; });
         const hy = head ? head.getWorldPosition(new THREE.Vector3()).y : 1.6;
         COS.chars[f] = { scene, scale: 1.61 / Math.max(0.2, hy) };               // samme hovedhøjde som den procedurale figur (øjne/hitbox)
@@ -1993,7 +2045,8 @@ const Renderer = (() => {
       const pl = Game.players.get(id);
       updateLabel(r, pl ? pl.name : ('#' + id));
       r.labelOn = side === Game.side;                                  // kun holdkammeraters navne (som i CS)
-      r.group.visible = !(!Game.self.alive && Game.phase !== 'buy' && id === Game.specId);   // spectator ser gennem den observeredes øjne
+      r.group.visible = !(!Game.self.alive && Game.phase !== 'buy' && id === Game.specId) && !(Intro && Intro.active);   // spectator ser gennem den observeredes øjne; v22: skjult under introen
+      if (Intro && Intro.active) r.labelOn = false;
       Game.remotes.set(id, { rx, ry, rz, alive, yaw: ryaw, pitch: rpitch, crouch: !!(flags & 2) });
     }
     for (const [id, r] of remoteModels) if (!seen.has(id)) { dropRemote(r); remoteModels.delete(id); Game.remotes.delete(id); }
@@ -2544,6 +2597,7 @@ const Renderer = (() => {
         const c = cineCam, tt = performance.now() / 1000 - c.t0, a = c.a0 + tt * 0.055, rr = c.r * (1.08 - Math.min(1, tt / 30) * 0.12);
         camera.position.set(c.cx + Math.cos(a) * rr, c.y + 2 * Math.sin(tt * 0.3), c.cz + Math.sin(a) * rr); camera.lookAt(c.cx, c.ly, c.cz); vmOn = false;
       }
+      if (Intro && Intro.active && Intro.update(dt)) vmOn = false;                 // v22: intro-cutscenen styrer kameraet
       if (devCam) { camera.position.set(devCam[0], devCam[1], devCam[2]); camera.rotation.set(devCam[4] || 0, devCam[3] || 0, 0); vmOn = false; }
       sky.position.copy(camera.position);
       V.update(dt, performance.now() / 1000, camera.position, decorGroup); fxObj.update(dt, performance.now() / 1000, camera.position);
@@ -2551,6 +2605,7 @@ const Renderer = (() => {
       fxs.update(dt, camera.position);
       if (++shadowTick >= gfx.every) { shadowTick = 0; followShadow(); sun.shadow.needsUpdate = true; }   // skyggekort + placering opdateres sammen
     }
+    if (Game.cineFull) return;                                        // v22: MVP-filmen dækker skærmen – spar GPU'en
     // HDR-pipeline (SSAO + bloom + FXAA + ACES) – eller direkte til skærmen hvis post-processing ikke understøttes
     if (!(post && post.render(scene, camera, vmScene, vmCam, vmOn))) {
       renderer.render(scene, camera);
@@ -2591,9 +2646,9 @@ const Renderer = (() => {
         h.traverse(n => { if (n.isMesh && n.geometry && !n.geometry.userData.shared) { /* geometri deles med modellerne – frigives ikke */ } });
       }
     } catch (e) { console.warn('[ikon]', e); iconQ = []; }
-    if (iconQ.length) setTimeout(drainIcons, 16); else { iconBusy = false; if (BuyMenu.open) { BuyMenu._sig = ''; BuyMenu.render(); } }
+    if (iconQ.length) setTimeout(drainIcons, 16); else { iconBusy = false; if (BuyMenu.open) { BuyMenu._iconTick = (BuyMenu._iconTick || 0) + 1; BuyMenu.render(); } }
   }
-  const api = { setQuality, gunIcon, get gfx() { return gfxName; }, get pr() { return prCur; }, get perf() { return perf; }, chars: () => (ensureChars(), Chars), weap: () => (ensureChars(), Weap), onCosmetics, mapReady: () => !loading && mapId === W.id, cosReady: () => COS.ready, setCine, init, loadMap, flinchAim, onRoundStart, onShotFx, inspect, onRemoteMelee, onMeleeWall, onPlant, onExplode, onBoom, onSmokePop, onFlashPop, onFirePop, onFireOut, onRemoteThrow, onThrowLocal, onPinPull, onWeaponChange, mouseDelta, shake, skinName, get mapId() { return mapId; } };
+  const api = { intro: () => (ensureChars(), Intro), introReady: () => introLoaded, setQuality, gunIcon, get gfx() { return gfxName; }, get pr() { return prCur; }, get perf() { return perf; }, chars: () => (ensureChars(), Chars), weap: () => (ensureChars(), Weap), onCosmetics, mapReady: () => !loading && mapId === W.id, cosReady: () => COS.ready, setCine, init, loadMap, flinchAim, onRoundStart, onShotFx, inspect, onRemoteMelee, onMeleeWall, onPlant, onExplode, onBoom, onSmokePop, onFlashPop, onFirePop, onFireOut, onRemoteThrow, onThrowLocal, onPinPull, onWeaponChange, mouseDelta, shake, skinName, get mapId() { return mapId; } };
   if (DEV) {   // v14: kontaktark over førstepersonsvåben (kun dev) – hvert våben renderes alene på neutral baggrund
     const sideCam = new THREE.PerspectiveCamera(30, 1.6, 0.01, 10);
     api.vmSheet = (ids, cols, tw, th, side) => {
@@ -2741,7 +2796,7 @@ async function runTour(id, only) {
   const params = new URLSearchParams(location.search);
   const joinCode = params.get('join');
   if (joinCode && /^\d{4}$/.test(joinCode)) { $('codeInput').value = joinCode; $('joinRow').classList.remove('hidden'); }
-  if (DEV) window.__wd = { victory: m => startVictory(m), hudRE: m => HUD.roundEnd(m), Game, Renderer, Net, BuyMenu, get W() { return W; }, WD, THREE, KEY, Settings, act: { nadeStart, nadeRelease, fireStart, fireEnd, switchWeapon, startFlash, startReloadLocal }, tour: runTour };
+  if (DEV) window.__wd = { victory: m => startVictory(m), hudRE: m => HUD.roundEnd(m), introPlay: (ms) => { const I = Renderer.intro(); return I.preload().then(() => I.play({ side: Game.side, mates: [...Game.players.entries()].filter(([, p]) => p.side === Game.side).map(([id, p]) => ({ id, cos: p.cos, me: id === Game.meId })) }, ms || 13000)); }, Game, Renderer, Net, BuyMenu, get W() { return W; }, WD, THREE, KEY, Settings, act: { nadeStart, nadeRelease, fireStart, fireEnd, switchWeapon, startFlash, startReloadLocal }, tour: runTour };
   if (DEV && params.get('tour')) { runTour(params.get('tour')); return; }
 
   const sess = loadSession();

@@ -1165,3 +1165,106 @@ body.cine #clickToPlay { display: none !important; }
 .mfx-boot i { animation-delay: 1.05s; }
 .mfx-boot { animation-delay: 1.5s; }
 #scr-menu .menu-actions .btn { font-size: 12px; letter-spacing: .02em; }
+
+/* ==========================================================================
+   v22: KØBSMENU – genveje som kort i venstre side (før en linje i bunden) + animation ved våbenskift i info-kortet
+   ========================================================================== */
+.bw2-keys { width: 190px; align-self: center; display: flex; flex-direction: column; gap: 8px; }
+.bw2-keys h4 { margin: 0 0 4px; font: 700 10px 'JetBrains Mono', monospace; letter-spacing: .16em; color: #555; border-bottom: 2px solid var(--ink); padding-bottom: 4px; animation: bwKey .45s cubic-bezier(.2,1.3,.35,1) backwards; }
+.bwk { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--paper); border: 2.5px solid var(--ink); box-shadow: 5px 5px 0 var(--ink);
+  animation: bwKey .5s cubic-bezier(.2,1.4,.35,1) backwards; transition: transform .12s cubic-bezier(.2,1.6,.4,1), box-shadow .12s, background .12s; }
+.bwk:nth-of-type(1) { animation-delay: .06s; } .bwk:nth-of-type(2) { animation-delay: .12s; } .bwk:nth-of-type(3) { animation-delay: .18s; }
+.bwk:nth-of-type(4) { animation-delay: .24s; } .bwk:nth-of-type(5) { animation-delay: .3s; } .bwk:nth-of-type(6) { animation-delay: .36s; }
+.bwk:hover { transform: translate(-2px, -2px); box-shadow: 7px 7px 0 var(--tc); }
+.bwk span { display: flex; gap: 3px; min-width: 52px; }
+.bwk kbd { min-width: 22px; height: 22px; padding: 0 5px; display: inline-flex; align-items: center; justify-content: center; font: 700 11px 'JetBrains Mono', monospace; background: var(--ink) !important; color: var(--paper) !important; border: 0 !important; box-shadow: 2px 2px 0 var(--tc); }
+.bwk b { font: 900 11.5px 'Archivo Black', sans-serif; letter-spacing: .04em; }
+@keyframes bwKey { 0% { opacity: 0; transform: translateX(-90px) skewX(10deg); } 100% { opacity: 1; transform: none; } }
+.bw2-hint { display: none !important; }
+@media (max-width: 1100px) { .bw2-keys { display: none; } }
+/* info-kortet: nyt våben glider ind med blæk-streg, statistik-bjælker fyldes igen */
+.bw2-info.swap .bwi-head { animation: bwiHead .32s cubic-bezier(.2,1.4,.35,1); }
+.bw2-info.swap .bwi-img { animation: bwiGun .42s cubic-bezier(.15,1.25,.3,1); }
+.bw2-info.swap .bwi-stats i::after { animation: bwBar .55s .1s cubic-bezier(.2,1,.3,1) backwards; }
+.bw2-info.swap .bwi-meta, .bw2-info.swap .bwi-list, .bw2-info.swap .bwi-desc { animation: bwiFade .35s .08s ease-out backwards; }
+.bw2-info { position: relative; overflow: hidden; }
+.bw2-info.swap::before { content: ''; position: absolute; inset: 0; background: var(--tc); transform-origin: left; animation: bwiWipe .34s cubic-bezier(.6,0,.3,1) forwards; pointer-events: none; z-index: 2; }
+@keyframes bwiWipe { 0% { transform: scaleX(0); } 45% { transform: scaleX(1); transform-origin: left; } 46% { transform-origin: right; } 100% { transform: scaleX(0); transform-origin: right; } }
+@keyframes bwiHead { 0% { opacity: 0; transform: translateY(-8px); letter-spacing: .3em; } 100% { opacity: 1; transform: none; } }
+@keyframes bwiGun { 0% { opacity: 0; transform: translateX(-60px) rotate(-8deg) scale(.85); filter: blur(4px) drop-shadow(3px 3px 0 rgba(10,10,10,.25)); } 60% { transform: translateX(6px) rotate(1.5deg) scale(1.04); filter: blur(0) drop-shadow(3px 3px 0 rgba(10,10,10,.25)); } 100% { opacity: 1; transform: none; } }
+@keyframes bwiFade { 0% { opacity: 0; transform: translateY(6px); } 100% { opacity: 1; transform: none; } }
+/* ikoner der bliver færdige efter åbning: popper ind på stedet i stedet for at hele hjulet genopbygges */
+.bw2-svg image.pop { animation: bwIcPop .35s cubic-bezier(.2,1.6,.4,1); transform-box: fill-box; transform-origin: center; }
+@keyframes bwIcPop { 0% { opacity: 0; transform: scale(.6); } 100% { opacity: 1; transform: none; } }
+
+/* ==========================================================================
+   v22: INTRO-CUTSCENE – biograf-bjælker (trækkes væk når kameraet flyver ind i øjnene) + titelkort i forsidens stil
+   ========================================================================== */
+body.intro #hud, body.intro #buyHint, body.intro #nameTags, body.intro #crosshair, body.intro #crosshairHit { opacity: 0 !important; pointer-events: none; transition: opacity .4s; }
+body.intro #clickToPlay { display: none !important; }
+.intro-bars { position: fixed; inset: 0; pointer-events: none; z-index: 30; --bar: 11vh; }
+.intro-bars i { position: absolute; left: 0; right: 0; height: var(--bar); background: #050505; animation: ibIn .7s cubic-bezier(.2,1,.3,1) backwards; }
+.intro-bars i:first-child { top: 0; } .intro-bars i:last-child { bottom: 0; }
+@keyframes ibIn { from { height: 0; } }
+.intro-card { position: fixed; left: 5vw; bottom: calc(11vh + 26px); z-index: 31; pointer-events: none; color: #f4f4f2; --tc: var(--blue); animation: icIn .6s .6s cubic-bezier(.2,1.3,.35,1) backwards; }
+.intro-card.hij { --tc: var(--red); }
+.ic-k { display: flex; align-items: center; gap: 10px; font: 700 12px 'JetBrains Mono', monospace; letter-spacing: .2em; }
+.ic-k b { background: var(--tc); color: #fff; padding: 4px 9px; font-family: 'Archivo Black', sans-serif; letter-spacing: .06em; box-shadow: 4px 4px 0 #050505; }
+.ic-k span { opacity: .8; }
+.ic-t { margin-top: 10px; font: 900 clamp(34px, 5.2vw, 78px)/0.95 'Archivo Black', sans-serif; letter-spacing: -.01em; text-shadow: 5px 5px 0 var(--tc); }
+.ic-t span { display: inline-block; animation: icL .5s cubic-bezier(.2,1.6,.35,1) backwards; animation-delay: calc(.9s + var(--i) * 45ms); }
+.ic-s { margin-top: 12px; font: 600 13px 'JetBrains Mono', monospace; letter-spacing: .06em; opacity: .85; animation: icIn .5s 1.8s ease-out backwards; }
+@keyframes icIn { from { opacity: 0; transform: translateX(-60px) skewX(10deg); } }
+@keyframes icL { 0% { opacity: 0; transform: translateY(40px) rotate(8deg) scale(.6); } 100% { opacity: 1; transform: none; } }
+.intro-card.hidden, .intro-bars.hidden { display: none; }
+
+/* ==========================================================================
+   v22: MVP-FILMEN i fuld skærm – bjælker, korn, vignet, hvide klip-blink, MVP-mærke, navnekort og statistik (forsidens stil)
+   ========================================================================== */
+.mc { position: fixed; inset: 0; z-index: 40; background: #e9e6e0; overflow: hidden; --tc: var(--blue); pointer-events: none; color: #0a0a0a; }
+.mc.hidden { display: none; }
+.mc.hij { --tc: var(--red); }
+body.mvpcine #hud, body.mvpcine #nameTags, body.mvpcine #clickToPlay, body.mvpcine #crosshair { opacity: 0 !important; }
+.mc-cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.mc-grain { position: absolute; inset: -50%; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .55 0'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>"); opacity: .16; mix-blend-mode: multiply; animation: mcGrain .45s steps(4) infinite; }
+@keyframes mcGrain { 0% { transform: translate(0, 0); } 25% { transform: translate(-3%, 2%); } 50% { transform: translate(2%, -3%); } 75% { transform: translate(-1%, -1%); } }
+.mc-vig { position: absolute; inset: 0; background: radial-gradient(ellipse at center, transparent 55%, rgba(10,10,10,.35) 100%); }
+.mc-bars i { position: absolute; left: 0; right: 0; height: 10.5vh; background: #050505; animation: ibIn .8s cubic-bezier(.2,1,.3,1) backwards; }
+.mc-bars i:first-child { top: 0; } .mc-bars i:last-child { bottom: 0; }
+.mc-flash { position: absolute; inset: 0; background: #fff; opacity: 0; }
+.mc-flash.go { animation: mcFlash .45s ease-out; }
+@keyframes mcFlash { 0% { opacity: var(--k, .5); } 100% { opacity: 0; } }
+/* rundens info: bånd i den øverste bjælke */
+.mc-top { position: absolute; left: 0; right: 0; top: 0; height: 10.5vh; display: flex; align-items: center; gap: 22px; padding: 0 4vw; color: #f4f4f2; font: 700 12px 'JetBrains Mono', monospace; letter-spacing: .12em; z-index: 2; animation: icIn .5s .3s ease-out backwards; }
+.mc-top .mt-r { opacity: .7; }
+.mc-top .mt-w { font: 900 15px 'Archivo Black', sans-serif; letter-spacing: .04em; padding: 5px 10px; background: var(--tc); box-shadow: 3px 3px 0 #000; }
+.mc-top .mt-c { opacity: .8; }
+.mc-top .mt-p b { color: #6ee7a0; }
+.mc-top .mt-n { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.mc-top .mt-n b { font: 900 18px 'Archivo Black', sans-serif; }
+.mc-top .mt-n i { width: 90px; height: 4px; background: rgba(255,255,255,.2); display: block; } .mc-top .mt-n em { display: block; height: 100%; background: var(--tc); }
+/* MVP-mærke */
+.mc-tag { position: absolute; right: 5vw; top: calc(10.5vh + 28px); display: flex; align-items: center; gap: 10px; opacity: 0; transform: translateX(80px) skewX(-12deg); transition: all .5s cubic-bezier(.2,1.4,.35,1); }
+.mc-tag b { width: 46px; height: 46px; display: grid; place-items: center; background: var(--tc); color: #fff; font-size: 24px; box-shadow: 4px 4px 0 #0a0a0a; }
+.mc-tag span { font: 900 22px 'Archivo Black', sans-serif; letter-spacing: .05em; background: #0a0a0a; color: #f4f4f2; padding: 8px 14px; box-shadow: 5px 5px 0 var(--tc); }
+.mc.tag .mc-tag { opacity: 1; transform: none; }
+/* BULLSEYE */
+.mc-bull { position: absolute; left: 50%; top: 42%; font: 900 clamp(60px, 11vw, 170px)/1 'Archivo Black', sans-serif; color: var(--red); -webkit-text-stroke: 4px #0a0a0a; transform: translate(-50%, -50%) scale(.3) rotate(-8deg); opacity: 0; }
+.mc.bull .mc-bull { animation: mcBull 1.6s cubic-bezier(.2,1.7,.35,1) forwards; }
+@keyframes mcBull { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.3) rotate(-14deg); } 18% { opacity: 1; transform: translate(-50%, -50%) scale(1.08) rotate(-6deg); } 70% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(-6deg); } 100% { opacity: 0; transform: translate(-50%, -60%) scale(1.15) rotate(-6deg); } }
+/* navnekort */
+.mc-name { position: absolute; left: 5vw; bottom: calc(10.5vh + 30px); opacity: 0; }
+.mc-name small { display: inline-block; font: 700 13px 'JetBrains Mono', monospace; letter-spacing: .24em; background: var(--tc); color: #fff; padding: 4px 9px; margin-bottom: 8px; box-shadow: 3px 3px 0 #0a0a0a; }
+.mc-name b { display: block; font: 900 clamp(48px, 8.4vw, 132px)/0.9 'Archivo Black', sans-serif; letter-spacing: -.02em; color: #0a0a0a; text-shadow: 7px 7px 0 var(--tc); max-width: 70vw; overflow-wrap: anywhere; }
+.mc.named .mc-name { animation: mcName .7s cubic-bezier(.2,1.5,.35,1) forwards; }
+@keyframes mcName { 0% { opacity: 0; transform: translateY(60px) scale(1.6) skewX(-14deg); filter: blur(8px); } 60% { opacity: 1; filter: blur(0); } 100% { opacity: 1; transform: none; } }
+/* statistik */
+.mc-stats { position: absolute; right: 5vw; bottom: calc(10.5vh + 34px); display: flex; gap: 10px; align-items: stretch; }
+.mc-stats > div { background: #f4f4f2; border: 3px solid #0a0a0a; box-shadow: 6px 6px 0 var(--tc); padding: 10px 16px; min-width: 96px; opacity: 0; transform: translateY(40px); }
+.mc-stats em { display: block; font: 700 10px 'JetBrains Mono', monospace; letter-spacing: .18em; color: #555; font-style: normal; }
+.mc-stats b { display: block; font: 900 30px 'Archivo Black', sans-serif; }
+.mc-stats .ms-why { font: 700 13px 'JetBrains Mono', monospace; letter-spacing: .06em; display: flex; align-items: center; max-width: 260px; }
+.mc.stats .mc-stats > div { animation: mcStat .5s cubic-bezier(.2,1.5,.35,1) forwards; }
+.mc.stats .mc-stats > div:nth-child(2) { animation-delay: .08s; } .mc.stats .mc-stats > div:nth-child(3) { animation-delay: .16s; } .mc.stats .mc-stats > div:nth-child(4) { animation-delay: .24s; } .mc.stats .mc-stats > div:nth-child(5) { animation-delay: .32s; }
+@keyframes mcStat { to { opacity: 1; transform: none; } }
+@media (max-width: 900px) { .mc-top .mt-c, .mc-top .mt-r { display: none; } .mc-stats { left: 5vw; right: auto; bottom: calc(10.5vh + 150px); flex-wrap: wrap; } }

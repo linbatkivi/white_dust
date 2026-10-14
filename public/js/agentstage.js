@@ -32,7 +32,7 @@ export function createAgentStage(THREE, canvas, o) {
     const C = o.chars();
     const pose = { x: 0, y: 0, z: 0, yaw: st.yaw, pitch: 0, alive: true, grounded: true, wcode: o.weaponCode(st.gun) };
     if (st.onFrame) st.onFrame(dt, st.t, pose, st);
-    if (st.h && C) C.animateHuman(st.h, dt, st.t, pose);
+    if (st.h && C) C.animateHuman(st.h, dt * (st.ts || 1), st.t, pose);          // v22: ts = tidsskala (slowmotion i MVP-filmen)
     if (o.cam) cam.position.set(...o.cam); if (o.look) cam.lookAt(...o.look);
     if (st.afterPose) st.afterPose(dt, st.t, st);
     R.render(scene, cam);

@@ -460,7 +460,7 @@ export function createCharacters(THREE, WD, opts) {
     const fingers = { R: [], L: [] };
     for (const sd of ['R', 'L']) for (const f of ['Index', 'Middle', 'Ring', 'Pinky', 'Thumb']) for (let j = 1; j <= 3; j++) {
       const b = byName[f + j + '.' + sd] || byName[f.toLowerCase() + '_0' + j + '_' + sd.toLowerCase()];
-      if (b) fingers[sd].push({ b, rest: b.quaternion.clone(), j, thumb: f === 'Thumb', mh: !byName[f + j + '.' + sd] });
+      if (b) fingers[sd].push({ b, rest: b.quaternion.clone(), j, thumb: f === 'Thumb', mh: !byName[f + j + '.' + sd], mx: !!byName.head_end });   // v22: head_end = Mixamo-rig (CGTrader-SWAT)
     }
     // v19: LOD – meshes med '_lod1' i navnet vises på afstand (setLod)
     const lodHi = [], lodLo = [];
@@ -513,12 +513,12 @@ export function createCharacters(THREE, WD, opts) {
     const grip = h.weapon && h._alive && h.nade < 0.5 ? 1 : 0, FA = FINGER.axis;
     for (const sd of ['R', 'L']) for (const f of A.fingers[sd]) {
       const k = grip * (f.thumb ? FINGER.thumb[f.j - 1] : (sd === 'R' ? FINGER.r : FINGER.l)[f.j - 1]);
-      const ax = f.mh ? (f.thumb ? FINGER.mhThumb : FINGER.mhAxis) : FA;                // MakeHuman-rig: egne lokale akser
+      const ax = f.mx ? (f.thumb ? FINGER.mxThumb : FINGER.mxAxis) : f.mh ? (f.thumb ? FINGER.mhThumb : FINGER.mhAxis) : FA;   // MakeHuman-/Mixamo-rig: egne lokale akser
       f.b.quaternion.copy(f.rest); if (k) f.b.quaternion.multiply(_aq.setFromAxisAngle(_fa.set(ax[0], ax[1], ax[2] * (!f.mh && f.thumb ? FINGER.tz : 1)), k));
     }
   }
   const _fa = new THREE.Vector3();
-  const FINGER = { axis: [-1, 0, 0], r: [1.15, 1.25, 0.9], l: [0.85, 0.95, 0.7], thumb: [0.25, 0.35, 0.3], tz: 1, mhAxis: [1, 0, 0], mhThumb: [0, 0, 1] };
+  const FINGER = { axis: [-1, 0, 0], r: [1.15, 1.25, 0.9], l: [0.85, 0.95, 0.7], thumb: [0.25, 0.35, 0.3], tz: 1, mhAxis: [1, 0, 0], mhThumb: [0, 0, 1], mxAxis: [1, 0, 0], mxThumb: [0, 0, -1] };
   if (typeof window !== 'undefined') window.__finger = FINGER;          // dev-justering
   function setLod(h, dist) {                                                          // fjern figur (> 16 m) => LOD1 (med lidt hysterese)
     const A = h.agent; if (!A || !A.lodLo.length) return;

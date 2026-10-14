@@ -17,8 +17,8 @@ const WD = require('./shared/wd.js');
 const PORT = parseInt(process.env.PORT, 10) || 3000;
 const FAST = !!process.env.WD_FAST;   // kun til automatiske tests
 const TIMES = FAST
-  ? { buy: 2, grace: 3, round: 14, end: 1.2, plant: 0.6, defuse: 1.0, bomb: 6, over: 2, load: 5 }
-  : { buy: 12, grace: 10, round: 100, end: 5, plant: 3.2, defuse: 6, bomb: 40, over: 42, load: 90 };   // grace: købe i spawn de første 10 s · over: sejrs-sekvensen (musikken) · load: maks. ventetid på at alle har indlæst banen
+  ? { buy: 2, grace: 3, round: 14, end: 1.2, plant: 0.6, defuse: 1.0, bomb: 6, over: 2, load: 5, intro: 0, mvp: 0 }
+  : { buy: 12, grace: 10, round: 100, end: 5, plant: 3.2, defuse: 6, bomb: 40, over: 42, load: 90, intro: 13, mvp: 5 };   // v22: intro = cutscenen ved kampstart · mvp = ekstra tid til MVP-filmen   // grace: købe i spawn de første 10 s · over: sejrs-sekvensen (musikken) · load: maks. ventetid på at alle har indlæst banen
 const MAX_PLAYERS = 10, WIN_ROUNDS = 7, HALF = 6, START_MONEY = WD.ECON.start, MAX_MONEY = WD.ECON.max;
 const GRACE_GAME = 25000, GRACE_LOBBY = 8000;
 const SNAP_MS = 50;
@@ -198,6 +198,7 @@ function sendSelf(p) {
 function roundMsg(room) {
   return {
     t: 'round', map: room.map, n: room.round, ph: room.phase, ms: Math.max(0, Math.round(room.phaseEnd - now())), score: [room.score.swat, room.score.hij], half: room.swapped,
+    intro: room.introEnd ? Math.max(0, Math.round(room.introEnd - now())) : 0,
     players: [...room.players.values()].filter(p => p.side).map(p => ({ id: p.id, name: p.name, side: p.side, cos: p.cos || null }))
   };
 }
@@ -438,6 +439,9 @@ function newRound(room) {
   const t = now();
   room.round++;
   room.phase = 'buy'; room.phaseEnd = t + TIMES.buy * 1000;
+  // v22: kampens første runde starter med intro-cutscenen (holdene ankommer) – købsfasen forlænges, og der kan ikke købes imens
+  room.introEnd = room.round === 1 && TIMES.intro > 0 ? t + TIMES.intro * 1000 : 0;
+  if (room.introEnd) room.phaseEnd += TIMES.intro * 1000;
   room.grenades = []; room.smokes = []; room.fires = []; room.bomb = newBomb(); room.drops = []; room.requests = [];
   room.planter = 0; room.defuser = 0; room.snapHist = [];
   const idx = { swat: 0, hij: 0 };
@@ -464,7 +468,7 @@ function newRound(room) {
 function endRound(room, win, reason) {
   if (room.phase !== 'live') return;
   const lose = win === 'hij' ? 'swat' : 'hij';
-  room.phase = 'end'; room.phaseEnd = now() + TIMES.end * 1000;
+  room.phase = 'end'; room.phaseEnd = now() + TIMES.end * 1000;   // (+ MVP-filmens tid sættes nedenfor når der er en MVP)
   room.score[win]++;
   // v12: CS-økonomi. Tabs-serien stiger for taberen (max 5) og falder med 1 for vinderen (CS2) – så en enkelt sejr ikke nulstiller tabsbonussen helt
   room.lossStreak[lose] = Math.min(room.lossStreak[lose] + 1, ECON.loss.length);
@@ -490,7 +494,8 @@ function endRound(room, win, reason) {
   else if (reason === 'bomb' && room.players.get(room.planter)) { mvp = room.players.get(room.planter); mvpWhy = 'plant'; }
   else for (const p of room.players.values()) if (p.side === win && (!mvp || p.rk > mvp.rk || (p.rk === mvp.rk && p.rdmg > mvp.rdmg))) mvp = p;
   if (mvp) mvp.mvps = (mvp.mvps || 0) + 1;
-  room.bcast({ t: 'ev', k: 'end', win, reason, score: [room.score.swat, room.score.hij], ms: TIMES.end * 1000,
+  const endMs = (TIMES.end + (mvp ? TIMES.mvp : 0)) * 1000; room.phaseEnd = now() + endMs;   // v22: MVP-filmen (~9,6 s) skal kunne ses færdig
+  room.bcast({ t: 'ev', k: 'end', win, reason, score: [room.score.swat, room.score.hij], ms: endMs,
     mvp: mvp ? { id: mvp.id, name: mvp.name, k: mvp.rk, dmg: Math.round(mvp.rdmg), why: mvpWhy } : null,
     by: reason === 'defuse' ? room.defuser : reason === 'bomb' ? room.planter : 0 });
   for (const p of room.players.values()) if (p.side) sendSelf(p);
@@ -638,6 +643,7 @@ function inBuyZone(room, p) {
 }
 function canBuyNow(room, p) {
   if (!p.alive || !p.side) return false;
+  if (room.introEnd && now() < room.introEnd) return false;              // v22: ikke under intro-cutscenen
   if (room.phase === 'buy') return true;
   return room.phase === 'live' && buyLeftMs(room, now()) > 0 && inBuyZone(room, p);
 }

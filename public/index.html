@@ -265,6 +265,16 @@
   <div id="bwMarquee" class="bw-marquee"></div>
   <div class="bw-flashov"></div>
   <div class="bw2-wrap">
+    <!-- v22: taster/genveje som kort i venstre side (før en linje i bunden) -->
+    <aside class="bw2-keys" id="bwKeys">
+      <h4>GENVEJE</h4>
+      <div class="bwk"><span><kbd>1–4</kbd></span><b>KATEGORI</b></div>
+      <div class="bwk"><span><kbd>1–6</kbd></span><b>VÅBEN</b></div>
+      <div class="bwk"><span><kbd>0</kbd></span><b>TILBAGE</b></div>
+      <div class="bwk"><span><kbd>H.KLIK</kbd></span><b>SÆLG VÅBEN</b></div>
+      <div class="bwk"><span><kbd>G</kbd></span><b>SMID VÅBEN</b></div>
+      <div class="bwk"><span><kbd>B</kbd></span><b>LUK MENU</b></div>
+    </aside>
     <div class="bw2-ring"><svg id="bwSvg" class="bw2-svg" viewBox="-236 -236 472 472"></svg><div id="bwStamp" class="bw-stamp"></div></div>
     <aside class="bw2-side">
       <div class="bw2-top"><div class="bw-money"><span>$</span><b id="bwMoney">0</b></div><div id="bwTimer" class="bw-timer"></div></div>
@@ -280,8 +290,11 @@
       <button id="bwClose" class="bw-act bw-close">LUK <kbd>B</kbd></button>
     </aside>
   </div>
-  <div class="bw2-hint"><span><kbd>1</kbd>–<kbd>4</kbd> kategori</span><span><kbd>1</kbd>–<kbd>6</kbd> våben</span><span><kbd>0</kbd> tilbage</span><span>klik på eget våben = sælg</span></div>
 </div>
+
+<!-- v22: intro-cutscene – biograf-bjælker + titelkort -->
+<div id="introBars" class="intro-bars hidden"><i></i><i></i></div>
+<div id="introCard" class="intro-card hidden"></div>
 
 <!-- klik-for-at-spille (pointer lock genstart) — ligger UDENFOR #hud, som har pointer-events:none på alle børn -->
 <div id="clickToPlay" class="click-to-play hidden">
