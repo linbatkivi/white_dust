@@ -1,0 +1,5 @@
+node_modules
+tools/
+*.blend
+*.blend1
+*.exr

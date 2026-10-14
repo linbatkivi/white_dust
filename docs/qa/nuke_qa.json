@@ -1,0 +1,13 @@
+{
+ "id": "nuke",
+ "floaters": [],
+ "leaks": [],
+ "summary": {
+  "id": "nuke",
+  "floaters": 0,
+  "leaks": 0,
+  "empty": 34.8,
+  "median": 17.9,
+  "dark": 7.3
+ }
+}

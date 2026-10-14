@@ -1,0 +1,17 @@
+# alt der IKKE skal med i serverens Docker-image på Fly.io (public/ SKAL med – serveren leverer selve spillet)
+.git
+.github
+node_modules
+.dockerignore
+.env
+Dockerfile
+fly.toml
+tools/
+docs/
+test/
+sounds_wd/
+.cache/
+*.blend
+*.blend1
+*.exr
+.DS_Store

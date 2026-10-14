@@ -1,0 +1,13 @@
+{
+ "id": "white_dust",
+ "floaters": [],
+ "leaks": [],
+ "summary": {
+  "id": "white_dust",
+  "floaters": 0,
+  "leaks": 0,
+  "empty": 36.6,
+  "median": 16,
+  "dark": 6
+ }
+}

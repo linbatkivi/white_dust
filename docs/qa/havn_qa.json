@@ -1,0 +1,13 @@
+{
+ "id": "havn",
+ "floaters": [],
+ "leaks": [],
+ "summary": {
+  "id": "havn",
+  "floaters": 0,
+  "leaks": 0,
+  "empty": 100,
+  "median": 0,
+  "dark": 19.7
+ }
+}
