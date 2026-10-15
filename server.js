@@ -3,7 +3,7 @@
    DE_WHITE_DUST – server
    Én Node-proces: serverer klienten (HTTP) og kører spillet (WebSocket på /ws).
    Kør:  node server.js      (port 3000, eller PORT=xxxx)
-   Del med venner:  ngrok http 3000
+   I desktop-appen kører værten denne server selv (desktop/main.js) – vennerne forbinder peer-to-peer.
    ========================================================================== */
 process.env.UV_THREADPOOL_SIZE = process.env.UV_THREADPOOL_SIZE || '12';   // v21: flere fil-tråde (mange små teksturer + baggrunds-gzip samtidig)
 const http = require('http');
@@ -12,6 +12,7 @@ const path = require('path');
 const zlib = require('zlib');
 const os = require('os');
 const { WebSocketServer } = require('ws');
+const crypto = require('crypto');
 const WD = require('./shared/wd.js');
 
 const PORT = parseInt(process.env.PORT, 10) || 3000;
@@ -31,6 +32,21 @@ const r2 = v => Math.round(v * 100) / 100;
 /* ------------------------------------------------------------------ HTTP (statiske filer) */
 const PUB = path.join(__dirname, 'public');
 const SHARED = path.join(__dirname, 'shared');
+// v24: spillet distribueres kun som desktop-app, og værten kører selv denne server inde i sin app
+// (desktop/main.js starter den med NODE_ENV=production på 127.0.0.1). Vennerne forbinder peer-to-peer til værtens app,
+// som sender forbindelsen videre hertil. I den tilstand leveres ingen spilfiler over HTTP, og der tages kun imod
+// forbindelser fra appen (Origin wd://game) med samme udgave af shared/. Lokalt (npm start) virker browseren som før.
+const WEB = process.env.NODE_ENV !== 'production' || process.env.WD_WEB === '1';
+const HOST = process.env.HOST || '0.0.0.0';
+function buildId(dir) {   // samme beregning som i desktop/main.js
+  const h = crypto.createHash('sha256');
+  for (const f of fs.readdirSync(dir).filter(f => f.endsWith('.js')).sort()) {
+    h.update(f);
+    h.update(fs.readFileSync(path.join(dir, f), 'utf8').replace(/\r\n/g, '\n'));
+  }
+  return h.digest('hex').slice(0, 16);
+}
+const BUILD = buildId(SHARED);
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.txt': 'text/plain; charset=utf-8', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.hdr': 'application/octet-stream', '.gltf': 'model/gltf+json', '.bin': 'application/octet-stream', '.md': 'text/plain; charset=utf-8', '.wasm': 'application/wasm', '.ktx2': 'image/ktx2', '.glb': 'model/gltf-binary' };
 const fileCache = new Map(), CACHE_MAX = 96 * 1024 * 1024, CACHE_FILE = 768 * 1024; let cacheBytes = 0;
 
@@ -79,7 +95,7 @@ function serveFile(req, res, file) {
       headers['Content-Length'] = st.size; res.writeHead(200, headers); if (req.method === 'HEAD') return res.end();
       return fs.createReadStream(file).pipe(res);
     }
-    // v22: hukommelses-cachen har et loft (Fly.io-maskinen har 1 GB, spillets filer fylder ~900 MB) – kun små filer, ældste smides ud
+    // v22: hukommelses-cachen har et loft (spillets filer fylder ~900 MB) – kun små filer, ældste smides ud
     let ent = fileCache.get(file);
     if (!ent || ent.mtime !== st.mtimeMs) {
       ent = { mtime: st.mtimeMs, buf: fs.readFileSync(file), gz: null };
@@ -110,6 +126,7 @@ const server = http.createServer((req, res) => {
     req.on('end', () => { const dir = path.join(__dirname, 'docs', 'qa'); fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(path.join(dir, f), Buffer.concat(parts)); res.writeHead(200); res.end('ok'); });
     return;
   }
+  if (!WEB) { res.writeHead(404); return res.end(); }
   if (rel === '/') rel = '/index.html';
   let root = PUB, sub = rel;
   if (rel.startsWith('/shared/')) { root = SHARED; sub = rel.slice(7); }
@@ -206,7 +223,15 @@ function tpMsg(p) { return { t: 'tp', id: p.corrId, x: r2(p.x), y: r2(p.y), z: r
 
 /* ------------------------------------------------------------------ WebSocket */
 const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 8192, perMessageDeflate: false });
-wss.on('connection', ws => {
+wss.on('connection', (ws, req) => {
+  // v23: kun desktop-appen må spille, og kun med samme udgave af spillet som serveren
+  const b = new URL(req.url, 'http://x').searchParams.get('b');
+  if (!WEB && req.headers.origin !== 'wd://game') { ws.close(1008, 'app'); return; }
+  if ((!WEB || b) && b !== BUILD) {
+    send(ws, { t: 'err', fatal: true, msg: 'Du og værten har ikke samme version af White Dust — genstart spillet for at opdatere (begge to).' });
+    setTimeout(() => { try { ws.close(); } catch (e) {} }, 200);
+    return;
+  }
   ws.isAlive = true;
   ws.on('pong', () => { ws.isAlive = true; });
   ws.ctx = { room: null, p: null, cnt: 0, cntT: Date.now() };
@@ -1184,14 +1209,13 @@ setInterval(() => {
 }, 1000 / 30);
 
 /* ------------------------------------------------------------------ start */
-server.listen(PORT, '0.0.0.0', () => {
+server.listen(PORT, HOST, () => {
   const ips = [];
   const ifs = os.networkInterfaces();
   for (const k in ifs) for (const a of ifs[k]) if (a.family === 'IPv4' && !a.internal) ips.push(a.address);
   console.log('\n  DE_WHITE_DUST kører!\n');
+  console.log('  Tilstand:       ' + (WEB ? 'browser + app' : 'kun desktop-app') + ' · udgave ' + BUILD);
   console.log('  Lokalt:         http://localhost:' + PORT);
   ips.forEach(ip => console.log('  På dit netværk: http://' + ip + ':' + PORT));
-  console.log('\n  Spil over internettet:  ngrok http ' + PORT);
-  console.log('  (send den https://…ngrok…-adresse til dine venner)\n');
 });
 process.on('SIGINT', () => { console.log('\nLukker ned…'); process.exit(0); });

@@ -1,0 +1,66 @@
+# Bygger White Dust til Windows, macOS og Linux og lægger filerne på en GitHub Release.
+# Hjemmesiden linker til den nyeste release, og appen opdaterer sig selv derfra.
+#
+# Ny version:
+#   1. ret "version" i desktop/package.json (fx 1.0.1)
+#   2. git commit + git push
+#   3. git tag v1.0.1 && git push origin v1.0.1
+name: Desktop app
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Tagget skal passe med versionen i desktop/package.json, ellers kan appen ikke finde sine opdateringer
+      - name: Tjek version
+        shell: bash
+        run: |
+          V=$(node -p "require('./desktop/package.json').version")
+          if [ "v$V" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tagget $GITHUB_REF_NAME passer ikke med desktop/package.json ($V)"; exit 1
+          fi
+
+      # Banernes .bin-filer ligger i Git LFS – de gemmes i cache, så de ikke hentes forfra hver gang
+      - name: LFS-filliste
+        shell: bash
+        run: git lfs ls-files --long | cut -d ' ' -f1 | sort > .lfs-assets-id
+      - uses: actions/cache@v4
+        with:
+          path: .git/lfs
+          key: lfs-${{ runner.os }}-${{ hashFiles('.lfs-assets-id') }}
+      - name: Hent LFS-filer
+        run: git lfs pull
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Installér
+        working-directory: desktop
+        run: npm ci
+      - name: Byg appen
+        working-directory: desktop
+        run: npx electron-builder --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Upload til GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: White Dust ${{ github.ref_name }}
+          fail_on_unmatched_files: false
+          files: |
+            desktop/dist/WhiteDust-*
+            desktop/dist/latest*.yml

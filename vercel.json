@@ -1,9 +1,0 @@
-{
-  "framework": null,
-  "buildCommand": "",
-  "installCommand": "",
-  "redirects": [
-    { "source": "/", "destination": "https://wd-velvet-comet-2757.fly.dev/", "permanent": false },
-    { "source": "/:path*", "destination": "https://wd-velvet-comet-2757.fly.dev/:path*", "permanent": false }
-  ]
-}

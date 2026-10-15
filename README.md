@@ -2,9 +2,28 @@
 
 Et multiplayer FPS i 3D, inspireret af **SUPERHOT** (den knivskarpe hvid/sort æstetik)
 og **Counter-Strike** (taktisk bombescenarie, køb-fase, SWAT vs. Hijackers).
-Kører lokalt med Node.js og kan deles med venner over internettet via **ngrok**.
+Spillet hentes som app til Windows, macOS og Linux. Der er **ingen server i skyen**: den der laver et party, er selv vært.
 
-## Kom i gang
+## Sådan virker multiplayer (v24)
+
+* **Appen** (`desktop/`, Electron) indeholder hele spillet (`public/` + `shared/`) **og** spil-serveren (`server.js`).
+  Når appen starter, kører den serveren i baggrunden på `127.0.0.1` (ikke synlig udefra).
+* **Værten** trykker LAV PARTY og spiller på sin egen server. Appen melder party-koden til PeerJS' gratis, offentlige
+  "telefonbog" (`0.peerjs.com`), så vennerne kan finde den.
+* **Vennerne** trykker JOIN + koden. Deres app forbinder **direkte** til værtens app (WebRTC peer-to-peer), og værtens app
+  sender trafikken videre til sin lokale server (`public/js/p2p.js`). Selve spillet går altså direkte mellem jer –
+  ingen server, intet dataloft, ingen regning.
+* Appen sender et fingeraftryk af `shared/` med; har ven og vært ikke samme version, får de besked om at opdatere.
+* Lukker værten spillet, slutter partyet, og vennerne kommer tilbage til menuen.
+* Begrænsning: på enkelte netværk (fx nogle skole-, firma- eller mobilnet) kan WebRTC ikke komme igennem. Så kan en
+  anden være vært.
+
+### Udgiv en ny version
+1. Ret `"version"` i `desktop/package.json` (fx `1.0.1`), commit og push.
+2. `git tag v1.0.1 && git push origin v1.0.1` – GitHub Actions bygger appen og lægger den på en Release (~15 min).
+3. Spillerne får opdateringen automatisk (Mac: en besked med download-link).
+
+## Udvikling
 
 Kræver [Node.js](https://nodejs.org) 16 eller nyere.
 
@@ -13,27 +32,17 @@ npm install
 npm start
 ```
 
-Serveren starter på port 3000 og udskriver adresser, du kan bruge:
+Serveren starter på port 3000. Åbn `http://localhost:3000` i en browser – under udvikling virker browseren som før.
 
+Test appen:
+
+```bash
+cd desktop
+npm install
+npm start                                   # appen med sin egen server (som spillerne får den)
+WD_PROFILE=ven npm start                    # en ekstra kopi i et andet vindue – til at teste vært + ven
+WD_SERVER=localhost:3000 npm start          # appen mod din egen `npm start`-server (uden peer-to-peer)
 ```
-Lokalt:          http://localhost:3000
-På dit netværk:  http://192.168.x.x:3000
-```
-
-Åbn adressen i en browser (Chrome/Edge/Firefox — kræver mus + tastatur).
-
-### Spil med venner over internettet (ngrok)
-
-1. [Installér ngrok](https://ngrok.com/download) og log ind (`ngrok config add-authtoken ...`).
-2. Mens `npm start` kører, åbn en ny terminal og kør:
-   ```bash
-   ngrok http 3000
-   ```
-3. Ngrok giver dig en adresse som `https://xxxx.ngrok-free.app` — send den til dine venner.
-   Både siden og spillets WebSocket-forbindelse går gennem den samme adresse, så intet
-   ekstra behøves konfigureres.
-
-Vil du ændre porten, sæt `PORT`-miljøvariablen: `PORT=8080 npm start` (husk at ngrok'e samme port).
 
 ## Sådan spiller du
 
@@ -235,14 +244,6 @@ med 24–41 positioner pr. bane, gennemsnit over 8 frames inkl. skyggekort og po
 Det svarer til 70–100 FPS uden vsync, altså luft til stabile 60 FPS. Under lang fuld belastning skruer en blæserløs Mac ned
 for GPU'en (målt op til ~18 ms). Derfor sænker klienten selv opløsningen (Medium: ned til 0,8×, ≈ 7,4 ms på Nuke), når FPS
 falder under ~57, og hæver den igen, når der er luft. Bagt lys beregnes én gang, når banen indlæses.
-
-**Om ngrok:** Denne sandbox har ikke netværksadgang til ngrok.com, så det
-faktiske ngrok-flow er ikke afprøvet herfra. Serveren er skrevet til at
-understøtte det uden ekstra konfiguration (lytter på `0.0.0.0`, HTTP og
-WebSocket på samme port, klienten bruger `location.host` dynamisk i stedet for
-en hardkodet adresse) — men test det gerne selv med et par venner efter du har
-hentet projektet.
-
 
 ## v2 – ændringer
 - **Grafik:** ren hvid verden uden outlines/wireframes; dybde kun via directional light + shadow map (PCF soft). Spillere kaster skygger.

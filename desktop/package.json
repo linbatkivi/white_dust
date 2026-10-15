@@ -1,0 +1,104 @@
+{
+  "name": "white-dust-desktop",
+  "productName": "White Dust",
+  "version": "1.0.0",
+  "description": "WHITE_DUST — taktisk multiplayer-FPS",
+  "author": "Linus Kivikoski",
+  "license": "MIT",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac",
+    "dist:linux": "electron-builder --linux"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8",
+    "ws": "^8.22.0",
+    "peerjs": "^1.5.4"
+  },
+  "build": {
+    "appId": "dk.whitedust.game",
+    "productName": "White Dust",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "artifactName": "WhiteDust-Setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "White Dust"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": "universal"
+        },
+        {
+          "target": "zip",
+          "arch": "universal"
+        }
+      ],
+      "category": "public.app-category.games",
+      "artifactName": "WhiteDust-macOS.${ext}"
+    },
+    "linux": {
+      "target": "AppImage",
+      "category": "Game",
+      "artifactName": "WhiteDust-Linux.${ext}"
+    },
+    "extraResources": [
+      {
+        "from": "../public",
+        "to": "game/public",
+        "filter": [
+          "**/*",
+          "!**/.DS_Store",
+          "!dev/**"
+        ]
+      },
+      {
+        "from": "../shared",
+        "to": "game/shared",
+        "filter": [
+          "**/*.js"
+        ]
+      },
+      {
+        "from": "../server.js",
+        "to": "game/server.js"
+      },
+      {
+        "from": "node_modules/ws",
+        "to": "game/node_modules/ws",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "linbatkivi",
+        "repo": "white_dust"
+      }
+    ]
+  },
+  "wd": {
+    "site": "https://linbatkivi.github.io/white-dust-web/"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
+  }
+}

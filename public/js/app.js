@@ -15,6 +15,7 @@ import { createPost } from '/js/post.js';
 import { createFx } from '/js/fx.js';
 import { createSettings } from '/js/settings.js';
 import { derivePBR } from '/js/pbr.js';
+import { P2P, PeerSocket } from '/js/p2p.js';
 import { loadThemeAssets } from '/js/assets.js';
 import { havnUniforms } from '/js/havn.js';
 import { createVictory } from '/js/victory.js';
@@ -88,27 +89,35 @@ function escapeHtml(s) { return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<':
 const Net = {
   ws: null, connected: false, session: null,
   handlers: {},
-  // v22: flere forsøg med timeout – på Fly.io sover serveren når ingen spiller, og første forbindelse kan fejle mens den vågner
+  target: null,   // v24: party-kode hos en anden spillers app (peer-to-peer) – null = egen server
+  localUrl() { return 'ws://' + window.WD_SERVER + '/ws'; },
+  // v22: flere forsøg med timeout – første forbindelse kan fejle, mens serveren starter
   async connect(tries = 6) {
     let delay = 600;
+    if (this.target) tries = 3;   // v24: hos en vært – "intet party med den kode" skal ikke prøves 6 gange
     for (let i = 0; ; i++) {
       try { const r = await this._connectOnce(); if (i > 0) UI.menuErr(''); return r; }
-      catch (e) { if (i >= tries - 1) throw e; if (i === 0) UI.menuErr('Serveren vågner – et øjeblik…'); await new Promise(r => setTimeout(r, delay)); delay = Math.min(delay * 1.7, 4000); }
+      catch (e) {
+        if (i >= tries - 1 || e.message === 'peer-unavailable') throw e;
+        if (i === 0) UI.menuErr(this.target ? 'Forbinder til værten…' : 'Serveren vågner – et øjeblik…');
+        await new Promise(r => setTimeout(r, delay)); delay = Math.min(delay * 1.7, 4000);
+      }
     }
   },
   _connectOnce() {
     return new Promise((resolve, reject) => {
-      // serverens adresse: samme host som siden (Fly.io), eller window.WD_SERVER fra /config.js hvis siden ligger på en statisk host
+      // serverens adresse: window.WD_SERVER fra /config.js (i appen: den indbyggede server), ellers samme host som siden
       const host = (typeof window !== 'undefined' && window.WD_SERVER) || location.host;
       const remote = !!window.WD_SERVER && !/^(localhost|127\.)/.test(window.WD_SERVER);
       const proto = location.protocol === 'https:' || remote ? 'wss:' : 'ws:';
-      const ws = new WebSocket(proto + '//' + host + '/ws');
+      const ws = this.target ? new PeerSocket(this.target)   // v24: direkte til værtens app
+        : new WebSocket(proto + '//' + host + '/ws' + (window.WD_BUILD ? '?b=' + window.WD_BUILD : ''));   // v23: appen sender sin udgave af shared/ med
       let settled = false;
-      const to = setTimeout(() => { if (!settled) { settled = true; try { ws.close(); } catch (e) {} reject(new Error('timeout')); } }, 8000);
+      const to = setTimeout(() => { if (!settled) { settled = true; try { ws.close(); } catch (e) {} reject(new Error('timeout')); } }, this.target ? 12000 : 8000);
       ws.onopen = () => { if (settled) { try { ws.close(); } catch (e) {} return; } clearTimeout(to); if (this.ws && this.ws !== ws && this.ws.readyState <= 1) try { this.ws.close(); } catch (e) {} this.ws = ws; this.connected = true; settled = true; this._pingLoop(); resolve(); };
       ws.onmessage = ev => { if (this.ws !== ws) return; let m; try { m = JSON.parse(ev.data); } catch (e) { return; } this._dispatch(m); };
       ws.onclose = () => {
-        if (!settled) { settled = true; clearTimeout(to); reject(new Error('kunne ikke forbinde')); return; }
+        if (!settled) { settled = true; clearTimeout(to); reject(new Error(ws.reason || 'kunne ikke forbinde')); return; }
         if (this.ws !== ws) return;                        // en forældet socket (erstattet af en nyere) må ikke afbryde den aktive forbindelse
         this.connected = false; this._onDisconnect();
       };
@@ -136,7 +145,13 @@ const Net = {
         await this._connectOnce();
         this.send({ t: 'rejoin', code: this.session.code, id: this.session.id, key: this.session.key });
         break;
-      } catch (e) { delay = Math.min(delay * 1.6, 6000); }
+      } catch (e) {
+        // v24: værten har lukket sit spil – så er partyet væk
+        if (this.target && (e.message === 'peer-unavailable' ? (this._gone = (this._gone || 0) + 1) >= 3 : (this._fails = (this._fails || 0) + 1) >= 8)) {
+          clearSession(); UI.toast('Værten har lukket partyet', 4000); setTimeout(() => location.reload(), 1500); break;
+        }
+        delay = Math.min(delay * 1.6, 6000);
+      }
     }
     this._reconnecting = false;
   },
@@ -297,7 +312,8 @@ window.addEventListener('keydown', () => Audio.init(), { capture: true });
 $('btnCreate').addEventListener('click', async () => {
   UI.menuErr('');
   const name = $('nameInput').value.trim() || 'Spiller'; saveName(name);
-  try { if (!Net.connected) await Net.connect(); } catch (e) { return UI.menuErr('Kunne ikke forbinde til serveren.'); }
+  if (P2P.on && Net.target) { try { Net.ws.close(); } catch (e) {} Net.connected = false; Net.target = null; }   // v24: du bliver selv vært
+  try { if (!Net.connected) await Net.connect(); } catch (e) { return UI.menuErr('Kunne ikke starte dit party.'); }
   Net.send({ t: 'create', name });
 });
 $('btnJoin').addEventListener('click', async () => {
@@ -305,7 +321,16 @@ $('btnJoin').addEventListener('click', async () => {
   const code = $('codeInput').value.trim();
   if (!/^\d{4}$/.test(code)) return UI.menuErr('Indtast en 4-cifret kode.');
   const name = $('nameInput').value.trim() || 'Spiller'; saveName(name);
-  try { if (!Net.connected) await Net.connect(); } catch (e) { return UI.menuErr('Kunne ikke forbinde til serveren.'); }
+  if (P2P.on && Net.target !== code) {   // v24: forbind direkte til værtens app
+    if (Net.connected) { try { Net.ws.close(); } catch (e) {} Net.connected = false; }
+    Net.target = code;
+  }
+  try { if (!Net.connected) await Net.connect(); }
+  catch (e) {
+    if (P2P.on) Net.target = null;
+    return UI.menuErr(e.message === 'peer-unavailable' ? 'Fandt intet party med koden ' + code + '. Har værten spillet åbent?'
+      : P2P.on ? 'Kunne ikke forbinde til værten. Prøv igen – eller lad en anden være vært.' : 'Kunne ikke forbinde til serveren.');
+  }
   Net.send({ t: 'join', code, name });
 });
 $('btnLeave').addEventListener('click', () => { clearSession(); location.reload(); });
@@ -461,9 +486,10 @@ function leaveGameView() {
   $('clickToPlay').classList.add('hidden'); hideActBar(); Touch.hide();
   UI.showScreen('lobby'); exitPointerLock();
 }
+if (window.WD_APP) $('btnCopyCode').textContent = 'KOPIÉR KODE';
 $('btnCopyCode').addEventListener('click', async () => {
-  const url = location.origin + '/?join=' + Game._lobbyCode;
-  try { await navigator.clipboard.writeText(url); UI.toast('Link kopieret!'); } catch (e) { UI.toast(url, 6000); }
+  const url = window.WD_APP ? Game._lobbyCode : location.origin + '/?join=' + Game._lobbyCode;   // v23: i desktop-appen kopieres koden
+  try { await navigator.clipboard.writeText(url); UI.toast(window.WD_APP ? 'Kode kopieret!' : 'Link kopieret!'); } catch (e) { UI.toast(url, 6000); }
 });
 
 Net.on('err', m => {
@@ -475,9 +501,11 @@ Net.on('err', m => {
 Net.on('joined', m => {
   Game.meId = m.id;
   Game._lobbyCode = m.code;
-  Net.session = { code: m.code, id: m.id, key: m.key };
+  Net.session = { code: m.code, id: m.id, key: m.key, peer: Net.target };
   saveSession(Net.session);
   UI.menuErr('');
+  // v24: er vi vært, åbner vi for vennerne på party-koden
+  if (P2P.on && !Net.target) P2P.host(m.code, Net.localUrl()).catch(() => UI.toast('Dine venner kan ikke joine lige nu – tjek dit internet', 6000));
 });
 /* ---- v20: PREMIER-banevalg (holdene bandlyser baner på skift; den sidste spilles) ---- */
 for (const b of document.querySelectorAll('[data-vmode]')) b.addEventListener('click', () => { if (Game.host === Game.meId) Net.send({ t: 'vmode', mode: b.dataset.vmode }); });
@@ -2802,6 +2830,7 @@ async function runTour(id, only) {
   const sess = loadSession();
   if (sess) {
     try {
+      if (P2P.on) Net.target = sess.peer || null;
       await Net.connect();
       Net.session = sess;
       const got = await new Promise(res => {
