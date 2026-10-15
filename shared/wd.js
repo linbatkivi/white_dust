@@ -12,13 +12,7 @@
   else root.WD = factory();
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
-  // v12.1: Nukes geometri genereres fra STL-modellen (tools/nuke_from_stl.py → shared/nuke_data.js)
-  const NUKE_DATA = (typeof module === 'object' && module.exports) ? require('./nuke_data.js') : (typeof self !== 'undefined' ? self.WD_NUKE : null);
-  const INFERNO_DATA = (typeof module === 'object' && module.exports) ? require('./inferno_data.js') : (typeof self !== 'undefined' ? self.WD_INFERNO : null);
-  const CANALS_DATA = (typeof module === 'object' && module.exports) ? require('./canals_data.js') : (typeof self !== 'undefined' ? self.WD_CANALS : null);
-  const HAVN_DATA = (typeof module === 'object' && module.exports) ? require('./havn_data.js') : (typeof self !== 'undefined' ? self.WD_HAVN : null);
-  const ANCIENT_DATA = (typeof module === 'object' && module.exports) ? require('./ancient_data.js') : (typeof self !== 'undefined' ? self.WD_ANCIENT : null);
-  const ASC_DATA = (typeof module === 'object' && module.exports) ? require('./asc_data.js') : (typeof self !== 'undefined' ? self.WD_ASC : null);   // v25
+  const BUREAU_DATA = (typeof module === 'object' && module.exports) ? require('./bureau_data.js') : (typeof self !== 'undefined' ? self.WD_BUREAU : null);   // v26
 
   /* ---------------------------------------------------------------- konstanter */
   const PL = {
@@ -332,7 +326,7 @@
     return W;
   }
   function buildWorld(id) {
-    if (!MAP_REG[id]) id = 'white_dust';
+    if (!MAP_REG[id]) id = 'bureau';
     return MAP_REG[id]._W || (MAP_REG[id]._W = makeWorld(id));
   }
 
@@ -816,394 +810,34 @@
 
   /* ---------------------------------------------------------------- kort-definitioner (funktionserklæringer => hoisted) */
   function defineMaps(REG, K) {
-    REG.white_dust = mapWhiteDust(K);
-    REG.nuke = mapNuke(K);
-    if (ANCIENT_DATA) REG.ancient = mapAncient(K);
-    if (INFERNO_DATA) REG.inferno = mapInferno(K);
-    if (HAVN_DATA) REG.havn = mapHavn(K);
-    if (CANALS_DATA) REG.canals = mapCanals(K);
-    if (ASC_DATA) REG.ascension = mapAscension(K);
+    if (BUREAU_DATA) REG.bureau = mapBureau(K);
   }
 
-  function mapWhiteDust() {
+  /* ================================================================ de_bureau (v26) ================================================================
+     Luksus-bureauet øverst i et højhus om natten – layout fra brugerens overblik, bygget og bagt i Blender (tools/bureau/), kollision i
+     shared/bureau_data.js. Hijackerne kommer ind fra tagterrassen (helipad) mod syd, SWAT ad bagvejen gennem parkeringskælderen mod nord. */
+  function mapBureau() {
+    const D = BUREAU_DATA, G = D.grid;
     return {
-    id: 'white_dust', desc: 'Ørkenby i eftermiddagssol · Mid med ruinhus, Catwalk, Long A, Pit og tunneler · balkoner og broer.',
-    name: 'White Dust', GW: 44, GH: 52, GX0: -44, GZ0: -52, LEVELS: { '.': 0, a: 1.2, b: -0.8, p: -1.8 },
-    grid(H) {
-      const { fill, ramp } = H;
-    // CT-spawn (SWAT) øverst i midten
-    fill(16, 2, 27, 12, '.');
-    // Mid-døre (to åbninger med en søjle imellem) + Mid
-    fill(19, 13, 20, 13, '.');                // Mid-døren (kun den vestlige – ingen lige linje CT ↔ T)
-    fill(19, 14, 24, 39, '.');
-    fill(19, 39, 22, 39, '#');                // T-siden kommer kun ind i Mid i øst (x 2..6)
-    fill(21, 27, 23, 31, '#');                // ruinhus midt i Mid (x -2..4, z 2..12) – bryder sigtelinjen
-    // T-spawn (Hijackers) nederst
-    fill(13, 40, 30, 49, '.');
-    // A site (ophøjet plateau)
-    fill(30, 2, 42, 12, 'a');
-    // B site (sænket)
-    fill(2, 2, 13, 12, 'b');
-    // Lower Tunnels (fra Mid mod vest) og Upper Tunnels (langs vestkanten)
-    fill(8, 27, 18, 31, '.');
-    fill(4, 15, 7, 47, '.');
-    fill(8, 42, 12, 47, '.');      // T-spawn → tunnels
-    // Catwalk (Short A): åbning fra Mid, så nordpå
-    fill(25, 20, 29, 25, '.');
-    fill(30, 15, 32, 26, '.');
-    // Long A: fra T-spawn mod øst og så nordpå
-    fill(31, 42, 39, 47, '.');
-    fill(35, 15, 39, 46, '.');
-    // Pit (sænket område ved enden af Long A)
-    fill(40, 17, 42, 22, 'p');
-    // Ramper
-    ramp(28, 5, 29, 8, 'x', 0, 1.2);      // CT -> A site
-    ramp(14, 5, 15, 8, 'x', -0.8, 0);     // CT -> B site  ("B door")
-    ramp(4, 13, 7, 14, 'z', -0.8, 0);     // Tunnels -> B site
-    ramp(30, 13, 32, 14, 'z', 1.2, 0);    // Catwalk -> A site
-    ramp(35, 13, 39, 14, 'z', 1.2, 0);    // Long A -> A site
-    ramp(37, 19, 39, 21, 'x', 0, -1.8);   // Long A -> Pit
-    // v4: snørklet 'Sewer Alley' fra Lower Tunnels op til B (zig-zag) + døråbninger mellem Catwalk-passage og Long A
-    fill(14, 23, 14, 26, '.'); fill(10, 23, 14, 23, '.'); fill(10, 17, 10, 23, '.'); fill(10, 17, 13, 17, '.'); fill(12, 15, 13, 16, '.');
-    ramp(12, 13, 13, 14, 'z', -0.8, 0);   // Alley -> B
-    fill(33, 17, 34, 17, 'w'); fill(33, 23, 34, 23, 'w'); fill(33, 20, 34, 20, '.');
-    // Closets
-    fill(38, 5, 42, 5, '#'); fill(37, 2, 37, 3, '#');           // A-closet (dør ved række 4)
-    fill(6, 2, 6, 3, '#'); fill(2, 6, 6, 6, '#');               // B-closet (dør ved række 4-5)
-    // B-vindue (lav karm + overligger)
-    fill(14, 10, 15, 11, 'w');
-
-
-    },
-    props(H) {
-      const { prop, wallBox, boxes, stairs } = H;
-    // -- T-spawn
-    // v11.2: amforaer og lerkrukker op ad murene (fotoscannede modeller, rigtig kollision) – placeret automatisk hvor der er plads
-    for (const [x, y, z] of [[-39.62, -0.8, -37.5], [-35.62, 0, 24.5], [-15.5, 0, 28.38], [2.5, 0, -47.62], [16.38, 1.2, -33.5], [26.38, 0, 20.5], [-11.62, 0, -33.5]]) prop(x, z, 0.7, 0.7, 1.05, y, 'amphora');
-    for (const [x, y, z, w, d] of [[-25.5, 0, 32.3, 1.0, 0.55], [6.5, 0, -11.7, 1.0, 0.55], [26.3, 0, -9.5, 0.55, 1.0], [38.5, 1.2, -39.7, 1.0, 0.55]]) prop(x, z, w, d, 0.65, y, 'jars');
-    prop(-14, 46, 3, 3, 1.5); prop(-14, 43, 1.5, 1.5, 1.0);
-    prop(14, 46, 3, 3, 1.5);  prop(14.5, 43, 1.5, 1.5, 1.0);
-    prop(-9, 34, 2, 4, 1.5);  prop(9, 34, 2, 4, 1.5);
-    prop(0, 30, 2, 2, 1.0);
-    // -- Mid
-    prop(0, 15.5, 3, 3, 1.5);         // "Xbox" (foran ruinhuset)
-    prop(-4, -6, 2, 2, 1.0);
-    prop(3.5, 16, 2, 2, 1.0);
-    prop(-4.5, 22, 1.5, 1.5, 1.0);
-    prop(0, -21, 1.6, 1.6, 1.5);      // foran Mid-dørene
-    // -- Catwalk
-    prop(19, -8, 2, 2, 1.0);
-    prop(13, -4, 2, 2, 1.5);
-    prop(8.5, -10, 1.5, 1.5, 1.0);
-    // -- Long A
-    wallBox(26, 8, 29, 10, BASE, 6);  // "Long doors"
-    wallBox(33, 8, 36, 10, BASE, 6);
-    prop(27.2, -2, 2.4, 8, 2.6);      // container
-    prop(27.5, -12, 2, 2, 1.5);
-    prop(28.2, -17, 1.5, 1.5, 1.0);
-    prop(33.5, -19, 2, 2, 1.0);
-    prop(33, 22, 2, 2, 1.0);
-    prop(29.5, 32, 2, 2, 1.5);
-    prop(22, 38, 2, 2, 1.5);
-    // -- CT-spawn
-    prop(-8, -36, 3, 3, 1.5); prop(8, -36, 3, 3, 1.5);
-    prop(0, -29, 4, 1, 1.0);
-    prop(-10, -44, 2, 2, 1.0);
-    // -- A site (gulv y=1.2)
-    prop(30, -34, 3, 3, 1.5);         // "Default"
-    prop(30, -30.5, 1.5, 1.5, 1.0);
-    prop(38, -29, 3, 3, 1.5);         // "Goose"
-    wallBox(18, -45, 27, -41, 1.2, 3.4); // Ninja-blokken (der er et hul bagved)
-    prop(38, -36, 5, 5, 0.8);         // lav platform
-    prop(22, -32, 2, 2, 1.0);
-    prop(24, -27.5, 1.5, 1.5, 1.5);
-    // -- B site (gulv y=-0.8)
-    prop(-24, -36, 3, 3, 1.5);
-    prop(-24, -32.5, 1.5, 1.5, 1.0);
-    prop(-37, -32, 6, 8, 1.2);        // "Back plat"
-    stairs(-34, -34, -31, -30, 'x', -1, -0.8, 1.2, 3);
-    prop(-20, -44, 2, 2, 1.5);
-    // -- v3 ekstra taktiske props (solide, delt mellem server og klient)
-    prop(-11, -30, 1.6, 1.6, 1.0);
-    prop(10.5, -41, 1.5, 1.5, 1.0);
-    prop(-4.8, 16, 0.6, 3, 0.9);      // lav betonbarriere i Mid
-    prop(24, -38, 4, 0.8, 0.9);       // sandsække-række på A
-    prop(-6, 38, 2, 1, 1.0);
-    prop(27, 36, 6, 0.6, 1.0);        // lav betonmur (klar collision, kan hoppes over)
-    /* ============ v4: etager, trapper, balkoner, døråbninger ============ */
-    const slab = (x0, z0, x1, z1, top, th) => boxes.push({ x0, y0: top - (th || 0.4), z0, x1, y1: top, z1, kind: 'slab' });
-    const { rail } = H;                // gelændere (kugler går igennem)
-    const pillar = (x, z, w, y0, y1) => boxes.push({ x0: x - w / 2, y0, z0: z - w / 2, x1: x + w / 2, y1, z1: z + w / 2, kind: 'wall' });
-    // Mid Balcony (y=3.2) på vestsiden af Mid + trappe op fra nord
-    stairs(-6, -19, -3.6, -14, 'z', 1, 0, 3.2, 8);
-    slab(-6, -14, -3, 0, 3.2);
-    rail(-3.2, -14, -3, -9, 3.2); rail(-3.2, -7, -3, 0, 3.2); rail(-6, -0.2, -3.2, 0, 3.2);
-    pillar(-3.5, -12, 0.8, 0, 2.8); pillar(-3.5, -2, 0.8, 0, 2.8);
-    // Bro over Mid (y=3.2) til Catwalk-loftet
-    slab(-3, -9, 8, -7, 3.2);
-    rail(-3, -9, 8, -8.8, 3.2); rail(-3, -7.2, 8, -7, 3.2);
-    slab(8, -12, 16, -5, 3.2);
-    rail(8, -5.2, 14, -5, 3.2); rail(15.8, -12, 16, -5, 3.2); rail(8, -12, 8.2, -9, 3.2); rail(8, -7, 8.2, -5, 3.2);
-    pillar(10, -5.4, 0.8, 0, 2.8); pillar(15.6, -11.6, 0.8, 0, 2.8);
-    stairs(14, -5, 16, 0, 'z', -1, 0, 3.2, 8);          // trappe ned til Catwalk
-    // B-galleri (y=2.8) langs B-sitets sydkant + trappe
-    stairs(-24, -30, -19, -28, 'x', -1, -0.8, 3.6, 9);
-    slab(-38, -30, -24, -26, 2.8);
-    rail(-38, -30, -24, -29.8, 2.8); rail(-38, -30, -37.8, -26, 2.8);
-    pillar(-36, -29.6, 0.6, -0.8, 2.4); pillar(-30, -29.6, 0.6, -0.8, 2.4);
-    // Ninja-platform: trappe op på blokken (A-site)
-    stairs(27, -44, 31, -42, 'x', -1, 1.2, 2.2, 6);
-    // Overligger (buer) over døråbninger
-    wallBox(-6, -26, -2, -24, 3.6, WALL_TOP);                                             // Mid-døren
-    wallBox(22, -12, 26, -10, 3.6, WALL_TOP);                                             // Catwalk <-> Long A
-    wallBox(-16, -2, -14, 0, 3.4, WALL_TOP); wallBox(-20, -18, -18, -16, 3.4, WALL_TOP);   // Sewer Alley
-    // Ruiner, søjler og brudte mure
-    pillar(-4, 36, 1.0, 0, 3.6); pillar(4, 36, 1.0, 0, 3.6); wallBox(-4.5, 35.5, -1.5, 36.5, 2.6, 3.6);   // ruin-port i T-spawn
-    wallBox(26, 22, 27.6, 26, 0, 2.2); wallBox(34.4, 30, 36, 33, 0, 1.4);                                 // brudte mure i Long A
-    wallBox(-22, 9.5, -17, 10.1, 0, 1.6);                                                                 // lav mur i Lower Tunnels
-    // -- Tunnels
-    wallBox(-36, -4, -28, 14, 3.4, WALL_TOP);   // tag over Upper Tunnels
-    wallBox(-28, 2, -6, 12, 3.4, WALL_TOP);     // tag over Lower Tunnels
-    prop(-33, 30, 2, 2, 1.5);
-    prop(-30, 20, 2, 2, 1.0);
-    prop(-16, 7, 2, 2, 1.5);
-    prop(-11, 4, 1.5, 1.5, 1.0);
-    prop(-32, 42, 2, 2, 1.0);
-    prop(-22, 38, 2, 2, 1.5);
-
-
-    },
-    meta(H) {
-      const { labels } = H;
-    /* ---- gulvtekster / callouts ---- */
-    labels.push({ text: 'A', x: 30, z: -34, y: 1.2, size: 9, kind: 'site' });
-    labels.push({ text: 'B', x: -24.5, z: -37, y: -0.8, size: 9, kind: 'site' });
-    labels.push({ text: 'MID', x: 0, z: 22, y: 0, size: 3.2 });
-    labels.push({ text: 'MID', x: 0, z: -12, y: 0, size: 3.2 });
-    labels.push({ text: 'LONG A', x: 31, z: 22, y: 0, size: 3.2 });
-    labels.push({ text: 'CATWALK', x: 19, z: -14, y: 0, size: 2.4 });
-    labels.push({ text: 'TUNNELS', x: -32, z: 34, y: 0, size: 2.6 });
-    labels.push({ text: 'LOWER', x: -17, z: 10, y: 0, size: 2.2 });
-    labels.push({ text: 'PIT', x: 39, z: -12, y: -1.8, size: 3 });
-    labels.push({ text: 'SWAT SPAWN', x: 0, z: -40, y: 0, size: 3.2 });
-    labels.push({ text: 'HIJACKER SPAWN', x: 0, z: 39, y: 0, size: 3 });
-    labels.push({ text: 'NINJA', x: 22, z: -46.5, y: 1.2, size: 1.8 });
-    labels.push({ text: 'CLOSET', x: -36, z: -44, y: -0.8, size: 2 });
-    labels.push({ text: 'CLOSET', x: 37, z: -45, y: 1.2, size: 2 });
-
-    const sites = {
-      A: { x0: 22, z0: -40, x1: 38, z1: -28, y: 1.2 },
-      B: { x0: -30, z0: -44, x1: -19, z1: -30, y: -0.8 }
-    };
-    const spawns = {
-      hij:  [[-8, 44], [-4, 46], [0, 44], [4, 46], [8, 44]].map(p => ({ x: p[0], y: 0, z: p[1], yaw: 0 })),
-      swat: [[-8, -44], [-4, -46], [0, -44], [4, -46], [8, -44]].map(p => ({ x: p[0], y: 0, z: p[1], yaw: Math.PI }))
-    };
-
-
-      return { sites, spawns };
-    }
-  };
-  }
-
-/* ================================================================ de_ancient (v14) ================================================================
-     Jungle-tempelkompleks tættere på CS2-Ancient – genereret af tools/ancient_gen.py → shared/ancient_data.js (0,5 m-celler):
-       T Spawn → T Ramp → A Main (to knæk) → Elbow → A (hævet: Temple-søjlegang, alter) · Red Room (overdækket) → Mid (vandkanal, House)
-       → Top Mid (obelisk) → Donut (ring om stenblok) → A · Top Mid → B Short → B · B Lane → Cave (mørk tunnel) / B Ramp → B (bassin, vandfald)
-       CT Spawn → Temple-trappen → A · Ruins → B · CT Mid → Top Mid */
-  function mapAncient() {
-    const AD = ANCIENT_DATA, G = AD.grid;
-    return {
-      id: 'ancient', name: 'Ancient', desc: 'Jungle-tempel · hævet tempel (A) og sænket bassin med vandfald (B) · A Main, Elbow, Red Room, Mid med vandkanal, Donut, Cave og B Lane.',
-      GW: G.GW, GH: G.GH, GX0: G.GX0, GZ0: G.GZ0, data: AD,
-      layers: [{ id: 'G', yb: -3, yt: WALL_TOP, tiles: { '#': { solid: true }, ' ': { void: true } } }],
-      grid(H) { H.fill(0, 0, G.GW - 1, G.GH - 1, ' '); },
-      props(H) {
-        const { wallBox, prop, cyl, stairs, fRamp, pillar } = H, deco = H.deco = H.deco || [];
-        for (const b of AD.boxes) wallBox(b[0], b[1], b[2], b[3], b[4], b[5], b[6]);
-        for (const r of AD.ramps) fRamp(r[0], r[1], r[2], r[3], r[4], r[5], r[6]);
-        for (const t of AD.stairs) { const [x0, z0, x1, z1, ax, ya, yb, n] = t, lo = Math.min(ya, yb); stairs(x0, z0, x1, z1, ax, yb > ya ? 1 : -1, lo, Math.abs(yb - ya), n, lo - 0.3, 'stone'); }
-        for (const p of AD.props) prop(p[0], p[1], p[2], p[3], p[4], p[5], p[6]);
-        for (const c of AD.cyls) cyl(c[0], c[1], c[2], c[3], c[4], c[5]);
-        for (const [x, z, s, y] of AD.trees) { deco.push({ t: 'tree', x, z, s }); pillar(x, z, 0.62, y - 0.2, y + 4.2, 'solid'); }   // stammen = usynlig kollision (temaet tegner træet)
-        for (const [x0, z0, x1, z1, y] of AD.beds) deco.push({ t: 'bed', x0, z0, x1, z1, y });
-      },
-      meta(H) {
-        for (const l of AD.labels) H.labels.push({ text: l[0], x: l[1], z: l[2], y: l[3], kind: l[0] === 'A' || l[0] === 'B' ? 'site' : undefined });
-        const sites = {}; for (const k in AD.sites) { const S = AD.sites[k]; sites[k] = { x0: S[0], z0: S[1], x1: S[2], z1: S[3], y: S[4] }; }
-        const spawns = { hij: AD.spawns.hij.map(p => ({ x: p[0], y: AD.levels.T, z: p[1], yaw: p[2] })), swat: AD.spawns.swat.map(p => ({ x: p[0], y: AD.levels.CT, z: p[1], yaw: p[2] })) };
-        return { sites, spawns };
-      }
-    };
-  }
-
-  /* ================================================================ de_ascension (v25) ================================================================
-     Klosteret på bjergtoppen i regn og nat – bygget præcist efter brugerens oversigtskort (docs/ascension_overview.jpg):
-     tools/asc/layout.py → fields.py → export_collision.py → shared/asc_data.js; grafikken bygges og bages i Blender (tools/asc/build.py).
-     Syv niveauer: krypten (−1,5) · T (0) · klostergården/Mid (1,5) · galleriet og B (3,0) · A (4,5) · CT (6,0) · Heaven (6,0). */
-  function mapAscension() {
-    const D = ASC_DATA, G = D.grid;
-    return {
-      id: 'ascension', name: 'Ascension', desc: 'Klosteret på bjergtoppen i regn og nat · krypten, klostergården, katedralens galleri og klokketårnet over A.',
+      id: 'bureau', name: 'Bureau', desc: 'Luksus-bureauet øverst i et højhus om natten · marmor og valnød, serverhal (A), våbenkammer (B), tagterrasse med udsigt over byen.',
       GW: G.GW, GH: G.GH, GX0: G.GX0, GZ0: G.GZ0, data: D,
       layers: [{ id: 'G', yb: -4, yt: WALL_TOP, tiles: { '#': { solid: true }, ' ': { void: true } } }],
       grid(H) { H.fill(0, 0, G.GW - 1, G.GH - 1, ' '); },
       props(H) {
-        const { wallBox, cyl, stairs, fRamp } = H;
+        const { wallBox, stairs, fRamp } = H;
         for (const b of D.boxes) wallBox(b[0], b[1], b[2], b[3], b[4], b[5], b[6]);
         for (const r of D.ramps) fRamp(r[0], r[1], r[2], r[3], r[4], r[5], r[6]);
         for (const t of D.stairs) { const [x0, z0, x1, z1, ax, ya, yb, n] = t, lo = Math.min(ya, yb); stairs(x0, z0, x1, z1, ax, yb > ya ? 1 : -1, lo, Math.abs(yb - ya), n, lo - 0.3, 'stone'); }
-        for (const c of D.cyls) cyl(c[0], c[1], c[2], c[3], c[4], c[5]);
-        for (const r of D.rails) H.rail(r[0], r[1], r[2], r[3], r[4], r[5], 'stone');
+        for (const r of D.rails) H.rail(r[0], r[1], r[2], r[3], r[4], r[5], 'metal');
       },
       meta(H) {
         for (const l of D.labels) H.labels.push({ text: l[0], x: l[1], z: l[2], y: l[3], kind: l[0] === 'A' || l[0] === 'B' ? 'site' : undefined });
         const sites = {}; for (const k in D.sites) { const S = D.sites[k]; sites[k] = { x0: S[0], z0: S[1], x1: S[2], z1: S[3], y: S[4] }; }
-        const spawns = { hij: D.spawns.hij.map(p => ({ x: p[0], y: D.levels.T, z: p[1], yaw: p[2] })), swat: D.spawns.swat.map(p => ({ x: p[0], y: D.levels.CT, z: p[1], yaw: p[2] })) };
-        return { sites, spawns };
+        const sp = p => ({ x: p[0], y: p[3], z: p[1], yaw: p[2] });
+        return { sites, spawns: { hij: D.spawns.hij.map(sp), swat: D.spawns.swat.map(sp) } };
       }
     };
   }
 
-  /* ================================================================ de_havn (v15) ================================================================
-     Nordisk havnebydel – layout i tools/havn/layout.py → tools/havn/export_collision.py → shared/havn_data.js (grafikken bygges i
-     Blender af samme layout: tools/havn/blender_build.py). Kanalen deler banen og krydses i tre højder: broer (+1,0), slusen (0) og
-     nede ved vandet (−1,6: ponton og pram). Se docs/maps/havn/DESIGN.md. */
-  function mapHavn() {
-    const HD = HAVN_DATA, G = HD.grid;
-    return {
-      id: 'havn', name: 'Havn', desc: 'Nordisk havnebydel · kanal med sluse og klapbro · pakhus, fiskehal med iskælder, kirke og vold.',
-      GW: G.GW, GH: G.GH, GX0: G.GX0, GZ0: G.GZ0, data: HD,
-      layers: [{ id: 'G', yb: -4, yt: WALL_TOP, tiles: { '#': { solid: true }, ' ': { void: true } } }],
-      grid(H) { H.fill(0, 0, G.GW - 1, G.GH - 1, ' '); },
-      props(H) {
-        const { wallBox, cyl, stairs, fRamp } = H;
-        for (const b of HD.boxes) wallBox(b[0], b[1], b[2], b[3], b[4], b[5], b[6]);
-        for (const r of HD.ramps) fRamp(r[0], r[1], r[2], r[3], r[4], r[5], r[6]);
-        for (const t of HD.stairs) { const [x0, z0, x1, z1, ax, ya, yb, n] = t, lo = Math.min(ya, yb); stairs(x0, z0, x1, z1, ax, yb > ya ? 1 : -1, lo, Math.abs(yb - ya), n, lo - 0.3, 'stone'); }
-        for (const c of HD.cyls) cyl(c[0], c[1], c[2], c[3], c[4], c[5]);
-        for (const r of HD.rails) H.rail(r[0], r[1], r[2], r[3], r[4], r[5], 'iron');
-        for (const d of HD.doors) H.door(d[0], d[1], d[2], d[3], d[4], { kind: 'wood', double: d[5] === 'gate' });
-      },
-      meta(H) {
-        for (const l of HD.labels) H.labels.push({ text: l[0], x: l[1], z: l[2], y: l[3], kind: l[0] === 'A' || l[0] === 'B' ? 'site' : undefined });
-        const sites = {}; for (const k in HD.sites) { const S = HD.sites[k]; sites[k] = { x0: S[0], z0: S[1], x1: S[2], z1: S[3], y: S[4] }; }
-        const spawns = { hij: HD.spawns.hij.map(p => ({ x: p[0], y: HD.levels.T, z: p[1], yaw: p[2] })), swat: HD.spawns.swat.map(p => ({ x: p[0], y: HD.levels.CT, z: p[1], yaw: p[2] })) };
-        return { sites, spawns };
-      }
-    };
-  }
-
-  /* ================================================================ de_canals (v16) ================================================================
-     CS:GO de_canals (Venedig: Piazza San Marco, Dogepaladset, Sukkenes Bro, Campanilen = A) bygget DIREKTE af brugerens Blender-import
-     af banen: tools/canals/ scanner geometrien (kollision) og eksporterer banens egne meshes og Source-teksturer (grafik, world.bin).
-     Spilleområdet = den registrerede radar (tools/canals_src/radar.webp); sites, spawns og callouts er aflæst på radaren. */
-  function mapCanals() {
-    const D = CANALS_DATA, G = D.grid, SY = D.spawnY || {};
-    return {
-      id: 'canals', name: 'Canals', desc: 'CS:GO-banen i Venedig · T Water, Mid-kanalen, Sukkenes Bro, Campanilen (A), B ved CT Water, CT Long og Dock.',
-      GW: G.GW, GH: G.GH, GX0: G.GX0, GZ0: G.GZ0, data: D,
-      layers: [{ id: 'G', yb: -4, yt: WALL_TOP, tiles: { '#': { solid: true }, ' ': { void: true } } }],
-      grid(H) { H.fill(0, 0, G.GW - 1, G.GH - 1, ' '); },
-      props(H) {
-        for (const b of D.boxes) H.wallBox(b[0], b[1], b[2], b[3], b[4], b[5], b[6]);
-        for (const c of D.clips || []) H.wallBox(c[0], c[1], c[2], c[3], c[4], c[5], 'clip', { nb: true });
-      },
-      meta(H) {
-        for (const l of D.labels) H.labels.push({ text: l[0], x: l[1], z: l[2], y: l[3] });
-        const sites = {}; for (const k in D.sites) { const S = D.sites[k]; sites[k] = { x0: S[0], z0: S[1], x1: S[2], z1: S[3], y: S[4] }; }
-        const sp = side => D.spawns[side].map((p, i) => ({ x: p[0], y: SY[side] ? SY[side][i] : D.levels[side === 'hij' ? 'T' : 'CT'], z: p[1], yaw: p[2] }));
-        return { sites, spawns: { hij: sp('hij'), swat: sp('swat') } };
-      }
-    };
-  }
-
-  /* ================================================================ de_inferno (v13) ================================================================
-     Gammel italiensk landsby, frit inspireret af CS2-Inferno – genereret af tools/inferno_gen.py → shared/inferno_data.js:
-       T Spawn → T-rampen → Banana (snoet, stigende gade) → B (hævet kirkeplads: Church, Coffins, springvand, appelsinbede)
-       Second Mid → Mid → Short (bue) → A-piazzaen (Graveyard, Pit, Quad) · T Apps: lejlighedskæden på 1. sal → Boiler → Balcony over A
-       CT Spawn → CT-gården → Arch (overdækket) / Library → A · CT-vejen mod vest → Construction → B · Alley: Top Mid ↔ CT-vejen */
-  function mapInferno() {
-    const ID = INFERNO_DATA, G = ID.grid;
-    return {
-      id: 'inferno', name: 'Inferno', desc: 'CS:GO-Inferno fra Blender-importen · Banana, Mid, Apartments, Balcony, Pit, Library og kirkepladsen på B.',
-      GW: G.GW, GH: G.GH, GX0: G.GX0, GZ0: G.GZ0, data: ID,
-      layers: [{ id: 'G', yb: -4, yt: WALL_TOP, tiles: { '#': { solid: true }, ' ': { void: true } } }],
-      grid(H) { H.fill(0, 0, G.GW - 1, G.GH - 1, ' '); },
-      props(H) {
-        const { wallBox, prop, cyl, ladder, stairs, fRamp } = H;
-        for (const b of ID.boxes) wallBox(b[0], b[1], b[2], b[3], b[4], b[5], b[6]);
-        for (const r of ID.ramps) fRamp(r[0], r[1], r[2], r[3], r[4], r[5], r[6]);
-        for (const t of ID.stairs) { const [x0, z0, x1, z1, ax, ya, yb, n] = t, lo = Math.min(ya, yb); stairs(x0, z0, x1, z1, ax, yb > ya ? 1 : -1, lo, Math.abs(yb - ya), n, lo - 0.3, 'stone'); }
-        for (const p of ID.props) prop(p[0], p[1], p[2], p[3], p[4], p[5], p[6]);
-        for (const c of ID.cyls) cyl(c[0], c[1], c[2], c[3], c[4], c[5]);
-        for (const r of ID.rails) H.rail(r[0], r[1], r[2], r[3], r[4], r[5], 'iron');
-        for (const l of ID.ladders) ladder(l[0], l[1], l[2], l[3], l[4], l[5], l[6], l[7]);
-        for (const d of ID.doors) H.door(d[0], d[1], d[2], d[3], d[4], { kind: 'wood' });
-        for (const c of ID.clips || []) wallBox(c[0], c[1], c[2], c[3], c[4], c[5], 'clip', { nb: true });
-      },
-      meta(H) {
-        for (const l of ID.labels) H.labels.push({ text: l[0], x: l[1], z: l[2], y: l[3], nav: l[4] !== 0 });
-        const sites = {}; for (const k in ID.sites) { const S = ID.sites[k]; sites[k] = { x0: S[0], z0: S[1], x1: S[2], z1: S[3], y: S[4] }; }
-        const SY = ID.spawnY || {};                                       // v16: hver spawn har sin egen gulvhøjde (printets terræn)
-        const spawns = { hij: ID.spawns.hij.map((p, i) => ({ x: p[0], y: SY.hij ? SY.hij[i] : ID.levels.T, z: p[1], yaw: p[2] })), swat: ID.spawns.swat.map((p, i) => ({ x: p[0], y: SY.swat ? SY.swat[i] : ID.levels.CT, z: p[1], yaw: p[2] })) };
-        return { sites, spawns };
-      }
-    };
-  }
-
-  /* ================================================================ de_nuke (v12.1) ================================================================
-     Bygget PRÆCIST efter brugerens 3D-print-model (tools/nuke_stl/upper.stl + lower.stl) af tools/nuke_from_stl.py → shared/nuke_data.js:
-     hver 0,225 m-celle af printet er omsat til geometri (gulve, trin, kanter, vægspor → mure med højder fra printets hjørnestolper),
-     ramper/trapper/stiger målt i printet, props (kasser, containere, siloen, tankene i A, reaktoren i B) med printets mål.
-     Målestok 0,45 m pr. print-enhed (CS-timing). T Spawn og CT Spawn ligger uden for printet og er tilføjet efter radaren.
-       A-niveau (y 0): T Spawn → T-siden → Lobby-bygningen (Lobby · Squeaky · Radio · Control, T Roof ovenpå) → A-hallen (Hut, to tanke, Main)
-                       Ramp-rummet nord for A med to sidebaner ned mod rampen · CT-siden: Lockers, Turnpike, hævet CT-plads (+2,09 m) med to ramper
-                       Outside: Silo, T Red, CT Red, Garage (lastbil, containere), Secret-bygningen og den åbne Secret-trappe i gårdens sydkant
-       B-niveau (y −9,3): Ramp (ned mod syd under Ramp-rummet) → Bottom Ramp (−6,2) → B site med reaktoren · Window · Doors · Tunnels → Secret
-                       · Decon · Back Vents (kravlekanal) med stige op til ventilationen ved Main */
-  function mapNuke() {
-    const ND = NUKE_DATA, G = ND.grid, LV = ND.levels;
-    return {
-      id: 'nuke', name: 'Nuke', desc: 'Præcis efter 3D-modellen · A oppe, B nede under · Ramp, Bottom Ramp, Secret, Back Vents, Garage, Silo og hævet CT-plads.',
-      GW: G.GW, GH: G.GH, GX0: G.GX0, GZ0: G.GZ0, data: ND, ring: true,
-      layers: [
-        { id: 'B', yb: -12, yt: -0.6, tiles: { '#': { solid: true }, ' ': { void: true } } },
-        { id: 'G', yb: -0.6, yt: WALL_TOP, tiles: { '#': { solid: true }, ' ': { void: true } } }
-      ],
-      grid(H) {
-        H.layer('B'); H.fill(0, 0, G.GW - 1, G.GH - 1, ' ');
-        H.layer('G'); H.fill(0, 0, G.GW - 1, G.GH - 1, ' ');
-      },
-      props(H) {
-        const { wallBox, prop, slab, cyl, ladder, stairs, fRamp } = H;
-        for (const b of ND.boxes) wallBox(b[0], b[1], b[2], b[3], b[4], b[5], b[6]);
-        for (const r of ND.ramps) fRamp(r[0], r[1], r[2], r[3], r[4], r[5], r[6]);
-        for (const t of ND.stairs) {
-          const [x0, z0, x1, z1, ax, ya, yb, n] = t, lo = Math.min(ya, yb);
-          stairs(x0, z0, x1, z1, ax, yb > ya ? 1 : -1, lo, Math.abs(yb - ya), n, lo - 0.3, 'steelstairs');
-        }
-        const COLS = ['red', 'blue', 'green', 'blue2'];
-        for (const p of ND.props) prop(p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[6] === 'container' ? { col: p[7] || COLS[Math.abs(Math.round(p[0] * 7 + p[1] * 3)) % 4] } : undefined);
-        for (const c of ND.cyls) cyl(c[0], c[1], c[2], c[3], c[4], c[5], { ceil: LV.roofA });
-        for (const r of ND.roofs) slab(r[0], r[1], r[2], r[3], r[5], r[5] - r[4], 'roofslab', { name: r[6], walk: r[7] === 'roof' });
-        for (const l of ND.ladders) ladder(l[0], l[1], l[2], l[3], l[4], l[5], l[6], l[7]);
-        // v13: gangbroer (rist), gelændere og usynlige clip-vægge (stopper bevægelse, ikke kugler/granater)
-        for (const g of ND.grates || []) wallBox(g[0], g[1], g[2], g[3], g[4] - g[5], g[4], g[6] === 'post' ? 'steel' : 'grate');
-        for (const r of ND.rails || []) H.rail(r[0], r[1], r[2], r[3], r[4], r[5], 'steel');
-        for (const c of ND.clips || []) wallBox(c[0], c[1], c[2], c[3], c[4], c[5], 'clip', { nb: true });
-      },
-      meta(H) {
-        for (const l of ND.labels) H.labels.push({ text: l[0], x: l[1], z: l[2], y: l[3] });
-        const S = ND.sites, sites = {};
-        for (const k in S) sites[k] = { x0: S[k][0], z0: S[k][1], x1: S[k][2], z1: S[k][3], y: S[k][4] };
-        const spawns = {
-          hij: ND.spawns.hij.map(p => ({ x: p[0], y: 0, z: p[1], yaw: p[2] })),
-          swat: ND.spawns.swat.map(p => ({ x: p[0], y: LV.CT, z: p[1], yaw: p[2] }))
-        };
-        return { sites, spawns };
-      }
-    };
-  }
 
 });

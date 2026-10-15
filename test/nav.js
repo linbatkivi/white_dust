@@ -6,7 +6,7 @@
 //   • taktik: ingen sigtelinje mellem spawns · tider: SWAT når forsvarspositioner før Hijackers
 //   node test/nav.js <bane>
 const WD = require('../shared/wd.js');
-const MAPID = process.argv[2] || 'white_dust';
+const MAPID = process.argv[2] || 'bureau';
 const W = WD.buildWorld(MAPID);
 console.log('=== NAV-TEST:', MAPID, '===');
 const { PL } = WD;
@@ -110,84 +110,10 @@ function findPlant(k) {
 const A_PL = findPlant('A'), B_PL = findPlant('B');
 const SPT = W.spawns.hij[0], SPC = W.spawns.swat[0];
 const CFG = {
-  white_dust: {
-    targets: { 'A-site (plant)': [A_PL[0], A_PL[1], W.sites.A.y], 'B-site (plant)': [B_PL[0], B_PL[1], W.sites.B.y], 'Pit': [39, -12, -1.8], 'A-closet': [40, -45, 1.2], 'B-closet': [-36, -45, -0.8], 'Ninja': [22, -46.5, 1.2],
-      'Mid': [0, 0, 0], 'Catwalk': [19, -10, 0], 'Long A': [31, 20, 0], 'Upper tunnels': [-32, 0, 0], 'Lower tunnels': [-16, 8, 0], 'Mid-balkon': [-4.5, -8, 3.2], 'Catwalk-loft': [12, -9, 3.2], 'B-galleri': [-30, -28, 2.8] },
-    timings: [
-      ['Mid-døren (SWAT) før Hijackers når Mid', 'swat', [-4, -22, 0], 'hij', [-4, -16, 0]],
-      ['Catwalk (SWAT) før Hijackers', 'swat', [19, -10, 0], 'hij', [19, -10, 0]],
-      ['B-site (SWAT) før Hijackers kommer ud af tunnellerne', 'swat', [-25, -38, -0.8], 'hij', [-32, -16, 0]],
-      ['A-site (SWAT) før Hijackers kommer op fra Long A', 'swat', [30, -36, 1.2], 'hij', [37, -16, 0]]
-    ]
-  },
-  nuke: {   // v12.1: Nuke bygget præcist efter STL-modellen (koordinater fra tools/nuke_from_stl.py)
-    targets: {
-      'A-site (plant)': [A_PL[0], A_PL[1], 0], 'B-site (plant)': [B_PL[0], B_PL[1], W.sites.B.y],
-      'Lobby': [-20.3, 0.5, 0], 'Squeaky': [-17.6, 10.3, 0], 'Radio': [-21.6, -12.2, 0], 'Control': [-14.4, -12.2, 0], 'Trophy': [-28.4, -9.9, 0], 'Hut': [-7.2, 4.5, 0],
-      'A site': [-0.5, -8.2, 0], 'Main': [0.9, 20.7, 0], 'Mustang': [-7.2, -13.1, 0], 'Ramp room': [0, -24.8, 0], 'Lockers': [14.8, -5, 0], 'Turnpike': [14.8, -12.6, 0],
-      'CT Box': [29.3, 7.3, 0.24], 'CT-pladsen': [40, -8, 2.09], 'CT Red': [16, 18.5, 0], 'T Red': [0.4, 36.8, 0], 'Silo': [-15.8, 26.1, 0], 'Outside': [6.8, 27.4, 0], 'Garage': [30.1, 29.3, 0],
-      'T Roof (sti)': [-27, 6.6, 5.83], 'Silo-top': [-15.57, 19.4, 6.23], 'Palace': [7.4, -10, 4.0], 'Ramp-landing': [0, -40, -1.75], 'Ramp (midt)': [0, -32, -3.87], 'Bottom Ramp': [-0.4, -17.7, -6.22], 'B site': [-0.4, 2.5, -9.3],
-      'Window': [12.5, -7.5, -6.22], 'Tunnels': [12.6, 16, -6.22], 'Decon': [-13, 16, -9.3], 'Secret-gangen': [13.95, 25.0, -6.22], 'Secret-trappens top': [19.0, 40.3, -1.25]
-    },
-    // tider (s): SWAT skal nå forsvarspositionen FØR Hijackers når frem (som i CS)
-    timings: [
-      ['B-site (SWAT) før Hijackers', 'swat', [-0.4, 2.5, -9.3], 'hij', [-0.4, 2.5, -9.3]],
-      ['Ramp room (SWAT) før Hijackers', 'swat', [0, -24.8, 0], 'hij', [0, -24.8, 0]],
-      ['Outside (SWAT) før Hijackers', 'swat', [6.8, 27.4, 0], 'hij', [6.8, 27.4, 0]],
-      ['Secret-trappen (SWAT) før Hijackers', 'swat', [19.0, 40.3, -1.25], 'hij', [19.0, 40.3, -1.25]]
-    ]
-  },
-  inferno: {   // v17: CS:GO-Inferno fra Blender-importen (tools/infsrc/) – mål = sites + wikiens callouts (dem der står på åbent gulv)
-    targets: Object.assign({ 'A-site (plant)': [A_PL[0], A_PL[1], W.sites.A.y], 'B-site (plant)': [B_PL[0], B_PL[1], W.sites.B.y] },
-      Object.fromEntries((W.labels || []).filter(l => l.nav !== false).map(l => [l.text, [l.x, l.z, l.y]]))),
-    timings: [
-      ['A-site (SWAT) før Hijackers', 'swat', [A_PL[0], A_PL[1], W.sites.A.y], 'hij', [A_PL[0], A_PL[1], W.sites.A.y]],
-      ['B-site (SWAT) før Hijackers', 'swat', [B_PL[0], B_PL[1], W.sites.B.y], 'hij', [B_PL[0], B_PL[1], W.sites.B.y]]
-    ]
-  },
-  canals: {   // v16: CS:GO de_canals fra Blender-importen (tools/canals/) – mål = sites + radarens callouts
-    targets: Object.assign({ 'A-site (plant)': [A_PL[0], A_PL[1], W.sites.A.y], 'B-site (plant)': [B_PL[0], B_PL[1], W.sites.B.y] },
-      Object.fromEntries((W.labels || []).map(l => [l.text, [l.x, l.z, l.y]]))),
-    timings: [
-      ['A-site (SWAT) før Hijackers', 'swat', [A_PL[0], A_PL[1], W.sites.A.y], 'hij', [A_PL[0], A_PL[1], W.sites.A.y]],
-      ['B-site (SWAT) før Hijackers', 'swat', [B_PL[0], B_PL[1], W.sites.B.y], 'hij', [B_PL[0], B_PL[1], W.sites.B.y]]
-    ]
-  },
-  ancient: {   // v14: jungle-tempel (tools/ancient_gen.py)
-    targets: { 'A-site (plant)': [A_PL[0], A_PL[1], W.sites.A.y], 'B-site (plant)': [B_PL[0], B_PL[1], W.sites.B.y], 'T Ramp': [-34, 40.5, 0.3], 'A Main': [-41.5, 20, 0.6], 'Elbow': [-42, -6, 0.6],
-      'Red Room': [-22, 18, 0.6], 'Mid': [-3.5, 24, 0], 'Vandkanalen': [-7, 26, -0.35], 'House': [11, 14, 0], 'Top Mid': [5.5, -10, 0.8], 'Donut': [-18, -13.5, 0.8], 'Temple': [-40, -42, 1.6],
-      'Templets helligdom': [-44, -51, 3.2], 'CT Mid': [8.5, -28, 0], 'Ruins': [18, -40, 0], 'B Short': [17, -4, 0.8], 'Cave': [24, 14.7, 0], 'B Lane': [43.5, 24, 0], 'B Ramp': [43.5, -6, -0.4], 'Bassinet (B)': [35, -30, -1.55] },
-    timings: [
-      ['Top Mid (SWAT) før Hijackers', 'swat', [5.5, -10, 0.8], 'hij', [5.5, -10, 0.8]],
-      ['A-site (SWAT) før Hijackers kommer op ad Elbow', 'swat', [-40, -27, 1.6], 'hij', [-34.5, -16.5, 1.6]],
-      ['A-site (SWAT) før Hijackers via Donut', 'swat', [-35, -22, 1.6], 'hij', [-31.5, -19, 1.6]],
-      ['B-site (SWAT) før Hijackers via B Ramp', 'swat', [36, -24, -1.2], 'hij', [43.5, -18.5, -1.2]],
-      ['B-site (SWAT) før Hijackers via B Short', 'swat', [34, -22, -1.2], 'hij', [34, -18.5, -1.2]]
-    ]
-  },
-  havn: {   // v15: nordisk havnebydel (tools/havn/layout.py) – tre niveauer ved kanalen
-    targets: {
-      'A-site (plant)': [A_PL[0], A_PL[1], W.sites.A.y], 'B-site (plant)': [B_PL[0], B_PL[1], W.sites.B.y],
-      'Banegården': [-55, 0, 0], 'Værftsgade': [-52, -28, 0], 'Havnefronten': [-40, -42, 0], 'Kajpladsen': [-6, -40, 0], 'Klapbroen': [16, -37, 1.0],
-      'Pontonen': [16, -36.7, -1.6], 'Molen': [33, -49, -1.6], 'Nedre kaj NV': [9.5, -24, -1.6], 'Nedre kaj NØ': [22.5, -24, -1.6], 'Nordgade': [2, -23, 0],
-      'Pakhuset': [-14, -26, 0], 'Loftet': [-14, -27, 3.4], 'Loftsbalkonen': [-6, -18, 3.4], 'Rebslagergang': [-35, -7.5, 0], 'Baggården': [-21, 0, 1.2],
-      'Torvet': [-3, -8, 0], 'Slusen': [16, -5.2, 0], 'Kirkepladsen': [29, 0, 0], 'Bagergang': [-30, 8.5, 0], 'Bryggergade': [-40, 21, 0], 'Brohovedet': [4, 30, 0],
-      'Sydbroen': [16, 37, 1.0], 'Nedre kaj SV': [9.5, 30, -1.6], 'Prammen': [16, 22, -1.6], 'Krybegangen': [26, 22, -1.6], 'Iskælderen': [31, 26, -1.6],
-      'B (hallen)': [38, 31, 1.0], 'Galleriet': [48, 30, 4.4], 'Perronen': [26, 36, 1.0], 'Fiskergården': [56, 33, 0], 'Toldgade': [29, -21, 0],
-      'A (Toldbodpladsen)': [40, -38, 0], 'Kastellet': [60, 0, 3.4]
-    },
-    timings: [
-      ['A-site (SWAT) før Hijackers kommer over Klapbroen', 'swat', [40, -38, 0], 'hij', [27, -37, 0.5]],
-      ['A-site (SWAT) før Hijackers kommer op ad Moletrappen', 'swat', [40, -38, 0], 'hij', [41.2, -43, 0]],
-      ['Kirkepladsen (SWAT) før Hijackers kommer over Slusen', 'swat', [27, -5, 0], 'hij', [22, -5.2, 0]],
-      ['B-site (SWAT) før Hijackers kommer over Sydbroen', 'swat', [38, 31, 1.0], 'hij', [26, 37, 1.0]],
-      ['B-site (SWAT) før Hijackers kommer op fra Iskælderen', 'swat', [38, 31, 1.0], 'hij', [34.7, 28.5, 1.0]]
-    ]
-  },
-  ascension: {   // v25: klosteret i regn og nat (tools/asc/layout.py) – seks niveauer fra krypten (−1,5) til CT (6,0); målene er zonernes midter
+  bureau: {   // v26: luksus-bureauet (tools/bureau/) – seks niveauer fra teknikkælderen (−1,5) til CT/parkeringskælderen (6,0); målene er zonernes midter
     snap: 3.5,
     targets: Object.assign({ 'A-site (plant)': [A_PL[0], A_PL[1], W.sites.A.y], 'B-site (plant)': [B_PL[0], B_PL[1], W.sites.B.y] },
-      Object.fromEntries(require('../shared/asc_data.js').labels.filter(l => l[0].length > 1).map(l => [l[0], [l[1], l[2], l[3]]]))),
+      Object.fromEntries(W.data.labels.filter(l => l[0].length > 1).map(l => [l[0], [l[1], l[2], l[3]]]))),
     timings: [
       ['A-site (SWAT) før Hijackers kommer op ad Long A', 'swat', [A_PL[0], A_PL[1], W.sites.A.y], 'hij', [47.8, -11.9, 4.5]],
       ['A-site (SWAT) før Hijackers kommer gennem Søjlegangen', 'swat', [A_PL[0], A_PL[1], W.sites.A.y], 'hij', [33.2, -14.1, 3]],
@@ -243,22 +169,6 @@ W.ladders.forEach((l, i) => {
   WD.stepBody(W, b3, { fx: 0, sx: 0, yaw, jump: true }, 1 / 60); const off = !b3.onLadder; let t4 = 0; while (t4 < 3 && !b3.ground) { WD.stepBody(W, b3, { fx: 0, sx: 0, yaw, jump: false }, 1 / 60); t4 += 1 / 60; }
   off && b3.ground ? okm(`stige ${i + 1}: hop af virker (lander y=${b3.y.toFixed(2)})`) : fail(`stige ${i + 1}: hop af virker ikke`);
 });
-/* ---------------- 5. ventilation + hatch (Nuke): Outside → kanal → skakt → Back Vents → B, og tilbage op ---------------- */
-if (MAPID === 'nuke' && false) {
-  console.log('\nVentilation og Hatch:');
-  // ventilationen måles i to stræk (ellers vælger grafen den kortere vej gennem Hatchen): Outside → skaktens bund, og skaktens bund → B-site
-  const r = dijkstra(1, 19.5, 0, near(9, 15, -6, 0.8));
-  if (!r.path || !r.path.some(s => s.crouch) || !r.path.some(s => s.fall)) fail('ingen ventilations-sti fra Outside ned i skakten');
-  else { const w = walkPath(r.path, 'vent Outside → skakt', 1, 19.5, 0); if (w) okm(`Outside → kanal → fald i skakten: ${w.t.toFixed(1)} s (nedhuk i kanalen)`); }
-  const rB = dijkstra(9, 15, -6, near(B_PL[0], B_PL[1], -6, 1.2));
-  if (!rB.path || !rB.path.some(s => s.crouch)) fail('Back Vents → B-site mangler'); else { const w = walkPath(rB.path, 'Back Vents → B', 9, 15, -6); if (w) okm(`Back Vents → B-site: ${w.t.toFixed(1)} s`); }
-  const r2 = dijkstra(9, 4, -6, n => Math.abs(n.y) < 0.2 && n.iz * G > 14 && n.iz * G < 16);
-  if (r2.path && r2.path.some(s => s.ladder)) { const w = walkPath(r2.path, 'B → op ad skaktstigen', 9, 4, -6); if (w) okm(`B → op ad skaktstigen til kanalen: ${w.t.toFixed(1)} s`); } else fail('kan ikke klatre op i ventilationen fra B');
-  const rD = dijkstra(9, 15, -6, near(-7, 12, -6, 1.5)); rD.path && rD.path.some(s => s.crouch) ? okm('Back Vents forbinder også til Decon') : fail('ventilation → Decon mangler');
-  const stand = WD.isBlocked(W, 5, 15, 0, PL.H) && !WD.isBlocked(W, 5, 15, 0, PL.HC);
-  stand ? okm('kanalen er snæver: kun plads nedhukket') : fail('kanalen er ikke kun-nedhukket');
-  const rH = dijkstra(1, -1, 0, near(1, 3, -6, 0.9)); rH.path && rH.path.some(s => s.fall) ? okm(`Hatch: drop fra A ned i B på ${rH.d.toFixed(1)} s`) : fail('Hatch (A → B) virker ikke');
-}
 /* ---------------- 5b. v9 QA: bounding box glider gennem samlinger (stiger fra skrå vinkler, hele vent-systemet med zig-zag) ---------------- */
 if (W.ladders.length) {
   console.log('\nStiger fra skrå vinkler (glidende tilgang):');
@@ -274,40 +184,6 @@ if (W.ladders.length) {
     }
     okN === tries ? okm(`stige ${i + 1} (${l.y0}→${l.y1}): op fra alle ${tries} vinkler/sideforskydninger`) : fail(`stige ${i + 1}: kun ${okN}/${tries} tilgange kom op`);
   });
-}
-if (MAPID === 'nuke' && false) {
-  console.log('\nVentilation – kravl hele kanalen med zig-zag (samlinger mellem kanal-segmenter):');
-  // fra Outside ind gennem åbningen (mod nord), langs kanalen mod øst (svingende kurs + sidelæns) til skakten ved x 8..10, og ned til B
-  const b = WD.newBody(1, 0, 19.5); let t = 0, lastX = b.x, lastT = 0, stuckAt = null;
-  while (t < 40 && b.y > -5.9) {
-    const inDuct = b.z < 15.3;
-    let yaw = 0, sx = 0;                                                                  // yaw 0: fremad = -z (ind i åbningen)
-    if (inDuct && b.x < 2.6) yaw = -Math.PI / 2;                                          // drej ind i kanalen ved åbningen
-    else if (inDuct) { yaw = -Math.PI / 2 + Math.sin(t * 2.3) * 0.35; sx = Math.sin(t * 1.7) > 0.6 ? 1 : Math.sin(t * 1.7) < -0.6 ? -1 : 0; }
-    if (b.onLadder) { yaw = -Math.PI / 2; sx = 0; }                                         // greb skakt-stigen i faldet: S = ned
-    WD.stepBody(W, b, { fx: b.onLadder ? -1 : 1, sx, yaw, crouch: true }, 1 / 60); t += 1 / 60;
-    if (t - lastT > 1.5) { if (inDuct && Math.abs(b.x - lastX) < 0.4 && b.y > -0.5) { stuckAt = [b.x, b.y, b.z]; break; } lastX = b.x; lastT = t; }
-  }
-  (b.y <= -5.9 && !stuckAt) ? okm(`vent Outside → skakt: igennem på ${t.toFixed(1)} s og ned i Back Vents (ingen fastlåsning trods zig-zag)`) : fail(`vent: ${stuckAt ? 'FAST ved ' + stuckAt.map(v => v.toFixed(2)).join(',') : 'kom ikke igennem (y=' + b.y.toFixed(2) + ')'}`);
-}
-if (MAPID === 'nuke') {
-  console.log('\nVentilation (STL-Nuke): ned ad skakten ved Main og kravl Back Vents-kanalen igennem til Tunnels:');
-  const l = W.ladders.find(q => q.y1 > -0.1 && q.y0 < -4);
-  const b = WD.newBody((l.x0 + l.x1) / 2 + l.nx * 0.5, 0, (l.z0 + l.z1) / 2); b.y = WD.groundAt(W, b.x, b.z, 0.3, 0.5) > -Infinity ? 0 : 0;
-  // stå ved hullet, vend mod stigen og kravl ned (S)
-  b.x = (l.x0 + l.x1) / 2; b.z = (l.z0 + l.z1) / 2; b.y = -0.2; b.ground = false; b.vy = -1;
-  let t = 0; const face = Math.atan2(l.nx, l.nz);
-  while (t < 8 && !(b.ground && b.y < l.y0 + 0.1)) { WD.stepBody(W, b, { fx: b.onLadder ? -1 : 0, sx: 0, yaw: face }, 1 / 60); t += 1 / 60; }
-  const down = b.y < l.y0 + 0.1;
-  // kanalens forløb (som i printet): mod øst, et knæk mod nord ved x≈3, videre mod øst og ud i Tunnels – med vaklende kurs undervejs
-  const WPS = [[2.9, 14.6], [2.9, 13.05], [11.5, 13.05], [13, 13.05]];
-  let t2 = 0, xMax = b.x, wi = 0;
-  while (t2 < 25 && b.y > -6.0) {
-    const [tx, tz] = WPS[Math.min(wi, WPS.length - 1)]; if (Math.hypot(tx - b.x, tz - b.z) < 0.35 && wi < WPS.length - 1) wi++;
-    const yaw = Math.atan2(-(tx - b.x), -(tz - b.z)) + Math.sin(t2 * 2.1) * 0.2;
-    WD.stepBody(W, b, { fx: 1, sx: 0, yaw, crouch: true }, 1 / 60); t2 += 1 / 60; xMax = Math.max(xMax, b.x);
-  }
-  (down && b.y <= -6.0) ? okm(`vent: ned ad skakten (${t.toFixed(1)} s) og gennem kanalen ud i Tunnels på ${t2.toFixed(1)} s`) : fail(`vent: ned=${down}, endte ved x=${b.x.toFixed(2)} y=${b.y.toFixed(2)} (længst x=${xMax.toFixed(2)})`);
 }
 /* ---------------- 6. kollision: fuzz + glidning langs props ---------------- */
 console.log('\nKollision:');
@@ -344,27 +220,6 @@ console.log('\nKollision:');
     }
   }
   stuckP === 0 ? okm(`glidning langs ${props} props/containere: ingen fastklemning`) : fail(`${stuckP} prop-sider stopper spilleren i stedet for at lade ham glide`);
-}
-/* ---------------- v13 (Nuke): tagene er lukkede – kun T Roof-stien, gangbroen og siloens top; Palace kun ad stigen ---------------- */
-if (MAPID === 'nuke' && W.data) {
-  console.log('\nTage og Palace (v13):');
-  const flood = (sx, sz, ladders) => {
-    const keep = W.ladders; W.ladders = ladders;
-    const s = { ix: Math.round(sx / G), iz: Math.round(sz / G), y: WD.groundAt(W, sx, sz, 0.5, 0.5) }, seen = new Map([[key(s.ix, s.iz, s.y), s]]), q = [s];
-    while (q.length) { const n = q.pop(); for (const m of neighbors(n)) { const k = key(m.ix, m.iz, m.y); if (!seen.has(k)) { m.from = n; seen.set(k, m); q.push(m); } } }
-    W.ladders = keep; return [...seen.values()];
-  };
-  const D = W.data, LV = D.levels, roofs = D.roofs;
-  const onRoof = n => roofs.some(r => n.ix * G > r[0] + 0.3 && n.ix * G < r[2] - 0.3 && n.iz * G > r[1] + 0.3 && n.iz * G < r[3] - 0.3 && Math.abs(n.y - r[5]) < 0.15);
-  const allowed = n => (n.iz * G > 5.3 && n.ix * G < -13.9 && Math.abs(n.y - LV.roofT) < 0.15);                 // T Roof-stien
-  const all = [...flood(W.spawns.hij[0].x, W.spawns.hij[0].z, W.ladders), ...flood(W.spawns.swat[0].x, W.spawns.swat[0].z, W.ladders)];
-  const badRoof = all.filter(n => onRoof(n) && !allowed(n));
-  if (badRoof.length && process.env.WD_DBG) { let n = badRoof[0], path = []; while (n && path.length < 400) { path.push(`(${n.ix * G},${n.iz * G},${n.y.toFixed(2)}${n.jump ? ' hop' : ''}${n.ladder ? ' stige' : ''})`); n = n.from; } console.log(path.slice(0, 40).join(' <- ')); }
-  badRoof.length ? fail(`${badRoof.length} punkter oppe på tagene kan nås, fx (${badRoof[0].ix * G}, ${badRoof[0].iz * G}, y ${badRoof[0].y})`) : okm('tagene kan ikke nås (kun T Roof-stien og gangbroen til siloen)');
-  const pal = W.ladders.findIndex(l => Math.abs(l.y1 - LV.palace) < 0.05);
-  const noLadder = W.ladders.filter((l, i) => i !== pal);
-  const fromA = flood(0, -7, noLadder).filter(n => Math.abs(n.y - LV.palace) < 0.1 && n.ix * G > 6 && n.ix * G < 8.6 && n.iz * G > -15.5 && n.iz * G < -5);
-  fromA.length ? fail('Palace kan nås fra A uden stigen') : okm('Palace kan ikke nås inde fra A (kun ad stigen i Turnpike)');
 }
 /* ---------------- 7. ramper i fuld fart ---------------- */
 console.log('\nRamper:');

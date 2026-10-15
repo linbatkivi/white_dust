@@ -8,36 +8,7 @@
 // ==========================================================================
 import { loadGLTF } from './models.js';
 export const ASSET_SETS = {
-  nuke: {
-    dir: '/assets/nuke/',
-    tex: ['concrete_wall_008', 'concrete_slab_wall', 'concrete_floor_worn_001', 'asphalt_02', 'corrugated_iron_02',
-      'metal_plate', 'metal_grate_rusty', 'container_side', 'blue_metal_plate', 'rusty_metal_02', 'painted_metal_shutter'],
-    sky: 'sky_2k.hdr',
-    neutral: { container_side: 1, blue_metal_plate: 1 },
-    models: ['barrel_03', 'propane_tank', 'utility_box_01', 'hanging_industrial_lamp',
-      // v14 (Poly Haven, CC0): facader (projektører, rulleporte, el-skabe, ventilationsaggregater), kontorer og lagre.
-      //   Kun modeller banen faktisk placerer står her – hver model hentes ved banestart (ubrugte modeller i public/assets/models: se CREDITS.md)
-      'security_light', 'rollershutter_door', 'utility_box_02', 'exterior_aircon_unit', 'fire_alarm', 'korean_fire_extinguisher_01', 'metal_office_desk', 'modern_arm_chair_01',
-      'SchoolChair_01', 'Television_01', 'steel_frame_shelves_01', 'worn_metal_rack', 'plastic_crate_02']
-  },
-  white_dust: {
-    dir: '/assets/dust/',
-    tex: ['plastered_stone_wall', 'clay_plaster', 'sandstone_blocks_08', 'large_sandstone_blocks_01', 'clay_roof_tiles', 'brown_planks_05', 'wood_shutter'],
-    sky: 'sky_2k.hdr',
-    neutral: { clay_plaster: 1, plastered_stone_wall: 1, brown_planks_05: 1 },
-    models: ['wine_barrel_01', 'planter_pot_clay', 'ceramic_vase_02', 'antique_ceramic_vase_01', 'shrub_02']
-  },
-  inferno: { dir: '/assets/inferno/', havn: true, sky: 'sky.hdr?v20', tex: [], models: [] },   // v16: forfattet efter 3D-printet (tools/inferno/) – samme loader som de_havn
-  havn: { dir: '/assets/havn/', havn: true, sky: 'sky.hdr', tex: [], models: [] },
-  canals: { dir: '/assets/canals/', havn: true, sky: 'sky.hdr?v20', tex: [], models: [] },
-  ascension: { dir: '/assets/asc/', havn: true, sky: 'sky.hdr', tex: [], models: [] },     // v25: klosteret i regn og nat (tools/asc/)   // v16: CS:GO de_canals fra brugerens Blender-import (tools/canals/)
-  ancient: {
-    dir: '/assets/ancient/',
-    tex: ['mossy_stone_wall', 'old_stone_wall', 'mossy_cobblestone', 'rock_pitted_mossy', 'leaves_forest_ground', 'bark_brown_02', 'mossy_sandstone', 'large_sandstone_blocks_01'],
-    sky: 'sky_2k.hdr',
-    neutral: { rock_pitted_mossy: 1 },
-    models: ['antique_ceramic_vase_01', 'fern_02', 'shrub_02', 'rock_moss_set_01', 'rock_moss_set_02', 'anthurium_botany_01', 'calathea_orbifolia_01', 'shrub_03', 'shrub_sorrel_01', 'weed_plant_02']
-  }
+  bureau: { dir: '/assets/bureau/', havn: true, sky: 'sky.hdr', tex: [], models: [] },       // v26: luksus-bureauet om natten (tools/bureau/)
 };
 
 // Radiance .hdr (RGBE) → { w, h, data: Float32Array RGBA (lineær) }. Understøtter "nyt" RLE-format og flade scanlines.

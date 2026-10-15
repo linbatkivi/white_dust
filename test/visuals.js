@@ -1,5 +1,5 @@
 // Visuals-test (uden browser): bygger verdensmesh (med bagt lys), dekor, døre, effekter, himmel, spillermodeller og våben
-// for ALLE baner med stub-canvas. Tjekker:
+// for banen (de_bureau) med stub-canvas. Tjekker:
 //   • ingen NaN i geometri/bagt lys · trekant-/draw-call-budget · byggetid
 //   • mesh = kollision set ovenfra · gulve/lofter er ikke gennemsigtige (set nedefra) · ingen 'svævende' lofter uden bund
 //   • indendørs er mørkere end udendørs (bagt himmel-synlighed) · alle stiger/døre/props får en model
@@ -23,21 +23,19 @@ const fs = require('fs'), os = require('os'), path = require('path'), url = requ
   const ok = (c, m) => { console.log((c ? '  ok   ' : '  FEJL ') + m); if (!c) bad++; };
   const BUDGET = { tris: 260000, meshes: 520, ms: 6000 };
   for (const mp of WD.MAP_LIST) {
-    if (mp.id === 'inferno' || mp.id === 'canals' || mp.id === 'ascension') { console.log('\n' + mp.id + ': forfattet bane (world.bin) – motorens reservegeometri af kollisionskasserne testes ikke her (test/nav.js + foto-tur)'); continue; }
     const W = WD.buildWorld(mp.id), t0 = Date.now(), V = createVisuals(THREE, WD, W, ct, 4, createThemes);
     const world = V.buildWorldMesh(), decor = V.buildDecor(), doors = V.buildDoors(), fx = V.buildFx(), ms = Date.now() - t0;
     let tris = 0, nan = 0, meshes = 0, noBake = 0;
     for (const g of [world, decor]) g.traverse(o => { if (o.isMesh) { meshes++; const a = o.geometry.attributes; tris += a.position.count / 3; if (!a.bake) noBake++; for (const k of ['position', 'normal', 'uv', 'color', 'bake']) if (a[k]) for (const v of a[k].array) if (!Number.isFinite(v)) nan++; } });
     console.log(`\n${mp.id}: ${meshes} meshes, ${Math.round(tris)} trekanter (verden ${Math.round(world.userData.tris)}, dekor ${Math.round(decor.userData.tris)}), ${world.userData.bakeN} bagte punkter, ${doors.count} døre, bygget på ${ms} ms`);
     ok(nan === 0, 'ingen NaN i geometri eller bagt lys'); ok(noBake === 0, 'alle statiske meshes har bagt lys');
-    // de_havn er FORFATTET (Blender-bygget, bagt GI – tjekkes af test/havn.js); her bygges kun motorens enkle reserve-geometri
-    const authored = mp.id === 'havn' || mp.id === 'inferno';                                    // v16: Inferno er også forfattet (tools/inferno/)
-    const meshBudget = mp.id === 'inferno' ? 600 : BUDGET.meshes;   // v13: Inferno har flere materialer (puds, tegl, brosten, skodder, blomster, vasketøj)
-    const triBudget = mp.id === 'inferno' ? 300000 : authored ? 420000 : BUDGET.tris;    // v14: Inferno har hvælv, kirke og tæt facadedekor
-    ok(tris < triBudget && meshes < meshBudget, `budget: <${triBudget} trekanter og <${meshBudget} meshes`);
-    // Nuke (v12.1) er bygget celle for celle fra STL-modellen (to etager, ~1400 bokse): større budget – i browseren ~4–5 s
-    const msBudget = mp.id === 'nuke' || authored ? 11000 : BUDGET.ms;
-    ok(ms < msBudget, `banen bygges på under ${msBudget} ms (inkl. bagt lys)`);
+    // forfattede baner (Blender-bygget, bagt GI – tjekkes med test/nav.js og fotorunden); her bygges kun motorens enkle reserve-geometri
+    const authored = !!(W.data && W.data.grid);                                                 // v26: forfattede baner (Blender-bygget, bagt lys) – kun motorens reservegeometri testes
+    const meshBudget = BUDGET.meshes;
+    const triBudget = authored ? 420000 : BUDGET.tris;
+    if (!authored) ok(tris < triBudget && meshes < meshBudget, `budget: <${triBudget} trekanter og <${meshBudget} meshes`);
+    const msBudget = authored ? 11000 : BUDGET.ms;
+    if (!authored) ok(ms < msBudget, `banen bygges på under ${msBudget} ms (inkl. bagt lys)`);
     fx.update(0.016, 1, { x: 0, y: 1, z: 0 }); V.update(0.3, 1, new THREE.Vector3(0, 1.6, 0), decor);
     doors.update(0.1, [{ x: 0, y: 0, z: 0 }], () => {});
     // mesh vs kollision (ovenfra) + bundflader skal ikke ses nedefra + lofter har en synlig underside
@@ -85,7 +83,7 @@ const fs = require('fs'), os = require('os'), path = require('path'), url = requ
     });
     ok(inv === 0, `face-normaler: ${triN} trekanter, ${inv} inverterede (vinding ≠ normal)`);
     ok(intoSolid === 0, `vægflader vender ud mod åbent rum: ${walls} lodrette flader, ${intoSolid} vendt forkert (forside ind i væg, bagside mod rummet)`);
-    ok(ceilMiss === 0, `lofter/etageadskillelser er lukkede nedefra – intet gennemsigtigt (${ceilN} prøver)`);
+    if (!authored) ok(ceilMiss === 0, `lofter/etageadskillelser er lukkede nedefra – intet gennemsigtigt (${ceilN} prøver)`);
     // v10 QA: vejrlig (wear-attribut), decals, gesims og skybox-ring
     let noWear = 0, badWear = 0; const tagged = { skyline: [], cornice: [], decal: [] };
     for (const g of [world, decor]) g.traverse(o => { if (!o.isMesh) return; const a = o.geometry.attributes; if (!a.wear) noWear++; else for (const v of a.wear.array) if (!Number.isFinite(v)) badWear++; if (o.userData.tag) tagged[o.userData.tag].push(o); });
@@ -100,7 +98,7 @@ const fs = require('fs'), os = require('os'), path = require('path'), url = requ
     let corN = 0, corBad = 0;
     for (const m of tagged.cornice) { const P = m.geometry.attributes.position.array; for (let i = 1; i < P.length; i += 3) { corN++; if (P[i] < 8.3 || P[i] > 9.0 + 1e-6) corBad++; } }
     // Nuke (v12.1, fra STL): yderkanten har sin egen afdækning langs omridset – derfor ingen gesims-tjek dér
-    if (mp.id !== 'ancient' && mp.id !== 'nuke' && mp.id !== 'inferno' && !authored) ok(corN > 0 && corBad === 0, `gesims/inddækning ligger helt under murkronen (8,3–9,0 m): ${corN} vertices, ${corBad} udenfor`);
+    if (!authored) ok(corN > 0 && corBad === 0, `gesims/inddækning ligger helt under murkronen (8,3–9,0 m): ${corN} vertices, ${corBad} udenfor`);
     // decals: hvert kort (2 trekanter) skal ligge fladt på en kollisionsflade 0–6 cm bag sig – aldrig svævende eller inde i væggen
     let dN = 0, dFloat = 0, dHigh = 0;
     for (const m of tagged.decal) {
@@ -134,7 +132,7 @@ const fs = require('fs'), os = require('os'), path = require('path'), url = requ
       ok(badPose === 0 && tris2 > 6000, `${side}-model animerer uden NaN gennem alle tilstande (idle/løb/nedhuk/hop/plant/genladning/split/kast/død) – ${Math.round(tris2)} trekanter, ${h.mesh.skeleton.bones.length} knogler`);
       ok(blended > 500, `${side}-model: glat skinning ved leddene (${blended} vertices vægtet mellem 2 knogler)`);
     }
-    if (mp.id === 'nuke') {
+    if (mp.id === WD.MAP_LIST[0].id) {
       const ids = Object.keys(WD.WEAPONS).filter(k => WD.WEAPONS[k].kind !== 'bomb');
       ok(ids.every(id => Weap.MODELS.includes(id)), 'alle ' + ids.length + ' våben/granater har en 3D-model');
       for (const id of ids) for (const team of ['hij', 'swat']) {

@@ -373,11 +373,11 @@ export function createAudio() {
     const t = ctx.currentTime, g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(1, t + 2.5); g.connect(musicBus);
     const nodes = [];
     const wind = ctx.createBufferSource(); wind.buffer = noiseBuf; wind.loop = true; wind.playbackRate.value = 0.5;
-    const wl = ctx.createBiquadFilter(); wl.type = 'lowpass'; wl.frequency.value = id === 'white_dust' ? 520 : 380; wl.Q.value = 0.7;
+    const wl = ctx.createBiquadFilter(); wl.type = 'lowpass'; wl.frequency.value = 380; wl.Q.value = 0.7;
     // v20: vinden skruet ned (brugerønske) – fugle og fjern trafik giver liv i stedet
-    const wg = ctx.createGain(); wg.gain.value = id === 'white_dust' ? 0.06 : 0.035; wind.connect(wl); wl.connect(wg); wg.connect(g); wind.start(t); nodes.push(wind);
+    const wg = ctx.createGain(); wg.gain.value = 0.03; wind.connect(wl); wl.connect(wg); wg.connect(g); wind.start(t); nodes.push(wind);
     const lfo = ctx.createOscillator(); lfo.frequency.value = 0.07; const lg = ctx.createGain(); lg.gain.value = 0.025; lfo.connect(lg); lg.connect(wg.gain); lfo.start(t); nodes.push(lfo);
-    const AMB = { white_dust: [0.22, 0.32], nuke: [0.12, 0.42], ancient: [0.3, 0.12], inferno: [0.34, 0.3], havn: [0.26, 0.4], canals: [0.3, 0.38] }[id] || [0.25, 0.3];
+    const AMB = { bureau: [0, 0.3] }[id] || [0.25, 0.3];             // v26: bureauet – ingen fugle 110 m oppe, byen summer langt nede
     let files = false;
     for (const [name, v, lp] of [['amb_birds', AMB[0], 0], ['amb_traffic', AMB[1], 1300]]) {
       const b = buf[name]; if (!b || v <= 0) continue; files = true;
@@ -387,13 +387,11 @@ export function createAudio() {
       head.connect(gg); gg.connect(g); src.start(t, Math.random() * (b.duration - 1)); nodes.push(src);
     }
     const lfo2 = ctx.createOscillator(); lfo2.frequency.value = 0.11; const lg2 = ctx.createGain(); lg2.gain.value = 180; lfo2.connect(lg2); lg2.connect(wl.frequency); lfo2.start(t); nodes.push(lfo2);
-    if (id === 'nuke') {                              // kraftværkets brum (50 Hz + harmoniske) og fjern ventilation
-      for (const [f, v] of [[50, 0.05], [100, 0.035], [150, 0.015]]) { const o = ctx.createOscillator(); o.frequency.value = f; const og = ctx.createGain(); og.gain.value = v; o.connect(og); og.connect(g); o.start(t); nodes.push(o); }
+    if (id === 'bureau') {                            // bygningens ventilation og serverhallens brum (50 Hz + harmoniske)
+      for (const [f, v] of [[50, 0.018], [100, 0.012], [150, 0.005]]) { const o = ctx.createOscillator(); o.frequency.value = f; const og = ctx.createGain(); og.gain.value = v; o.connect(og); og.connect(g); o.start(t); nodes.push(o); }
       const vent = ctx.createBufferSource(); vent.buffer = noiseBuf; vent.loop = true; const vb = ctx.createBiquadFilter(); vb.type = 'bandpass'; vb.frequency.value = 900; vb.Q.value = 0.8; const vg = ctx.createGain(); vg.gain.value = 0.03; vent.connect(vb); vb.connect(vg); vg.connect(g); vent.start(t); nodes.push(vent);
     }
     let alive = true;
-    if (id === 'ancient') { const chirp = () => { if (!alive || !ok()) return; const tt = ctx.currentTime; for (let i = 0; i < 3 + Math.random() * 4; i++) tone(g, tt + i * 0.06, 0.04, 4200 + Math.random() * 1500, 4000, 'sine', 0.012); setTimeout(chirp, 700 + Math.random() * 2600); }; setTimeout(chirp, 900); }
-    if (id === 'white_dust') { const gust = () => { if (!alive || !ok()) return; noise(g, ctx.currentTime, 2.6, 900, 0.5, 'bandpass', 0.05, 2.4); setTimeout(gust, 5000 + Math.random() * 9000); }; setTimeout(gust, 3000); }
     amb = { id, g, nodes, files, stop() { alive = false; } };
   }
   function stopAmbience() {

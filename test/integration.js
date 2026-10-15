@@ -7,7 +7,12 @@ const PORT = 3457;
 let fails = 0, passes = 0;
 const ok = (c, msg) => { if (c) { passes++; console.log('  ✓ ' + msg); } else { fails++; console.log('  ✗ FEJL: ' + msg); } };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const LX = -4;   // White Dust: Mids vestlige bane
+// v26: testarenaen er atriets lige midterbane på de_bureau (x = 12, gulv 1,5 m, fri fra z = −4,5 til 18); test-z 5…20 → bane-z 0,5…15,5
+const LX = 12, AY = 1.5, AZ = -4.5;
+const TW = WD.buildWorld('bureau');
+const plantAt = k => { const st = TW.sites[k]; let best = null, bd = 1e9; for (let x = st.x0; x <= st.x1; x += 0.5) for (let z = st.z0; z <= st.z1; z += 0.5) { if (!WD.plantSpot(TW, x, st.y, z)) continue; const d = Math.hypot(x - (st.x0 + st.x1) / 2, z - (st.z0 + st.z1) / 2); if (d < bd) { bd = d; best = [x, z]; } } return best; };
+const PA = plantAt('A'), PB = plantAt('B'), YA = TW.sites.A.y, YB = TW.sites.B.y;
+const BOXA = TW.boxes.find(p => p.kind === 'prop' && p.x0 < TW.sites.A.x1 && p.x1 > TW.sites.A.x0 && p.z0 < TW.sites.A.z1 && p.z1 > TW.sites.A.z0);   // et serverskab på A
 
 class Bot {
   constructor(name) { this.name = name; this.log = []; this.snap = null; this.cs = 0; this.self = null; this.side = null; this.pos = { x: 0, y: 0, z: 0 }; this.yaw = 0; this.pitch = 0; this.u = 0; this.stNow = 0; }
@@ -109,22 +114,22 @@ async function main() {
 
     console.log('\n== Bevægelse & anti-cheat ==');
     // dueller foregår i Mids vestlige bane (x=-4): midten af Mid er spærret af ruinhuset (ingen sigtelinje T ↔ CT)
-    A.send({ t: 'dbg', x: LX, y: 0, z: 20 }); B.send({ t: 'dbg', x: LX, y: 0, z: 10 });
+    A.send({ t: 'dbg', x: LX, y: AY, z: AZ + 20 }); B.send({ t: 'dbg', x: LX, y: AY, z: AZ + 10 });
     await sleep(200);
     A.yaw = B.yaw = 0;
-    A.pos = { x: LX, y: 0, z: 20 }; B.pos = { x: LX, y: 0, z: 10 };
-    A.pos.z = 19.5; A.sendIn();
-    const moved = await A.waitSnap(s => { const me = s.p.find(p => p[0] === A.id); return me && Math.abs(me[3] - 19.5) < 0.01; }, 1500);
+    A.pos = { x: LX, y: AY, z: AZ + 20 }; B.pos = { x: LX, y: AY, z: AZ + 10 };
+    A.pos.z = AZ + 19.5; A.sendIn();
+    const moved = await A.waitSnap(s => { const me = s.p.find(p => p[0] === A.id); return me && Math.abs(me[3] - (AZ + 19.5)) < 0.01; }, 1500);
     ok(!!moved, 'Normal bevægelse accepteres');
     const before = A.log.filter(m => m.t === 'tp').length;
-    A.pos.z = -30; A.sendIn(); await sleep(150);
+    A.pos.z = AZ - 30; A.sendIn(); await sleep(150);
     ok(A.log.filter(m => m.t === 'tp').length > before, 'Teleport-hack (50 m) afvises med korrektion');
-    ok(Math.abs(A.pos.z - 19.5) < 0.1, 'Server sætter spilleren tilbage på gyldig position');
+    ok(Math.abs(A.pos.z - (AZ + 19.5)) < 0.1, 'Server sætter spilleren tilbage på gyldig position');
 
     console.log('\n== Skydning ==');
     A.clear(); B.clear();
     // A (hijacker eller swat?) skal være modstander af B – de er i hvert sit hold
-    const eyeA = [LX, 1.62, 19.5];
+    const eyeA = [LX, AY + 1.62, AZ + 19.5];
     const shoot = (bot, o, d, st) => bot.send({ t: 'shoot', o, d, st });
     // kropsskud: sigt på y=1.0, afstand 9.5
     const dz = -9.5, dy = 1.0 - 1.62, l = Math.hypot(dz, dy);
@@ -174,14 +179,15 @@ async function main() {
     ok(hij.self.inv.bomb === true, 'Hijacker har C4 ved rundestart');
     ok(swat.self.inv.bomb === false, 'SWAT har ikke C4');
     await hij.waitSnap(s => s.ph === 'live', 5000);
-    // anti-glitch: oppe i/på en kasse (30,-34 er "Default"-kassen) må C4 IKKE kunne plantes
-    hij.tp(30, 1.2, -34); swat.tp(-20, 0, 0); await sleep(200);
-    hij.pos = { x: 30, y: 1.2, z: -34 }; swat.pos = { x: -20, y: 0, z: 0 };
+    // anti-glitch: oppe på en kasse (et serverskab på A) må C4 IKKE kunne plantes
+    const bx = (BOXA.x0 + BOXA.x1) / 2, bz = (BOXA.z0 + BOXA.z1) / 2;
+    hij.tp(bx, BOXA.y1, bz); swat.tp(LX, AY, AZ + 5); await sleep(200);
+    hij.pos = { x: bx, y: BOXA.y1, z: bz }; swat.pos = { x: LX, y: AY, z: AZ + 5 };
     hij.u = 1; hij.sendIn(); await sleep(400);
     ok(!hij.log.find(m => m.t === 'act' && m.k === 'plant'), 'C4 kan IKKE plantes inde i/ved en kasse');
     ok(hij.log.some(m => m.t === 'notice' && m.k === 'plant'), 'Afvist plantning giver fejlmeddelelse');
     hij.u = 0; hij.sendIn(); hij.clear();
-    hij.tp(31.5, 1.2, -38); await sleep(200); hij.pos = { x: 31.5, y: 1.2, z: -38 };
+    hij.tp(PA[0], YA, PA[1]); await sleep(200); hij.pos = { x: PA[0], y: YA, z: PA[1] };
     hij.u = 1; hij.sendIn(); 
     const act = await hij.wait(m => m.t === 'act' && m.k === 'plant');
     ok(!!act, 'Hold E på A-site starter planting');
@@ -200,12 +206,13 @@ async function main() {
     console.log('\n== Runde 3: plant → desarmér ==');
     await hij.wait(m => m.t === 'round' && m.n === 3, 4000); await sleep(100);
     await hij.waitSnap(s => s.ph === 'live', 5000);
-    hij.tp(-25, -0.8, -40); swat.tp(-25, -0.8, -20); await sleep(200);
-    hij.pos = { x: -25, y: -0.8, z: -40 }; swat.pos = { x: -25, y: -0.8, z: -20 };
+    hij.tp(PB[0], YB, PB[1]); swat.tp(LX, AY, AZ + 5); await sleep(200);
+    hij.pos = { x: PB[0], y: YB, z: PB[1] }; swat.pos = { x: LX, y: AY, z: AZ + 5 };
     hij.u = 1; hij.sendIn();
     ok(await hij.wait(m => m.t === 'ev' && m.k === 'plant' && m.site === 'B', 3000), 'Bomben plantet på site B');
     hij.u = 0; hij.sendIn();
-    swat.tp(-25, -0.8, -38.5); await sleep(150); swat.pos = { x: -25, y: -0.8, z: -38.5 };
+    const dfx = [[1.2, 0], [-1.2, 0], [0, 1.2], [0, -1.2]].map(([dx, dz]) => [PB[0] + dx, PB[1] + dz]).find(([x, z]) => Math.abs(WD.groundAt(TW, x, z, YB + 0.3, 0.5) - YB) < 0.05 && !WD.isBlocked(TW, x, z, YB, WD.PL.H));
+    swat.tp(dfx[0], YB, dfx[1]); await sleep(150); swat.pos = { x: dfx[0], y: YB, z: dfx[1] };
     swat.clear();
     swat.u = 1; swat.sendIn();
     ok(await swat.wait(m => m.t === 'act' && m.k === 'defuse'), 'SWAT starter desarmering nær bomben');
@@ -224,27 +231,27 @@ async function main() {
     await sleep(150);
     ok(hij.self.inv.he === 1 && hij.self.inv.flash === 2 && hij.self.inv.smoke === 1 && hij.self.inv.molotov === 0, 'Granatgrænse: 4 i alt (molotov afvist som 5.)');
     await hij.waitSnap(s => s.ph === 'live', 5000);
-    hij.tp(LX, 0, 20); swat.tp(LX, 0, 5); await sleep(200);
-    hij.pos = { x: LX, y: 0, z: 20 }; swat.pos = { x: LX, y: 0, z: 5 };
+    hij.tp(LX, AY, AZ + 20); swat.tp(LX, AY, AZ + 5); await sleep(200);
+    hij.pos = { x: LX, y: AY, z: AZ + 20 }; swat.pos = { x: LX, y: AY, z: AZ + 5 };
     hij.send({ t: 'sw', w: 'he' }); await sleep(80);
     hij.sendIn({ n: 1 }); await sleep(150);
     ok((hij.snap.p.find(q => q[0] === hij.id)[6] & 32) !== 0, 'Trukket split (opladning) synkroniseres i snapshot (3.-persons-animation)');
     hij.clear(); swat.clear();
-    hij.send({ t: 'throw', o: [LX, 1.6, 19.5], d: [0, 0.1, -1], u: 1 });
+    hij.send({ t: 'throw', o: [LX, AY + 1.6, AZ + 19.5], d: [0, 0.1, -1], u: 1 });
     ok(!!(await swat.wait(m => m.t === 'ev' && m.k === 'throw' && m.i === hij.id && m.u === 1, 1000)), 'Kast-event (underhånd) sendes til andre spillere');
     const boom = await swat.wait(m => m.t === 'ev' && m.k === 'boom', 4000);
     ok(!!boom, 'HE-granat eksploderer');
-    ok(boom && boom.z < 18 && boom.z > 5, 'Underhåndskast lander kort foran (z=' + (boom && boom.z) + ')');
+    ok(boom && boom.z < AZ + 18 && boom.z > AZ + 5, 'Underhåndskast lander kort foran (z=' + (boom && boom.z) + ')');
     await sleep(150);
     ok(swat.self.hp < 100 || !swat.self.alive, 'HE gør skade på modstanderen (hp=' + swat.self.hp + ', boom ' + (boom && [boom.x, boom.y, boom.z].join(',')) + ')');
     // flashbang: modstanderen kigger direkte på eksplosionen => lang blænding; kigger væk => kort
     swat.send({ t: 'dbg', hp: 100 }); swat.yaw = Math.PI; swat.sendIn(); hij.yaw = 0; hij.sendIn(); await sleep(80);
     hij.send({ t: 'sw', w: 'flash' }); await sleep(80); swat.clear(); hij.clear();
-    hij.send({ t: 'throw', o: [LX, 1.6, 19.5], d: [0, 0.1, -1], u: 1 });
+    hij.send({ t: 'throw', o: [LX, AY + 1.6, AZ + 19.5], d: [0, 0.1, -1], u: 1 });
     const fl1 = await hij.wait(m => m.t === 'ev' && m.k === 'flash', 3000), fd1 = await swat.wait(m => m.t === 'ev' && m.k === 'flashed', 1000);
     ok(!!fl1 && fd1 && fd1.dur >= 3.0 && fd1.full === 1, 'Flashbang: direkte blik => ' + (fd1 && fd1.dur) + ' s fuld blænding');
     swat.clear(); hij.clear();
-    hij.send({ t: 'throw', o: [LX, 1.6, 19.5], d: [0, 0.1, -1], pw: 1 });
+    hij.send({ t: 'throw', o: [LX, AY + 1.6, AZ + 19.5], d: [0, 0.1, -1], pw: 1 });
     const fl2 = await hij.wait(m => m.t === 'ev' && m.k === 'flash', 3000), fd2 = await swat.wait(m => m.t === 'ev' && m.k === 'flashed', 1000);
     ok(fl1 && fl2 && fl2.z < fl1.z - 6, 'Fuld kraft kaster markant længere end underhånd (z ' + (fl1 && fl1.z) + ' → ' + (fl2 && fl2.z) + ')');
     ok(fd2 && fd2.dur <= 1.0 && !fd2.full, 'Flashbang bag ryggen => kort blænding (' + (fd2 && fd2.dur) + ' s)');
@@ -253,25 +260,25 @@ async function main() {
     const fireBot = swat.self.inv.incgren ? swat : null;
     ok(!!fireBot && swat.self.inv.he === 1 && swat.self.inv.smoke === 1 && swat.self.inv.flash === 1, 'SWAT: brandgranat + HE + smoke + 1 flash (4. flash afvist pga. grænsen)');
     if (fireBot) {
-      swat.tp(LX, 0, 6); hij.tp(LX, 0, 20); await sleep(200); swat.pos = { x: LX, y: 0, z: 6 }; hij.pos = { x: LX, y: 0, z: 20 };
+      swat.tp(LX, AY, AZ + 6); hij.tp(LX, AY, AZ + 20); await sleep(200); swat.pos = { x: LX, y: AY, z: AZ + 6 }; hij.pos = { x: LX, y: AY, z: AZ + 20 };
       swat.send({ t: 'sw', w: 'incgren' }); await sleep(80); swat.clear(); hij.clear();
-      swat.send({ t: 'throw', o: [LX, 1.6, 6.5], d: [0, 0.1, 1], u: 1 });
+      swat.send({ t: 'throw', o: [LX, AY + 1.6, AZ + 6.5], d: [0, 0.1, 1], u: 1 });
       const fe = await hij.wait(m => m.t === 'ev' && m.k === 'fire', 3000);
-      ok(fe && fe.w === 'incgren' && Math.abs(fe.y) < 0.05, 'Brandgranaten antænder ved gulvkontakt (ildzone på gulvet, y=' + (fe && fe.y) + ')');
+      ok(fe && fe.w === 'incgren' && Math.abs(fe.y - AY) < 0.05, 'Brandgranaten antænder ved gulvkontakt (ildzone på gulvet, y=' + (fe && fe.y) + ')');
       const sf = await hij.waitSnap(s => s.f && s.f.length === 1, 1000);
       ok(!!sf && sf.f[0][5] > 6000, 'Ildzonen er med i snapshots (7 s varighed)');
       if (fe) {
-        const W1 = WD.buildWorld('white_dust'), zone = WD.fireZone(W1, fe.x, fe.y, fe.z);
+        const W1 = WD.buildWorld('bureau'), zone = WD.fireZone(W1, fe.x, fe.y, fe.z);
         ok(zone.rad.length === WD.FIRE.N && Math.max(...zone.rad) <= WD.FIRE.R + 1e-6 && Math.min(...zone.rad) > 0.3, 'Ildzone-polygon: ' + zone.rad.length + ' hjørner, radius ≤ 3,5 m (klippes af vægge: min ' + Math.min(...zone.rad).toFixed(2) + ' m)');
         hij.send({ t: 'dbg', hp: 100 }); await sleep(60);
         hij.tp(fe.x, fe.y, fe.z); await sleep(60); hij.pos = { x: fe.x, y: fe.y, z: fe.z }; hij.sendIn();
         await sleep(1050);
-        hij.tp(LX, 0, 20); await sleep(80); hij.pos = { x: LX, y: 0, z: 20 }; hij.sendIn(); await sleep(150);
+        hij.tp(LX, AY, AZ + 20); await sleep(80); hij.pos = { x: LX, y: AY, z: AZ + 20 }; hij.sendIn(); await sleep(150);
         const lost = 100 - hij.self.hp;
         ok(lost >= 12 && lost <= 21 && hij.log.some(m => m.t === 'ev' && m.k === 'burn'), 'Skade over tid i ilden: ' + lost + ' HP på ~1 s (15 HP/s)');
         hij.send({ t: 'sw', w: 'smoke' }); await sleep(60); hij.clear();
-        hij.tp(fe.x, 0, fe.z + 2.5); await sleep(150); hij.pos = { x: fe.x, y: 0, z: fe.z + 2.5 }; hij.sendIn();
-        hij.send({ t: 'throw', o: [fe.x, 1.6, fe.z + 2.5], d: [0, -0.3, -1], u: 1 });
+        hij.tp(fe.x, fe.y, fe.z + 2.5); await sleep(150); hij.pos = { x: fe.x, y: fe.y, z: fe.z + 2.5 }; hij.sendIn();
+        hij.send({ t: 'throw', o: [fe.x, fe.y + 1.6, fe.z + 2.5], d: [0, -0.3, -1], u: 1 });
         ok(!!(await hij.wait(m => m.t === 'ev' && m.k === 'fireout', 4000)), 'Smoke slukker ilden den lander i');
         const sn2 = await hij.waitSnap(s => s.sm.length > 0 && (!s.f || s.f.length === 0), 1500);
         ok(!!sn2, 'Smoke er med i snapshots, ilden er væk');
@@ -305,12 +312,12 @@ async function main() {
       const enemy = A.side === 'hij' ? swat_or(B, S2, swat) : swat_or(B, S2, swat);
       const foe = (B.side !== A.side) ? B : B;
       // find modstanderen (Bob er altid modstander)
-      B.tp(LX, 0, 10); A.tp(LX, 0, 20); await sleep(180);
-      A.pos = { x: LX, y: 0, z: 20 }; B.pos = { x: LX, y: 0, z: 10 };
+      B.tp(LX, AY, AZ + 10); A.tp(LX, AY, AZ + 20); await sleep(180);
+      A.pos = { x: LX, y: AY, z: AZ + 20 }; B.pos = { x: LX, y: AY, z: AZ + 10 };
       // A sikrer sig våben: efter halvleg nulstilles udstyr til USP → hovedskud dræber også
       A.sendIn(); B.sendIn(); await sleep(60);
       A.clear();
-      A.send({ t: 'shoot', o: [LX, 1.62, 19.5 + 0.5], d: [0, (1.65 - 1.62) / 9.5, -1], st: A.snap.st });
+      A.send({ t: 'shoot', o: [LX, AY + 1.62, AZ + 19.5 + 0.5], d: [0, (1.65 - 1.62) / 9.5, -1], st: A.snap.st });
       await sleep(80);
       await A.wait(m => m.t === 'ev' && m.k === 'end', 2500);
     }
@@ -366,23 +373,23 @@ async function main() {
     A.send({ t: 'buy', i: rA }); B.send({ t: 'buy', i: rB });
     await sleep(100); A.send({ t: 'buy', i: 'he' });
     await A.waitSnap(s => s.ph === 'live', 8000);
-    A.tp(LX, 0, 19.5); B.tp(LX, 0, 10); await sleep(250);
-    A.pos = { x: LX, y: 0, z: 19.5 }; B.pos = { x: LX, y: 0, z: 10 }; A.sendIn(); B.sendIn(); await sleep(80);
+    A.tp(LX, AY, AZ + 19.5); B.tp(LX, AY, AZ + 10); await sleep(250);
+    A.pos = { x: LX, y: AY, z: AZ + 19.5 }; B.pos = { x: LX, y: AY, z: AZ + 10 }; A.sendIn(); B.sendIn(); await sleep(80);
     A.clear();
     const kz = -9.5, ky = 1.65 - 1.62, kl = Math.hypot(kz, ky);
-    A.send({ t: 'shoot', o: [LX, 1.62, 19.5], d: [0, ky / kl, kz / kl], st: A.snap.st });
+    A.send({ t: 'shoot', o: [LX, AY + 1.62, AZ + 19.5], d: [0, ky / kl, kz / kl], st: A.snap.st });
     const kl2 = await A.wait(m => m.t === 'ev' && m.k === 'kill', 2000);
     ok(kl2 && kl2.v === B.id && kl2.hs, 'Headshot dræber stadig med ét skud');
     await sleep(100);
-    await A.waitSnap(sn => (sn.d || []).filter(d => Math.hypot(d[2] - LX, d[4] - 10) < 1.2).length >= 2, 1500);   // vent på snapshot med drops (ikke fast pause – robust under CPU-belastning)
-    const dr = (A.snap.d || []).filter(d => Math.hypot(d[2] - LX, d[4] - 10) < 1.2);
+    await A.waitSnap(sn => (sn.d || []).filter(d => Math.hypot(d[2] - LX, d[4] - (AZ + 10)) < 1.2).length >= 2, 1500);   // vent på snapshot med drops (ikke fast pause – robust under CPU-belastning)
+    const dr = (A.snap.d || []).filter(d => Math.hypot(d[2] - LX, d[4] - (AZ + 10)) < 1.2);
     ok(dr.some(d => d[1] === cB), 'Dræbtes ' + rB + ' ligger på jorden som drop');
     const bPistol = WD.WEAPONS[WD.sidePistol(B.side)];
     ok(dr.some(d => d[1] === bPistol.code), 'Dræbtes pistol (' + bPistol.name + ') ligger på jorden [koder ' + dr.map(d => d[1]).join(',') + ', side ' + B.side + ']');
     const swatBefore = A.self.inv.primary;
     A.send({ t: 'pickup', i: dr.find(d => d[1] === cB)[0] }); await sleep(60);
     ok(A.self.inv.primary === swatBefore, 'Opsamling på afstand afvises (' + A.self.inv.primary + ')');
-    A.tp(LX, 0, 10.4); await sleep(120); A.pos = { x: LX, y: 0, z: 10.4 }; A.sendIn(); await sleep(40);
+    A.tp(LX, AY, AZ + 10.4); await sleep(120); A.pos = { x: LX, y: AY, z: AZ + 10.4 }; A.sendIn(); await sleep(40);
     A.send({ t: 'pickup', i: dr.find(d => d[1] === cB)[0] });
     await A.wait(m => m.t === 'self' && m.inv.primary === rB, 600);
     ok(A.self.inv.primary === rB && A.self.cur === rB, 'Spiller samler modstanderens ' + rB + ' op og skifter til den (holdlås gælder kun køb)');
@@ -397,9 +404,9 @@ async function main() {
     const WDt = require('../shared/wd.js');
     A.send({ t: 'endgame' }); await A.wait(m => m.t === 'lobby' && m.ph === 'lobby', 3000); await sleep(200);
     const lob0 = A.log.filter(m => m.t === 'lobby').pop();
-    ok(lob0 && lob0.maps && lob0.maps.length === 7 && lob0.maps.some(m => m.id === 'ascension') && lob0.maps.some(m => m.id === 'inferno') && lob0.maps.some(m => m.id === 'havn') && lob0.maps.some(m => m.id === 'canals') && lob0.map === 'white_dust' && lob0.maps.every(m => m.desc), 'Lobbyen tilbyder 7 baner (inkl. Inferno, de_havn, de_canals og de_ascension) med beskrivelse (standard: white_dust)');
-    A.clear(); B.clear(); B.send({ t: 'map', id: 'nuke' }); await sleep(250);
-    ok(!A.log.find(m => m.t === 'lobby' && m.map === 'nuke'), 'Kun værten kan vælge bane');
+    ok(lob0 && lob0.maps && lob0.maps.length === 1 && lob0.maps[0].id === 'bureau' && lob0.map === 'bureau', 'Lobbyen viser banen (de_bureau) og den er valgt som standard');
+    A.clear(); B.clear(); B.send({ t: 'map', id: 'bureau' }); await sleep(250);
+    ok(!A.log.find(m => m.t === 'lobby' && m.map === 'bureau' && m.by === B.id), 'Kun værten kan vælge bane');
     // v11.3: inventar-valg videresendes til alle i rummet – kun gyldige korte id'er overlever serverens validering
     A.clear(); B.clear();
     A.send({ t: 'cos', c: { agent: { swat: 'swat:desert', hij: '<script>' }, skins: { ak47: 'tiger', m4a1: 'x'.repeat(99), nope: 'gold' } } });
@@ -414,8 +421,8 @@ async function main() {
     ok(B.log.filter(m => m.t === 'chat' && /^spam/.test(m.s)).length <= 5, 'Chat: maks. 5 beskeder pr. 4 s pr. spiller');
     A.send({ t: 'map', id: 'bogus' }); await sleep(150);
     ok(!A.log.find(m => m.t === 'lobby' && m.map === 'bogus'), 'Ugyldig bane afvises');
-    A.send({ t: 'map', id: 'nuke' });
-    ok(await A.wait(m => m.t === 'lobby' && m.map === 'nuke', 2000) && await B.wait(m => m.t === 'lobby' && m.map === 'nuke', 2000), 'Vært vælger Nuke – alle ser valget');
+    A.send({ t: 'map', id: 'bureau' });
+    ok(await A.wait(m => m.t === 'lobby' && m.map === 'bureau', 2000) && await B.wait(m => m.t === 'lobby' && m.map === 'bureau', 2000), 'Vært vælger Bureau – alle ser valget');
     const planting = async (mapId, which) => {
       const W2 = WDt.buildWorld(mapId); A.clear(); B.clear();
       A.snap = null; B.snap = null; A.send({ t: 'start' });
@@ -446,14 +453,10 @@ async function main() {
       tH.u = 0; tH.sendIn();
       A.send({ t: 'endgame' }); await A.wait(m => m.t === 'lobby' && m.ph === 'lobby', 3000); await sleep(200);
     };
-    await planting('nuke', 'B');
+    await planting('bureau', 'A');
     const lobN = A.log.filter(m => m.t === 'lobby').pop();
-    ok(lobN && lobN.map === 'nuke', 'Banen skifter IKKE af sig selv efter kampen (stadig nuke)');
-    A.send({ t: 'map', id: 'ancient' }); await A.wait(m => m.t === 'lobby' && m.map === 'ancient', 2000);
-    await planting('ancient', 'A');
-    A.send({ t: 'map', id: 'inferno' }); await A.wait(m => m.t === 'lobby' && m.map === 'inferno', 2000);
-    await planting('inferno', 'B');
-    A.send({ t: 'map', id: 'white_dust' }); await A.wait(m => m.t === 'lobby' && m.map === 'white_dust', 2000); await sleep(100);
+    ok(lobN && lobN.map === 'bureau', 'Banen skifter IKKE af sig selv efter kampen (stadig bureau)');
+    await planting('bureau', 'B');
 
     console.log('\n== Købssystem: salg, ønske → gave, sen køb i spawn, smid våben ==');
     {
@@ -507,19 +510,19 @@ async function main() {
       G.send({ t: 'start' }); await G.wait(m => m.t === 'round'); await G.wait(m => m.t === 'tp'); await H.wait(m => m.t === 'tp');
       ok(G.self.inv.knife === true && H.self.inv.knife === true, 'Alle har en kniv i inventaret');
       await G.waitSnap(sn => sn.ph === 'live', 6000);
-      G.send({ t: 'dbg', money: 1000 }); G.tp(LX, 0, 20); H.tp(LX, 0, 18.7); await sleep(200);
-      G.pos = { x: LX, y: 0, z: 20 }; H.pos = { x: LX, y: 0, z: 18.7 }; G.yaw = 0; H.yaw = 0; G.sendIn(); H.sendIn();   // H kigger væk fra G
+      G.send({ t: 'dbg', money: 1000 }); G.tp(LX, AY, AZ + 20); H.tp(LX, AY, AZ + 18.7); await sleep(200);
+      G.pos = { x: LX, y: AY, z: AZ + 20 }; H.pos = { x: LX, y: AY, z: AZ + 18.7 }; G.yaw = 0; H.yaw = 0; G.sendIn(); H.sendIn();   // H kigger væk fra G
       G.send({ t: 'sw', w: 'knife' }); await sleep(120);
       ok(G.self.cur === 'knife', 'Skift til kniven (tast 3)');
       G.clear(); H.clear();
       const kd = [0, (1.1 - 1.62) / 1.3, -1], kl = Math.hypot(...kd);
-      G.send({ t: 'shoot', a: 's', o: [LX, 1.62, 20], d: kd.map(v => v / kl), st: G.snap.st });
+      G.send({ t: 'shoot', a: 's', o: [LX, AY + 1.62, AZ + 20], d: kd.map(v => v / kl), st: G.snap.st });
       const kh = await G.wait(m => m.t === 'ev' && m.k === 'hit', 1500);
       ok(kh && kh.knife && kh.back && kh.dmg === WD.WEAPONS.knife.slashBack, 'Knivhug i ryggen gør ' + WD.WEAPONS.knife.slashBack + ' skade (' + (kh && kh.dmg) + ')');
-      G.send({ t: 'shoot', a: 's', o: [LX, 1.62, 20], d: kd.map(v => v / kl), st: G.snap.st }); await sleep(100);
+      G.send({ t: 'shoot', a: 's', o: [LX, AY + 1.62, AZ + 20], d: kd.map(v => v / kl), st: G.snap.st }); await sleep(100);
       ok(G.log.filter(m => m.t === 'ev' && m.k === 'hit').length === 1, 'Kniven har kadence (andet hug med det samme afvises)');
       await sleep(450);
-      G.send({ t: 'shoot', a: 's', o: [LX, 1.62, 20], d: kd.map(v => v / kl), st: G.snap.st });
+      G.send({ t: 'shoot', a: 's', o: [LX, AY + 1.62, AZ + 20], d: kd.map(v => v / kl), st: G.snap.st });
       const kk = await G.wait(m => m.t === 'ev' && m.k === 'kill' && m.w === 'knife', 1500);
       ok(!!kk, 'Knivdrab registreres i killfeed (våben: kniv)');
       const kp = await G.wait(m => m.t === 'ev' && m.k === 'pay' && m.why === 'kill', 1000);
@@ -534,15 +537,15 @@ async function main() {
       ok(eco && eco.l.some(r => r[0] === G.id) && !eco.l.some(r => r[0] === H.id), 'Holdøkonomi sendes kun til eget hold');
       // i pausen efter runden kan man stadig skyde (H er død – skuddet skal accepteres og sendes ud)
       G.send({ t: 'sw', w: G.self.inv.pistol }); await sleep(80); H.clear();
-      G.send({ t: 'shoot', o: [LX, 1.62, 20], d: [0, 0, -1], st: G.snap.st });
+      G.send({ t: 'shoot', o: [LX, AY + 1.62, AZ + 20], d: [0, 0, -1], st: G.snap.st });
       ok(!!(await H.wait(m => m.t === 'ev' && m.k === 'shot' && m.i === G.id, 1000)), 'Skud accepteres i pausen efter en vundet runde');
       // 2. tab i træk giver mere
       const r2b = await G.wait(m => m.t === 'round' && m.n === 2, 5000);
       ok(!!r2b, 'Alle respawner automatisk i næste runde');
       await G.waitSnap(sn => sn.ph === 'live', 6000);
-      H.clear(); G.tp(LX, 0, 20); H.tp(LX, 0, 18.7); await sleep(200); G.pos = { x: LX, y: 0, z: 20 }; H.pos = { x: LX, y: 0, z: 18.7 }; G.yaw = 0; H.yaw = 0; G.sendIn(); H.sendIn();
+      H.clear(); G.tp(LX, AY, AZ + 20); H.tp(LX, AY, AZ + 18.7); await sleep(200); G.pos = { x: LX, y: AY, z: AZ + 20 }; H.pos = { x: LX, y: AY, z: AZ + 18.7 }; G.yaw = 0; H.yaw = 0; G.sendIn(); H.sendIn();
       G.send({ t: 'sw', w: 'knife' }); await sleep(100);
-      G.send({ t: 'shoot', a: 'k', o: [LX, 1.62, 20], d: kd.map(v => v / kl), st: G.snap.st });   // stik i ryggen = 180 → dræber
+      G.send({ t: 'shoot', a: 'k', o: [LX, AY + 1.62, AZ + 20], d: kd.map(v => v / kl), st: G.snap.st });   // stik i ryggen = 180 → dræber
       const lp2 = await H.wait(m => m.t === 'ev' && m.k === 'pay' && m.why === 'loss', 4000);
       ok(lp2 && lp2.amt === WD.ECON.loss[1], '2. tab i træk: +$' + (lp2 && lp2.amt));
       G.ws.close(); H.ws.close();
@@ -552,8 +555,8 @@ async function main() {
       ok(WD.killReward('mac10') === 600 && WD.killReward('mp9') === 600 && WD.killReward('ump45') === 600 && WD.killReward('p90') === 300, 'SMG-kill: +$600 (P90 +$300) som i CS2');
       ok(WD.canBuy('hij', 'mac10') && !WD.canBuy('swat', 'mac10') && WD.canBuy('swat', 'mp9') && !WD.canBuy('hij', 'mp9') && WD.canBuy('hij', 'p90') && WD.canBuy('swat', 'mp7'), 'Holdlåste SMG\'er: MAC-10 (Hijackers), MP9 (SWAT), fælles MP7/UMP-45/P90/MP5-SD');
       ok(['mac10', 'mp9', 'mp7', 'ump45', 'p90', 'mp5'].every(id => WD.WEAPONS[id].smg && WD.WEAPONS[id].slot === 1 && WD.WEAPON_BY_CODE[WD.WEAPONS[id].code] === id && WD.SPRAY[id]), 'Alle SMG\'er har unik kode, spray-mønster og primær-plads');
-      const Wf = WD.buildWorld('white_dust'); let pair = null;
-      for (let x = -40; x <= 40 && !pair; x += 2) for (let z = -40; z <= 40 && !pair; z += 2) { const e = [x, 1.6, z]; for (const [dx, dz] of [[0, 1], [1, 0], [0, -1], [-1, 0]]) { const f = [x + dx * 35, 1.0, z + dz * 35]; if (WD.losClear(Wf, f[0], f[1], f[2], e[0], e[1], e[2])) { pair = { e, f, yaw: Math.atan2(-dx, -dz) }; break; } } }
+      const Wf = WD.buildWorld('bureau'); let pair = null;
+      for (let x = -40; x <= 40 && !pair; x += 2) for (let z = -40; z <= 40 && !pair; z += 2) { const e = [x, AY + 1.6, z]; for (const [dx, dz] of [[0, 1], [1, 0], [0, -1], [-1, 0]]) { const f = [x + dx * 35, AY + 1.0, z + dz * 35]; if (WD.losClear(Wf, f[0], f[1], f[2], e[0], e[1], e[2])) { pair = { e, f, yaw: Math.atan2(-dx, -dz) }; break; } } }
       if (pair) {
         const see = WD.flashAmount(Wf, pair.f[0], pair.f[1], pair.f[2], pair.e, pair.yaw, 0, []), away = WD.flashAmount(Wf, pair.f[0], pair.f[1], pair.f[2], pair.e, pair.yaw + Math.PI, 0, []);
         ok(see && see.full && see.dur >= WD.FLASH.FULL - 1e-6, 'Flashbang 35 m væk men i synsfeltet: helt hvid skærm (afstanden betyder ikke noget)');

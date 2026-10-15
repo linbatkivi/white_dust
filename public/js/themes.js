@@ -1,17 +1,10 @@
 // ==========================================================================
 // THEMES (v8): delt bibliotek (teksturer, prop-modeller, vegetation, lamper, døre) + register over banernes temaer.
-//   createThemes(ctx) -> { white_dust(), nuke(), ancient() } – hvert tema bygges først når banen vælges.
+//   createThemes(ctx) -> { bureau() } – hvert tema bygges først når banen vælges.
 // Et tema leverer: light, lamps, surf()/surfKinds (materialer pr. flade), trim(), dressProp/Cyl/Ladder/Rail/Lamp, decor(), fx(), doorStyle().
 // Intet placeres tilfældigt: al dekoration placeres eksplicit eller efter faste regler (fx lamper med fast afstand).
 // ==========================================================================
-import { nukeTheme } from './theme_nuke.js';
-import { dustTheme } from './theme_dust.js';
-import { ancientTheme } from './theme_ancient.js';
-import { infernoTheme } from './theme_inferno.js';
-import { havnTheme } from './theme_havn.js';
-import { canalsTheme } from './theme_canals.js';
-import { ascTheme } from './theme_asc.js';
-import { createDetails } from './details.js';
+import { bureauTheme } from './theme_bureau.js';
 
 export function createThemes(C) {
   const { THREE, W, P, mkTex, mat, unlit, leafMat, rnd, hash2, col } = C;
@@ -655,7 +648,5 @@ export function createThemes(C) {
   }
   const LIB = { ivyPatch, siteWallLetters, againstWall, modelBarrels, modelRow, faceAway, wallRuns, sampleRuns, buildingFloor, nearestWall, THREE, W, P, mkTex, mat, unlit, leafMat, rnd, hash2, col, tint, mix, mul, T, TAU, orient, wallCard, fitWallCard, panelMat, floorCard, commonMats, propLib, PAL, pick,
     frondCard, plantRadial, curvedTrunk, palm, shrub, fern, grassTuft, vineStrip, jungleTree, seedAt, railing, ladderModel, lampFixture, doorLeaf, C };
-  // v10: mikro-detaljer (decals), gesims og skybox-ring – oprettes først når et tema bygges (atlas-teksturen kræver canvas)
-  const withDetails = f => () => { LIB.D = createDetails(LIB); return f(LIB); };
-  return { white_dust: withDetails(dustTheme), nuke: withDetails(nukeTheme), ancient: withDetails(ancientTheme), inferno: () => infernoTheme(LIB), havn: () => havnTheme(LIB), canals: () => canalsTheme(LIB), ascension: () => ascTheme(LIB) };
+  return { bureau: () => bureauTheme(LIB) };
 }

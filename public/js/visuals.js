@@ -515,7 +515,7 @@ float wdN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
 
   /* ------------------------------------------------------------ tema (tekstursæt, lys, props, dekor) */
   const themes = createThemes({ THREE, W, WD, P, mkTex, mat, pbrMat, unlit, dynMat, leafMat, Batch, rnd, hash2, col, clamp, timeU, canvasTexture, maxAniso, one, insideSolid, assets: assets || null });
-  theme = (themes[W.id] || themes.white_dust)();
+  theme = (themes[W.id] || themes.bureau)();
   addLamps(theme.lamps || []);
   {                                                                 // temaets vejrlig -> fælles uniforms
     const w = theme.weather || {}, v3 = (u, a) => { if (a) u.value.set(a[0], a[1], a[2]); };

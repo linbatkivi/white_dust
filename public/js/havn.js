@@ -33,7 +33,7 @@ export async function loadHavn(THREE, renderer, base = '/assets/havn/', maxAniso
   const lightmap = name => {
     if (lmTex.has(name)) return lmTex.get(name);
     const L = lms.chunks[name]; if (!L || !L.lm) return Promise.resolve(null);
-    const p = pngLoader.loadAsync(base + L.lm + V).then(t => { t.channel = 1; t.flipY = false; t.colorSpace = THREE.NoColorSpace; t.minFilter = THREE.LinearFilter; t.generateMipmaps = false; return t; });
+    const p = pngLoader.loadAsync(base + L.lm + V).then(t => { t.channel = 1; t.flipY = !!lms.flipY; t.colorSpace = THREE.NoColorSpace; t.minFilter = THREE.LinearFilter; t.generateMipmaps = false; return t; });
     lmTex.set(name, p); return p;
   };
   // ---- geometri
@@ -58,7 +58,14 @@ export async function loadHavn(THREE, renderer, base = '/assets/havn/', maxAniso
     if (matCache.has(key)) return matCache.get(key);
     const d = MAT[m.mat] || {}, P = { roughness: d.rough !== null && d.rough !== undefined ? d.rough : 1, metalness: d.tex && d.arm !== false ? 1 : (d.metal || 0) };
     let mat;
-    if (m.mat === 'glass') mat = new THREE.MeshStandardMaterial({ color: 0x0e1215, roughness: 0.04, metalness: 0.0, envMapIntensity: 1.1 });
+    if (m.mat === 'glass' && d.kind !== 'glass') mat = new THREE.MeshStandardMaterial({ color: 0x0e1215, roughness: 0.04, metalness: 0.0, envMapIntensity: 1.1 });
+    else if (d.kind === 'glass') {                                                         // v26: rigtigt glas (vinduer, glasdøre, værn) – gennemsigtigt
+      mat = new THREE.MeshStandardMaterial({ color: 0x9fb4c0, roughness: 0.03, metalness: 0.0, transparent: true, opacity: 0.16, envMapIntensity: 1.4, depthWrite: false, side: THREE.DoubleSide });
+      mat.userData.glass = true;
+    } else if (d.unlit && d.tex) {                                                         // v26: byen omkring – selvlysende facader (oplyste vinduer)
+      mat = new THREE.MeshBasicMaterial({ map: await tex(d.tex, 'd'), fog: true });
+      matCache.set(key, mat); return mat;
+    }
     else if (m.mat === 'water') mat = new THREE.MeshStandardMaterial({ color: 0x0b2026, roughness: 0.06, metalness: 0.0, envMapIntensity: 1.0 });
     else {
       mat = new THREE.MeshStandardMaterial(P);
@@ -83,7 +90,8 @@ export async function loadHavn(THREE, renderer, base = '/assets/havn/', maxAniso
   for (const { m, g } of meshes) {
     const mat = await material(m), mesh = new THREE.Mesh(g, mat);
     mesh.position.set(m.lo[0], m.lo[1], m.lo[2]); mesh.scale.set(m.ext[0], m.ext[1], m.ext[2]);
-    mesh.castShadow = m.kind !== 'water' && m.mat !== 'glass'; mesh.receiveShadow = true; mesh.name = m.name + ':' + m.mat;
+    mesh.castShadow = m.kind !== 'water' && m.mat !== 'glass' && !mat.userData.glass && m.kind !== 'city'; mesh.receiveShadow = m.kind !== 'city'; mesh.name = m.name + ':' + m.mat;
+    if (mat.userData.glass) mesh.renderOrder = 2;
     mesh.userData.havn = m;
     if (m.mat === 'water') mesh.onBeforeRender = () => { WATER_T.value = performance.now() / 1000; };
     group.add(mesh);

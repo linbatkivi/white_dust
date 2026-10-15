@@ -31,7 +31,7 @@ import { buildAK47 } from '/js/procguns.js';
 import { loadGLB, cloneSkinned, bakeStatic } from '/js/models.js';
 
 const WD = window.WD;
-let W = WD.buildWorld('white_dust');          // aktiv bane (skiftes via setMap når serveren melder en anden)
+let W = WD.buildWorld('bureau');          // aktiv bane (skiftes via setMap når serveren melder en anden)
 function setMap(id) {
   if (W.id !== id) { W = WD.buildWorld(id); Game.mapId = W.id; }
   if (inited3d && Renderer.mapId !== W.id) Renderer.loadMap();       // loadMap samler gentagne kald mens banen bygges
@@ -185,7 +185,7 @@ const Game = {
   nade: null,           // { under, t0 } – split trukket, kastet opbygger kraft (slippes ved mouseup)
   punch: { yaw: 0, pitch: 0 }, sprayN: 0, lastShotT: 0,   // procedural pattern recoil
   flash: null,          // { t0, dur, full } – blænding fra flashbang
-  _lobbyCode: '', mapId: 'white_dust', maps: [],
+  _lobbyCode: '', mapId: 'bureau', maps: [],
   // v12
   clk: null,            // estimeret (servertid - performance.now()) → glat interpolation på servertid + korrekt lag-kompensation
   renderST: 0,          // den servertid modstanderne vises ved lige nu (sendes med hvert skud)

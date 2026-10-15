@@ -156,7 +156,7 @@ class Room {
   constructor(code) {
     this.code = code; this.players = new Map(); this.hostId = 0; this.nextPid = 1; this.nextEnt = 1;
     this.drops = []; this.nextDrop = 1;
-    this.map = 'white_dust'; this.W = WD.buildWorld('white_dust');   // værten vælger bane i lobbyen
+    this.map = 'bureau'; this.W = WD.buildWorld('bureau');   // værten vælger bane i lobbyen
     this.phase = 'lobby'; this.phaseEnd = 0; this.round = 0; this.score = { swat: 0, hij: 0 };
     this.lossStreak = { swat: 0, hij: 0 }; this.swapped = false;
     this.grenades = []; this.smokes = []; this.fires = []; this.bomb = newBomb(); this.lastSnap = 0; this.liveStart = 0; this.requests = []; this.nextReq = 1;
