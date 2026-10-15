@@ -12,7 +12,7 @@ const LX = 12, AY = 1.5, AZ = -4.5;
 const TW = WD.buildWorld('bureau');
 const plantAt = k => { const st = TW.sites[k]; let best = null, bd = 1e9; for (let x = st.x0; x <= st.x1; x += 0.5) for (let z = st.z0; z <= st.z1; z += 0.5) { if (!WD.plantSpot(TW, x, st.y, z)) continue; const d = Math.hypot(x - (st.x0 + st.x1) / 2, z - (st.z0 + st.z1) / 2); if (d < bd) { bd = d; best = [x, z]; } } return best; };
 const PA = plantAt('A'), PB = plantAt('B'), YA = TW.sites.A.y, YB = TW.sites.B.y;
-const BOXA = TW.boxes.find(p => p.kind === 'prop' && p.x0 < TW.sites.A.x1 && p.x1 > TW.sites.A.x0 && p.z0 < TW.sites.A.z1 && p.z1 > TW.sites.A.z0);   // et serverskab på A
+const BOXA = TW.boxes.filter(p => p.kind === 'prop' && (p.x0 + p.x1) / 2 > TW.sites.A.x0 && (p.x0 + p.x1) / 2 < TW.sites.A.x1 && (p.z0 + p.z1) / 2 > TW.sites.A.z0 && (p.z0 + p.z1) / 2 < TW.sites.A.z1 && p.y0 < TW.sites.A.y + 0.1).sort((a, b) => a.y1 - b.y1)[0];   // den lave flightcase på A
 
 class Bot {
   constructor(name) { this.name = name; this.log = []; this.snap = null; this.cs = 0; this.self = null; this.side = null; this.pos = { x: 0, y: 0, z: 0 }; this.yaw = 0; this.pitch = 0; this.u = 0; this.stNow = 0; }
@@ -581,21 +581,23 @@ async function main() {
       ok(lv && lv.veto === true, 'Premier-banevalg er standard, og kun værten kan skifte tilstand');
       P.clear(); Q.clear(); Q.autoLoad = false;
       P.send({ t: 'start', veto: 1 });
-      const v0 = await P.wait(m => m.t === 'veto', 2000);
-      ok(v0 && v0.pool.length === WD.MAP_LIST.length && !v0.final, 'START åbner premier-afstemningen med alle ' + WD.MAP_LIST.length + ' baner');
       let fin = null;
-      for (let i = 0; i < WD.MAP_LIST.length + 2 && !fin; i++) {
-        const v = [...P.log].reverse().find(m => m.t === 'veto'); if (!v) break;
-        if (v.final) { fin = v; break; }
-        const banned = v.banned.map(b => b.id), free = v.pool.filter(id => !banned.includes(id));
-        const voter = v.teams[v.turn].includes(P.id) ? P : Q; voter.send({ t: 'vban', id: free[0] });
-        await P.wait(m => m.t === 'veto' && m.banned.length > banned.length, 2000);
-      }
-      fin = fin || [...P.log].reverse().find(m => m.t === 'veto' && m.final);
-      ok(fin && fin.banned.length === WD.MAP_LIST.length - 1 && fin.pool.includes(fin.final) && !fin.banned.some(b => b.id === fin.final), 'Holdene bandlyser på skift til én bane er tilbage (' + (fin && fin.final) + ')');
-      ok(fin && new Set(fin.banned.slice(0, 2).map(b => b.by)).size === 2, 'Turen skifter mellem holdene');
+      if (WD.MAP_LIST.length > 1) {
+        const v0 = await P.wait(m => m.t === 'veto', 2000);
+        ok(v0 && v0.pool.length === WD.MAP_LIST.length && !v0.final, 'START åbner premier-afstemningen med alle ' + WD.MAP_LIST.length + ' baner');
+        for (let i = 0; i < WD.MAP_LIST.length + 2 && !fin; i++) {
+          const v = [...P.log].reverse().find(m => m.t === 'veto'); if (!v) break;
+          if (v.final) { fin = v; break; }
+          const banned = v.banned.map(b => b.id), free = v.pool.filter(id => !banned.includes(id));
+          const voter = v.teams[v.turn].includes(P.id) ? P : Q; voter.send({ t: 'vban', id: free[0] });
+          await P.wait(m => m.t === 'veto' && m.banned.length > banned.length, 2000);
+        }
+        fin = fin || [...P.log].reverse().find(m => m.t === 'veto' && m.final);
+        ok(fin && fin.banned.length === WD.MAP_LIST.length - 1 && fin.pool.includes(fin.final) && !fin.banned.some(b => b.id === fin.final), 'Holdene bandlyser på skift til én bane er tilbage (' + (fin && fin.final) + ')');
+        ok(fin && new Set(fin.banned.slice(0, 2).map(b => b.by)).size === 2, 'Turen skifter mellem holdene');
+      } else ok(true, 'Kun én bane i puljen: afstemningen springes over, banen indlæses direkte');
       const ld = await P.wait(m => m.t === 'load', 6000);
-      ok(ld && fin && ld.map === fin.final, 'Den valgte bane indlæses hos alle');
+      ok(ld && ld.map === (fin ? fin.final : WD.MAP_LIST[0].id), 'Den valgte bane indlæses hos alle');
       await sleep(1200);
       ok(!P.log.find(m => m.t === 'round'), 'Runden starter IKKE før alle har indlæst banen');
       Q.send({ t: 'loaded' });

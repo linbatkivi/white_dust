@@ -1,5 +1,9 @@
 node_modules
-tools/
+tools/*
+!tools/bureau/
+tools/bureau/cache/
+tools/bureau/out/
+__pycache__/
 *.blend
 *.blend1
 *.exr

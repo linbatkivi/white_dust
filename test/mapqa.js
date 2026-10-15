@@ -28,8 +28,8 @@ const STRICT = !!process.env.WD_QA_STRICT;
   let bad = 0;
   const summary = [];
   for (const id of ids) {
-    if (id === 'havn' || id === 'inferno' || id === 'canals') { console.log('\n' + id + ': forfattet bane – grafikken er Blender-bygget (test/havn.js / nav), ikke motorens'); continue; }
     const W = WD.buildWorld(id);
+    if (W.data && W.data.grid) { console.log('\n' + id + ': forfattet bane – grafikken er Blender-bygget og bagt (tjekkes af test/nav.js og fotorunden), ikke motorens'); continue; }
     globalThis.__WDQA = [];
     const V = createVisuals(THREE, WD, W, ct, 4, createThemes);
     V.buildWorldMesh(); V.buildDecor();
