@@ -416,20 +416,110 @@ export function createWeapons(THREE, WD, opts) {
     const rg = add(new THREE.SphereGeometry(0.016, 8, 6), rag, 0.008, 0.215, -0.02); rg.scale.set(1, 0.7, 1.2);
     return { nade: true, wick: new THREE.Vector3(0.012, 0.225, -0.02) };
   };
-  // C4: tre plastisk-sprængstof-stænger med tape, tastatur, LCD og ledninger
+  // v25: C4 – fire M112-sprængstofblokke (oliven Mylar med stencilskrift) bundet sammen med krøllet gaffatape, et robust
+  //   detonatorhus (afrundet ABS, skruer, gummitastatur med tal, LCD bag ramme, LED i kromfatning, vippekontakt med bøjle, antenne),
+  //   et 9V-batteri under tapen og snoede ledninger ned til sprængkapsler der sidder i blokkene.
+  const c4Tex = {};
+  const c4T = (key, draw, w, h) => c4Tex[key] || (c4Tex[key] = o.canvasTexture(draw, w || 512, h || 256));
+  const c4Wrap = () => c4T('wrap', (c, w, h) => {
+    const R = rnd(4112); c.fillStyle = '#454a2c'; c.fillRect(0, 0, w, h);
+    for (let i = 0; i < 2600; i++) { const v = R(); c.fillStyle = v < 0.5 ? `rgba(30,32,18,${R() * 0.18})` : `rgba(140,146,96,${R() * 0.12})`; c.fillRect(R() * w, R() * h, 1 + R() * 3, 1 + R() * 2); }
+    for (let i = 0; i < 26; i++) { c.strokeStyle = `rgba(${R() < 0.5 ? '20,22,12' : '170,176,120'},${0.08 + R() * 0.1})`; c.lineWidth = 1 + R() * 2; c.beginPath(); const x = R() * w; c.moveTo(x, 0); c.lineTo(x + (R() - 0.5) * 60, h); c.stroke(); }   // folder i Mylar-folien
+    c.save(); c.translate(w / 2, h / 2); c.rotate(-Math.PI / 2);                 // teksten løber på langs af blokken (v-aksen)
+    c.fillStyle = 'rgba(232,214,120,0.92)'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.font = '700 30px monospace'; c.fillText('CHARGE, DEMOLITION, M112', 0, -38); c.font = '700 26px monospace'; c.fillText('1 1/4 LB  COMP C-4', 0, 0); c.font = '600 18px monospace'; c.fillText('LOT MA-8812-034', 0, 34);
+    c.restore();
+  }, 160, 600);
+  const c4TapeT = () => c4T('tape', (c, w, h) => {
+    const R = rnd(77); c.fillStyle = '#1d1e20'; c.fillRect(0, 0, w, h);
+    for (let y = 0; y < h; y += 3) { c.fillStyle = `rgba(255,255,255,${0.015 + R() * 0.03})`; c.fillRect(0, y, w, 1); }                 // vævet stofstruktur
+    for (let i = 0; i < 40; i++) { c.strokeStyle = `rgba(0,0,0,${0.25 + R() * 0.3})`; c.lineWidth = 1 + R() * 2.5; c.beginPath(); const x = R() * w; c.moveTo(x, 0); c.bezierCurveTo(x + 20, h * 0.3, x - 25, h * 0.7, x + (R() - 0.5) * 30, h); c.stroke(); }   // krøl
+    for (let i = 0; i < 30; i++) { c.strokeStyle = `rgba(150,150,155,${0.08 + R() * 0.1})`; c.lineWidth = 1; c.beginPath(); const x = R() * w; c.moveTo(x, 0); c.lineTo(x + (R() - 0.5) * 20, h); c.stroke(); }
+  }, 256, 128);
+  const c4KeysT = () => c4T('keys', (c, w, h) => {
+    c.fillStyle = '#1a1b1d'; c.fillRect(0, 0, w, h); const K = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'];
+    for (let r = 0; r < 4; r++) for (let q = 0; q < 3; q++) {
+      const x = q * w / 3, y = r * h / 4, g = c.createLinearGradient(0, y, 0, y + h / 4); g.addColorStop(0, '#5d6066'); g.addColorStop(1, '#3a3c40');
+      c.fillStyle = g; c.beginPath(); c.roundRect ? c.roundRect(x + 6, y + 6, w / 3 - 12, h / 4 - 12, 10) : c.rect(x + 6, y + 6, w / 3 - 12, h / 4 - 12); c.fill();
+      c.fillStyle = '#e6e6e0'; c.font = '700 40px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(K[r * 3 + q], x + w / 6, y + h / 8 + 2);
+    }
+  }, 256, 320);
+  const c4Batt = () => c4T('batt', (c, w, h) => {
+    c.fillStyle = '#c8a03a'; c.fillRect(0, 0, w, h); c.fillStyle = '#18181a'; c.fillRect(0, 0, w * 0.42, h);
+    c.fillStyle = '#18181a'; c.font = '900 54px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('9V', w * 0.72, h * 0.5);
+    c.fillStyle = '#c8a03a'; c.font = '700 22px sans-serif'; c.fillText('ALKALINE', w * 0.21, h * 0.5);
+  }, 256, 128);
+  function rbox(w, h, d, r) {                                     // afrundet kasse (afrundede lodrette hjørner + let affaset top/bund)
+    const s = new THREE.Shape(), x = w / 2 - r, z = d / 2 - r;
+    s.moveTo(-x, -d / 2); s.lineTo(x, -d / 2); s.quadraticCurveTo(w / 2, -d / 2, w / 2, -z); s.lineTo(w / 2, z); s.quadraticCurveTo(w / 2, d / 2, x, d / 2);
+    s.lineTo(-x, d / 2); s.quadraticCurveTo(-w / 2, d / 2, -w / 2, z); s.lineTo(-w / 2, -z); s.quadraticCurveTo(-w / 2, -d / 2, -x, -d / 2);
+    const g = new THREE.ExtrudeGeometry(s, { depth: h - r * 0.8, bevelEnabled: true, bevelThickness: r * 0.4, bevelSize: r * 0.3, bevelSegments: 2, curveSegments: 4 });
+    g.rotateX(-Math.PI / 2); g.translate(0, -(h - r * 0.8) / 2, 0); g.computeVertexNormals(); return g;
+  }
   function buildC4(M, displayText) {
-    const g = new THREE.Group(), add = (geo, m, x, y, z) => { const me = new THREE.Mesh(geo, m); me.position.set(x || 0, y || 0, z || 0); g.add(me); return me; };
-    const wrap = M.c4wrap || (M.c4wrap = (o.dynMat ? o.dynMat({ color: 0xffffff, map: SK.c4() }) : new THREE.MeshLambertMaterial({ map: SK.c4() })));
-    const tape = M.tape || (M.tape = (o.dynMat ? o.dynMat({ color: 0x232323 }) : new THREE.MeshLambertMaterial({ color: 0x232323 })));
-    for (let i = 0; i < 3; i++) add(boxG(0.085, 0.05, 0.27), wrap, -0.087 + i * 0.087, 0.025, 0);
-    for (const z of [-0.09, 0.09]) add(boxG(0.27, 0.054, 0.035), tape, 0, 0.026, z);
-    add(boxG(0.11, 0.02, 0.15), M.poly, 0, 0.06, 0);                                                         // styreenhed
-    const lcd = add(boxG(0.075, 0.004, 0.035), M.lcd || (M.lcd = new THREE.MeshBasicMaterial({ map: lcdTex(displayText || '7355608') })), 0, 0.072, -0.04);
-    for (let r = 0; r < 4; r++) for (let c = 0; c < 3; c++) add(boxG(0.018, 0.006, 0.014), M.keys || (M.keys = new THREE.MeshLambertMaterial({ color: 0x9aa0a6 })), -0.022 + c * 0.022, 0.071, 0.005 + r * 0.018);
-    const led = add(new THREE.SphereGeometry(0.007, 8, 6), M.led || (M.led = new THREE.MeshBasicMaterial({ color: 0xff2a1a })), 0.045, 0.075, -0.06);
-    for (const [col, x] of [[0xc82a20, -0.03], [0xe0c020, 0.0], [0x2050c0, 0.03]]) { const w = add(new THREE.TorusGeometry(0.035, 0.0035, 5, 12, Math.PI), M['w' + col] || (M['w' + col] = new THREE.MeshLambertMaterial({ color: col })), x, 0.06, 0.085); w.rotation.y = Math.PI / 2; }
+    const g = new THREE.Group(), add = (geo, m, x, y, z, par) => { const me = new THREE.Mesh(geo, m); me.position.set(x || 0, y || 0, z || 0); (par || g).add(me); return me; };
+    const mk = (key, p) => M[key] || (M[key] = (o.dynMat ? o.dynMat(p) : new THREE.MeshStandardMaterial(p)));
+    const wrap = mk('c4wrap', { color: 0xffffff, map: c4Wrap(), roughness: 0.55, metalness: 0.05 });
+    const wrapEnd = mk('c4end', { color: 0x434829, roughness: 0.6 }), wrapSide = mk('c4side', { color: 0x4a4f30, roughness: 0.5, metalness: 0.05 });
+    const tape = mk('tape', { color: 0xffffff, map: c4TapeT(), roughness: 0.45, metalness: 0.0 });
+    const abs = mk('c4abs', { color: 0x1c1d1f, roughness: 0.62, metalness: 0.05 }), absHi = mk('c4abs2', { color: 0x2c2e31, roughness: 0.5 });
+    const steel = mk('c4steel', { color: 0xa9adb2, roughness: 0.3, metalness: 1.0 }), alu = mk('c4alu', { color: 0x8c9096, roughness: 0.35, metalness: 1.0 });
+    const keys = mk('c4keys', { color: 0xffffff, map: c4KeysT(), roughness: 0.75 }), batt = mk('c4batt', { color: 0xffffff, map: c4Batt(), roughness: 0.4, metalness: 0.2 });
+    // fire blokke (2 × 2), hver med folie-endestykker
+    const BW = 0.062, BH = 0.04, BL = 0.25;
+    for (let i = 0; i < 4; i++) {
+      const x = (i % 2 ? 1 : -1) * (BW / 2 + 0.001) + (i > 1 ? 0.004 : 0), y = BH / 2 + Math.floor(i / 2) * (BH + 0.001);
+      const b = add(new THREE.BoxGeometry(BW, BH, BL), [wrapSide, wrapSide, wrap, wrapSide, wrapEnd, wrapEnd], x, y, 0); b.rotation.y = (i - 1.5) * 0.008;
+      for (const zz of [-BL / 2, BL / 2]) add(new THREE.BoxGeometry(BW * 0.9, BH * 0.84, 0.004), wrapEnd, x, y, zz);
+    }
+    const TOP = BH * 2 + 0.002;
+    // to bånd gaffatape om bundtet (lidt bredere end blokkene, med en løs flap)
+    for (const z of [-0.075, 0.075]) {
+      const t = add(new THREE.BoxGeometry(BW * 2 + 0.012, TOP + 0.006, 0.048), tape, 0.002, TOP / 2, z); t.rotation.z = z > 0 ? 0.01 : -0.012;
+      if (z > 0) { const f = add(new THREE.BoxGeometry(0.03, 0.0015, 0.044), tape, BW + 0.012, TOP * 0.35, z); f.rotation.z = -1.1; }
+    }
+    // 9V-batteri under det forreste tapebånd
+    const bt = add(new THREE.BoxGeometry(0.048, 0.017, 0.026), [batt, batt, batt, batt, batt, batt], -0.03, TOP + 0.0085, 0.088);
+    for (const dx of [-0.006, 0.006]) add(new THREE.CylinderGeometry(0.003, 0.003, 0.004, 8), steel, -0.054, TOP + 0.009, 0.088 + dx).rotation.z = Math.PI / 2;
+    // detonator: afrundet hus med skruer
+    const D = new THREE.Group(); D.position.set(0.012, TOP, -0.01); g.add(D);
+    add(rbox(0.105, 0.03, 0.14, 0.009), abs, 0, 0.015, 0, D);
+    add(new THREE.BoxGeometry(0.092, 0.003, 0.124), absHi, 0, 0.0345, 0, D);                                              // låg
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      add(new THREE.CylinderGeometry(0.004, 0.004, 0.002, 10), steel, sx * 0.039, 0.0370, sz * 0.054, D);
+      add(new THREE.BoxGeometry(0.005, 0.0006, 0.0009), abs, sx * 0.039, 0.0381, sz * 0.054, D).rotation.y = 0.6 + sx * sz;   // kærv
+    }
+    // LCD i ramme
+    add(new THREE.BoxGeometry(0.07, 0.003, 0.034), abs, 0, 0.0380, -0.035, D);
+    const lcd = add(new THREE.BoxGeometry(0.06, 0.002, 0.025), M.lcd || (M.lcd = new THREE.MeshBasicMaterial({ map: lcdTex(displayText || '7355608') })), 0, 0.0393, -0.035, D);
+    // gummitastatur
+    const kp = add(new THREE.BoxGeometry(0.06, 0.004, 0.06), [abs, abs, keys, abs, abs, abs], 0, 0.0387, 0.018, D);
+    kp.geometry.attributes.uv.needsUpdate = true;
+    // LED i kromfatning + vippekontakt med bøjle + antenne
+    add(new THREE.CylinderGeometry(0.0062, 0.0062, 0.003, 14), steel, 0.037, 0.0375, -0.054, D);
+    const led = add(new THREE.SphereGeometry(0.0045, 10, 8), M.led || (M.led = new THREE.MeshBasicMaterial({ color: 0xff2a1a })), 0.037, 0.039, -0.054, D);
+    add(new THREE.CylinderGeometry(0.005, 0.006, 0.006, 12), alu, -0.036, 0.0395, -0.055, D);
+    const sw = add(new THREE.CylinderGeometry(0.0016, 0.0022, 0.016, 8), steel, -0.036, 0.0475, -0.052, D); sw.rotation.x = 0.35;
+    for (const dx of [-0.009, 0.009]) { const gd = add(new THREE.TorusGeometry(0.008, 0.0012, 5, 10, Math.PI), steel, -0.036 + dx, 0.0395, -0.055, D); gd.rotation.y = Math.PI / 2; }
+    add(new THREE.CylinderGeometry(0.004, 0.004, 0.008, 10), absHi, 0.046, 0.024, 0.062, D).rotation.z = Math.PI / 2;
+    const ant = add(new THREE.CylinderGeometry(0.0015, 0.0022, 0.075, 6), abs, 0.05, 0.03, 0.062, D); ant.rotation.z = -1.25;
+    add(new THREE.SphereGeometry(0.0028, 8, 6), abs, 0.085, 0.042, 0.062, D);
+    // ledninger: snoede par fra detonatoren ned til sprængkapsler i blokkenes ender
+    const wire = (pts, col, r) => {
+      const curve = new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(p[0], p[1], p[2])));
+      return add(new THREE.TubeGeometry(curve, 24, r || 0.0016, 5, false), mk('w' + col, { color: col, roughness: 0.45 }));
+    };
+    const cap = (x, y, z) => { const c = add(new THREE.CylinderGeometry(0.0035, 0.0035, 0.03, 10), alu, x, y, z); c.rotation.x = Math.PI / 2; return c; };
+    const caps = [[-BW / 2, BH * 1.5, BL / 2 + 0.004], [BW / 2, BH * 0.5, BL / 2 + 0.004]];
+    caps.forEach(([x, y, z], k) => {
+      cap(x, y, z);
+      const sx = 0.03 + k * 0.012;
+      for (const [col, off] of [[0xb82018, 0], [0x1d52b8, 0.003]]) wire([[sx, TOP + 0.022, 0.06], [sx + 0.008 * (k ? 1 : -1) + off, TOP + 0.02, 0.105], [x + off, y + 0.012, z + 0.026], [x + off * 0.4, y, z + 0.016]], col);
+    });
+    wire([[-0.012, TOP + 0.02, 0.06], [-0.024, TOP + 0.026, 0.078], [-0.04, TOP + 0.02, 0.088]], 0xd0b020, 0.0014);           // til batteriet
+    wire([[-0.004, TOP + 0.02, 0.06], [-0.018, TOP + 0.028, 0.08], [-0.04, TOP + 0.022, 0.094]], 0x18181a, 0.0014);
     g.userData.led = led; g.userData.lcd = lcd;
-    g.traverse(n => { if (n.isMesh) n.castShadow = true; });
+    g.traverse(n => { if (n.isMesh) { n.castShadow = true; n.receiveShadow = true; } });
     return g;
   }
   function lcdTex(txt) {

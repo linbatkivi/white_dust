@@ -2743,7 +2743,7 @@ const Renderer = (() => {
   }
   if (DEV) {   // v14 foto-tur: faste kameraer → kontaktark (4×3 billeder pr. ark, navn + koordinater på hvert billede)
     api.tourShots = () => tourShots();
-    api.night = () => night;
+    api.night = () => night; api.c4 = t => Weap.c4Model(t);
     api.tourSheet = (shots, cols, tw, th) => {
       cols = cols || 4; tw = tw || 640; th = th || 360;
       const out = document.createElement('canvas'), rows = Math.ceil(shots.length / cols); out.width = cols * tw; out.height = rows * th; const c2 = out.getContext('2d');

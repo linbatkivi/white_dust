@@ -2,6 +2,9 @@
 // v22: INTRO-CUTSCENE ved kampstart (kan ikke springes over) – holdet ankommer til sin spawn på den aktuelle bane:
 //   SWAT      : pansret køretøj kører ind, luftbremser, bagdørene slås op, operatørerne springer ud med lasersigter og spreder sig
 //   HIJACKERS : slidt pickup (technical) drøner ind og laver et håndbremse-sving i en sky af støv; hijackerne springer ud over ladet
+// v25: spillerens egne modeller – SWAT i en MaxxPro MRAP (bagrampen sænkes hydraulisk, operatørerne løber ned ad den),
+//   hijackerne i en gammel GAZ-53-ladvogn (tung opbremsning med let udskridning, bagsmækken slås ned). Mål fra <id>.json.
+//   Om natten tænder køretøjet forlygterne (ét fast spotlys, så shaderne aldrig genoversættes), og i regn sprøjter vand i stedet for støv.
 //   Køretøjets vej findes automatisk på hver bane (fri, flad strækning ind mod holdets spawn – kollisions-test mod banens colliders),
 //   kameraet klippes mellem filmiske vinkler (lavt ved jorden, følgende, slowmotion, kran) og flyver til sidst ind i spillerens øjne.
 // createIntro(o) -> { preload(), play(info, ms), update(dt) -> bool (styrer kameraet), stop(), active }
@@ -14,14 +17,25 @@ export function createIntro(o) {
   const TPL = {}; let loadP = null;
   const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
   const SPEC = {
-    swat: { file: 'swat_truck', len: 6.4, wid: 2.6, wheelR: 0.5, gun: 'm4a1' },
-    hij: { file: 'technical', len: 5.4, wid: 2.0, wheelR: 0.4, gun: 'ak47' }
+    swat: { file: 'maxxpro', len: 6.4, wid: 2.7, wheelR: 0.66, gun: 'm4a1', rear: -2.75, rearY: 1.25, tailOpen: 2.13, tailT: 4.35, tailDur: 1.1 },
+    hij: { file: 'gaz', len: 6.2, wid: 2.5, wheelR: 0.46, gun: 'ak47', rear: -3.1, rearY: 1.16, tailOpen: 1.5, tailT: 4.3, tailDur: 0.35,
+      seats: [[0.55, 1.16, -2.31], [-0.55, 1.16, -1.71], [0.0, 1.16, -1.11], [0.5, 0.0, 1.11], [-0.5, 0.0, 1.11]] }
   };
+  let headL = null;
 
   function preload() {
     if (loadP) return loadP;
+    try { lights(); } catch (e) {}                                          // forlygten findes fra start (fast antal lys i scenen)
     loadP = Promise.all([
-      ...Object.values(SPEC).map(async s => { try { const g = await o.loadGLB(THREE, '/assets/vehicles/' + s.file + '.glb?v22'); TPL[s.file] = g.scene; } catch (e) { console.warn('[intro] køretøj', s.file, e); } }),
+      ...Object.values(SPEC).map(async s => {
+        try {
+          const [g, meta] = await Promise.all([o.loadGLB(THREE, '/assets/vehicles/' + s.file + '.glb?v25'), fetch('/assets/vehicles/' + s.file + '.json?v25').then(r => r.ok ? r.json() : null).catch(() => null)]);
+          TPL[s.file] = g.scene;
+          if (meta) for (const k of ['len', 'wheelR', 'rear', 'rearY', 'tailOpen']) if (meta[k] !== undefined) s[k] = meta[k];
+          if (meta && meta.wid) s.wid = Math.min(meta.wid, 2.7);
+          if (meta && meta.seats) s.seats = meta.seats;
+        } catch (e) { console.warn('[intro] køretøj', s.file, e); }
+      }),
       o.Audio.cinePreload ? o.Audio.cinePreload() : null
     ]);
     return loadP;
@@ -89,7 +103,7 @@ export function createIntro(o) {
       n.castShadow = true; n.receiveShadow = true;
       const mats = Array.isArray(n.material) ? n.material : [n.material];
       const nm = mats.map(m => {
-        if (m.emissive && (m.emissive.r + m.emissive.g + m.emissive.b) > 0.05) return new THREE.MeshBasicMaterial({ color: m.emissive.clone().multiplyScalar(1.6), toneMapped: false });
+        if (m.emissive && (m.emissive.r + m.emissive.g + m.emissive.b) > 0.05) return new THREE.MeshBasicMaterial({ color: m.emissive.clone().multiplyScalar(n.name === 'lights_inner' ? 0.55 : 1.6), toneMapped: false });
         const p = { color: m.color, map: m.map || null, normalMap: m.normalMap || undefined, roughness: m.roughness, metalness: m.metalness };
         const d = V && V.dynMat ? V.dynMat(p) : new THREE.MeshStandardMaterial(p);
         if (d.userData.uBake) d.userData.uBake = bake;
@@ -147,14 +161,22 @@ export function createIntro(o) {
   let S = null; const parked = [];
   const _v = V3(0, 0, 0), _w = V3(0, 0, 0), _m = new THREE.Matrix4(), _q = new THREE.Quaternion();
 
+  function lights() {
+    if (headL) return headL;
+    const sp = new THREE.SpotLight(0xfff0d8, 0, 38, 0.5, 0.55, 1.6); sp.castShadow = false; const tg = new THREE.Object3D(); sp.target = tg;
+    const strobe = new THREE.PointLight(0xff2010, 0, 16, 1.6), inner = new THREE.PointLight(0xffc37a, 0, 7, 1.8);   // politiblink · lys fra mandskabsrummet
+    for (const l of [sp, tg, strobe, inner]) o.scene().add(l);
+    headL = { sp, tg, strobe, inner }; return headL;
+  }
   function play(info, ms) {
-    stop(); clearParked();
+    stop(); clearParked(); lights();
     const W = o.W(), side = info.side === 'hij' ? 'hij' : 'swat', spec = SPEC[side], C = o.chars();
     const P = plan(W, side); if (!P || !C) return false;
     const foot = P.drive < 6 ? planFoot(W, side, P) : null;              // ingen plads til køretøjet => til fods
     const veh = foot ? null : makeVehicle(spec.file);
     const T = Math.max(6, (ms || 12000) / 1000);
-    S = { t: 0, T, side, spec, P, veh, foot, men: [], shot: -1, slow: 1, sounds: [], dust: makeDust(side === 'hij' ? 0xcdb48e : 0xbab4a8), lasers: [], fired: {}, info, startCam: null };
+    const th = (o.V() && o.V().theme) || {}, wet = !!th.rain;
+    S = { t: 0, T, side, spec, P, veh, foot, men: [], shot: -1, slow: 1, sounds: [], wet, night: !!th.night, dust: makeDust(wet ? 0x7d8590 : side === 'hij' ? 0xcdb48e : 0xbab4a8), lasers: [], fired: {}, info, startCam: null };
     o.scene().add(S.dust.obj);
     if (veh) { o.scene().add(veh.g); }
     // holdkammerater (inkl. en selv) – rifler i cutscenen
@@ -172,13 +194,13 @@ export function createIntro(o) {
 
   // køretøjets placering ved tid t: kører ind langs -dir og bremser til stop (pickup: håndbremse-sving til sidst)
   function vehiclePose(t, out) {
-    const P = S.P, drive = P.drive, side = S.side, Tin = side === 'hij' ? 3.4 : 4.2;
+    const P = S.P, drive = P.drive, side = S.side, Tin = side === 'hij' ? 3.8 : 4.2;
     const k = drive > 0 ? easeOut(t / Tin) : 1, dist = drive * (1 - k);
     out.x = P.stop.x + P.dir.x * dist; out.z = P.stop.z + P.dir.z * dist; out.y = P.stop.y;
     let yaw = Math.atan2(-P.dir.x, -P.dir.z), slide = 0;
-    if (side === 'hij') {                                                    // håndbremse-sving: drejer ~80° og glider sidelæns
-      const s = smooth((t - (Tin - 1.25)) / 1.25); yaw += s * 1.4; slide = s;
-      const rx = -P.dir.z, rz = P.dir.x; out.x += rx * slide * 1.4; out.z += rz * slide * 1.4;
+    if (side === 'hij') {                                                    // tung lastbil: hård opbremsning, bagenden skrider lidt ud (~30°)
+      const s = smooth((t - (Tin - 1.4)) / 1.4); yaw += s * 0.55; slide = s;
+      const rx = -P.dir.z, rz = P.dir.x; out.x += rx * slide * 0.7; out.z += rz * slide * 0.7;
     }
     out.yaw = yaw; out.v = drive > 0 && t < Tin ? drive * 3 * Math.pow(1 - clamp(t / Tin, 0, 1), 2) / Tin : 0; out.slide = slide; out.Tin = Tin;
     return out;
@@ -234,7 +256,7 @@ export function createIntro(o) {
         const k = (t - 2.0) / 1.9; return { pos: at(Fs, 1.5 - k * 1.5, 1.2, -6.2 + k * 0.8), look: at(Fv, 0, 0.9, 0), fov: 50 };
       }
       if (t < 6.8) {                                                            // C: fra jorden – hijackerne springer over ladet (slowmotion)
-        const F = frameAt(vp.x, vp.z, vp.yaw), k = (t - 3.9) / 2.9; return { pos: at(F, -1.0 + k * 0.6, 0.3, 4.4 - k * 0.6), look: at(F, -0.6, 1.25, 1.0), fov: 54 };
+        const F = frameAt(vp.x, vp.z, vp.yaw), k = (t - 3.9) / 2.9; return { pos: at(F, -1.0 + k * 0.6, 0.3, 5.6 - k * 0.6), look: at(F, -0.6, 1.25, 1.0), fov: 54 };
       }
     }
     return finalShots(t, side === 'swat' ? 7.6 : 6.8);
@@ -273,20 +295,20 @@ export function createIntro(o) {
         if (t < st0) { m.ph = 'wait'; h.group.visible = false; return; }
         if (m.ph === 'wait') { const F = S.foot, r = V3(-F.dir.z, 0, F.dir.x), off = (i % 2 ? 1 : -1) * 0.55 * Math.min(1, i); m.x = F.start.x + r.x * off + F.dir.x * i * 0.6; m.z = F.start.z + r.z * off + F.dir.z * i * 0.6; m.y = F.start.y; m.ph = 'run'; h.group.visible = true; }
       } else if (side === 'swat') {
-        const exitT = 5.45 + i * 0.42;
+        const exitT = 5.55 + i * 0.45;
         if (t < exitT) { m.ph = 'wait'; h.group.visible = false; return; }
-        if (m.ph === 'wait') { m.ph = 'jump'; m.j0 = t; const a = vlocal((i % 2 ? 0.35 : -0.35), 0.86, -L / 2 + 0.3, V3(0, 0, 0)); m.x = a.x; m.y = a.y; m.z = a.z; const b = vlocal((i % 2 ? 0.7 : -0.7), 0, -L / 2 - 1.5, V3(0, 0, 0)); m.jx = b.x; m.jz = b.z; m.jy = S.P.stop.y; m.ax = a.x; m.ay = a.y; m.az = a.z; h.group.visible = true; snd('land', { vol: 0.6, at: 0.45, pos: { x: b.x, y: m.jy, z: b.z } }); }
+        if (m.ph === 'wait') { m.ph = 'jump'; m.j0 = t; const sp = S.spec, a = vlocal((i % 2 ? 0.3 : -0.3), sp.rearY, sp.rear + 0.5, V3(0, 0, 0)); m.x = a.x; m.y = a.y; m.z = a.z; const b = vlocal((i % 2 ? 0.75 : -0.75), 0, sp.rear - 2.3, V3(0, 0, 0)); m.jx = b.x; m.jz = b.z; m.jy = S.P.stop.y; m.ax = a.x; m.ay = a.y; m.az = a.z; h.group.visible = true; snd('land', { vol: 0.6, at: 0.45, pos: { x: b.x, y: m.jy, z: b.z } }); }
       } else {
         // hijackerne står/sidder på ladet under kørslen, springer ud over siden efter svinget
         const exitT = 4.0 + i * 0.3;
         if (m.ph === 'wait' || m.ph === 'ride') {
           m.ph = 'ride'; h.group.visible = i < 3 || t > exitT;
-          const seat = [[0.45, 0.78, -1.3], [-0.45, 0.78, -1.75], [0.0, 0.78, -2.2], [0.5, 0.0, 0.55], [-0.5, 0.0, 0.55]][i];
+          const seat = (S.spec.seats || [[0.45, 0.78, -1.3], [-0.45, 0.78, -1.75], [0.0, 0.78, -2.2], [0.5, 0.0, 0.55], [-0.5, 0.0, 0.55]])[i];
           const a = vlocal(seat[0], seat[1], seat[2], V3(0, 0, 0)); m.x = a.x; m.y = a.y; m.z = a.z; m.yaw = vp.yaw + (i < 3 ? (i % 2 ? 0.6 : -0.6) : 0);
           m.crouch = i < 3;
           if (t >= exitT) {
             m.ph = 'jump'; m.j0 = t; m.ax = a.x; m.ay = a.y; m.az = a.z; m.crouch = false;
-            const sideK = i < 3 ? -1.7 : -1.2, b = vlocal(i < 3 ? sideK : (i === 3 ? -1.3 : 1.3), 0, seat[2] + (i < 3 ? 0 : 0.3), V3(0, 0, 0));
+            const hw = S.spec.wid / 2, b = i < 3 ? vlocal(seat[0] * 0.6, 0, S.spec.rear - 1.4 - i * 0.15, V3(0, 0, 0)) : vlocal(i === 3 ? hw + 0.45 : -hw - 0.45, 0, seat[2] + 0.3, V3(0, 0, 0));
             if (i >= 3) { m.ay = S.P.stop.y; }                                        // fra førerhuset: træder bare ud
             m.jx = b.x; m.jz = b.z; m.jy = S.P.stop.y;
             snd('land', { vol: 0.6, at: 0.5, pos: { x: b.x, y: m.jy, z: b.z } });
@@ -294,8 +316,9 @@ export function createIntro(o) {
         }
       }
       if (m.ph === 'jump') {
-        const k = clamp((t - m.j0) / 0.55, 0, 1);
-        m.x = lerp(m.ax, m.jx, k); m.z = lerp(m.az, m.jz, k); m.y = lerp(m.ay, m.jy, k) + Math.sin(k * Math.PI) * 0.55;
+        const dur = side === 'swat' && !S.foot ? 0.75 : 0.62, k = clamp((t - m.j0) / dur, 0, 1);
+        m.x = lerp(m.ax, m.jx, k); m.z = lerp(m.az, m.jz, k);
+        m.y = side === 'swat' && !S.foot ? lerp(m.ay, m.jy, k) + Math.sin(k * Math.PI) * 0.12 : lerp(m.ay, m.jy, k * k) + Math.sin(k * Math.PI) * 0.45;   // SWAT løber ned ad rampen, hijackerne springer
         m.air = k < 0.95; m.yaw = Math.atan2(-(m.jx - m.ax), -(m.jz - m.az));
         if (k >= 1) { m.ph = 'land'; m.l0 = t; m.air = false; }
       } else if (m.ph === 'land') {
@@ -338,15 +361,31 @@ export function createIntro(o) {
       v.root.rotation.x = decel * 0.035; v.root.rotation.z = side === 'hij' ? Math.sin(vp.slide * Math.PI) * 0.06 : 0; v.root.position.y = -decel * 0.05;
       for (const w of v.wheels) w.rotation.x += vp.v * sdt / S.spec.wheelR;
       if (v.doorL && v.doorR) { const k = easeOut((t - 4.55) / 0.5); v.doorL.rotation.y = k * 1.9; v.doorR.rotation.y = -k * 1.9; }
-      if (v.tail) { const k = easeOut((t - 4.3) / 0.4); v.tail.rotation.x = -k * 1.5; }
+      if (v.tail) {                                                          // MaxxPro: hydraulisk rampe (blød start, lille fjedring i bunden) · GAZ: smækken slås ned
+        const sp = S.spec, u = clamp((t - sp.tailT) / sp.tailDur, 0, 1);
+        const k = side === 'swat' ? easeInOut(u) + Math.sin(clamp((t - sp.tailT - sp.tailDur) / 0.35, 0, 1) * Math.PI) * 0.025 : Math.min(1, u * u * 1.15) - (u >= 1 ? Math.sin(clamp((t - sp.tailT - sp.tailDur) / 0.3, 0, 1) * Math.PI) * 0.06 : 0);
+        v.tail.rotation.x = -k * sp.tailOpen;
+      }
+      // forlygter om natten
+      if (headL) {
+        const nk = S.night ? 1 : 0.35;
+        if (S.night) { vlocal(0, 1.1, S.spec.len / 2 - 0.2, headL.sp.position); vlocal(0, 0.2, S.spec.len / 2 + 14, headL.tg.position); headL.sp.intensity = 120 * (t < vp.Tin + 6 ? 1 : 0.45); }
+        if (side === 'swat') {
+          // blink: dobbelt-blink skiftevis rødt/blåt (4 Hz), ud over den våde gade
+          const ph = (t * 2) % 1, red = Math.floor(t * 2) % 2 === 0, on = ph < 0.12 || (ph > 0.2 && ph < 0.32);
+          vlocal(0, 2.0, S.spec.len / 2 - 0.6, headL.strobe.position); headL.strobe.color.setHex(red ? 0xff2010 : 0x2448ff); headL.strobe.intensity = on ? 38 * nk : 0;
+          const u = clamp((t - S.spec.tailT) / S.spec.tailDur, 0, 1);
+          vlocal(0, S.spec.rearY + 1.2, S.spec.rear + 0.9, headL.inner.position); headL.inner.intensity = u * 9 * (S.night ? 1 : 0.5);
+        }
+      }
       g.updateMatrixWorld(true);
       if (!v.bakeT || t - v.bakeT > 0.15) { v.bakeT = t; const V = o.V(); if (V && V.probe) { const bk = [0, 0, 0, 0]; V.probe(vp.x, vp.y + 1.4, vp.z, bk); v.bake.value.set(bk[0], bk[1], bk[2], Math.max(0.12, bk[3])); } }
       // støv fra hjulene (meget ved håndbremse-svinget)
       if (vp.v > 0.5 || (side === 'hij' && vp.slide > 0.02 && vp.slide < 0.98)) {
-        S.dAcc = (S.dAcc || 0) + sdt * (side === 'hij' ? 26 : 10) * (1 + (side === 'hij' ? vp.slide * (1 - vp.slide) * 10 : 0));
+        S.dAcc = (S.dAcc || 0) + sdt * (side === 'hij' ? 26 : 10) * (S.wet ? 0.5 : 1) * (1 + (side === 'hij' ? vp.slide * (1 - vp.slide) * 10 : 0));
         while (S.dAcc > 1) { S.dAcc--; const wh = v.wheels[2 + (Math.random() < 0.5 ? 0 : 1)] || v.wheels[0]; if (wh) { wh.getWorldPosition(_v); S.dust.emit(_v.x, vp.y + 0.1, _v.z, 1, 1.5 + vp.v * 0.08, 0.6, side === 'hij' ? 1.4 : 1); } }
       }
-      if (side === 'swat' && t > vp.Tin - 0.1 && !S.fired.puff) { S.fired.puff = 1; for (const w of v.wheels) { w.getWorldPosition(_v); S.dust.emit(_v.x, vp.y + 0.1, _v.z, 6, 1.2, 0.5, 1.2); } }
+      if (side === 'swat' && t > vp.Tin - 0.1 && !S.fired.puff) { S.fired.puff = 1; for (const w of v.wheels) { w.getWorldPosition(_v); S.dust.emit(_v.x, vp.y + 0.1, _v.z, S.wet ? 3 : 6, 1.2, S.wet ? 0.3 : 0.5, 1.2); } }
       if (v.lamp) v.lamp.visible = t > 4.4;
     }
     S.dust.update(sdt);
@@ -398,6 +437,7 @@ export function createIntro(o) {
   function stop() {
     if (!S) return;
     const s = S; S = null;
+    if (headL) { headL.sp.intensity = 0; headL.strobe.intensity = 0; headL.inner.intensity = 0; }
     for (const m of s.men) { o.scene().remove(m.h.group); if (m.laser) o.scene().remove(m.laser.g); }
     // køretøjet bliver holdende (parkeret) resten af købsfasen – så det ikke forsvinder for øjnene af spilleren
     if (s.veh) { const left = o.keepMs ? o.keepMs() : 0; if (left > 200) { parked.push(s.veh.g); setTimeout(() => { o.scene().remove(s.veh.g); parked.splice(parked.indexOf(s.veh.g), 1); }, left); } else o.scene().remove(s.veh.g); }
