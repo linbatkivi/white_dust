@@ -47,7 +47,7 @@ if (arg === '--base') {
   fs.mkdirSync(path.dirname(out), { recursive: true }); fs.writeFileSync(out, JSON.stringify(m));
   console.log('fingeraftryk:', Object.keys(m.files).length, 'filer →', out);
 } else if (arg === '--publish') {
-  if (sh('git status --porcelain -- public shared server.js')) { console.error('✗ commit spillets ændringer først (public/, shared/, server.js)'); process.exit(1); }
+  if (sh('git status --porcelain -- public shared server.js').split('\n').some(l => l && !l.endsWith('.DS_Store'))) { console.error('✗ commit spillets ændringer først (public/, shared/, server.js)'); process.exit(1); }
   sh('git fetch -q origin');
   const commit = sh('git rev-parse HEAD');
   if (!sh('git branch -r --contains ' + commit)) { console.error('✗ push først – commit ' + commit.slice(0, 7) + ' findes ikke på GitHub'); process.exit(1); }
