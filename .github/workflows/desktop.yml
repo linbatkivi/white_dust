@@ -1,8 +1,11 @@
 # Bygger White Dust til Windows, macOS og Linux og lægger filerne på en GitHub Release.
 # Hjemmesiden linker til den nyeste release, og appen opdaterer sig selv derfra.
 #
-# Ny version:
-#   1. ret "version" i desktop/package.json (fx 1.0.1)
+# Kun nyt indhold (baner, våben, rettelser)? Så skal der IKKE laves en ny app:
+#   git commit + git push, derefter  node scripts/game-update.js --publish   → alle spillere får ændringerne ved næste start.
+#
+# Ny app-skal (sjældent – fx ny Electron eller ændringer i desktop/):
+#   1. ret "version" i desktop/package.json (fx 1.1.1)
 #   2. git commit + git push
 #   3. git tag v1.0.1 && git push origin v1.0.1
 name: Desktop app
@@ -50,6 +53,9 @@ jobs:
       - name: Installér
         working-directory: desktop
         run: npm ci
+      # v25: appens eget fingeraftryk af spillets filer – så den kun henter det der er ændret, når spillet opdateres
+      - name: Fingeraftryk af spilfilerne
+        run: node scripts/game-update.js --base desktop/build/game-manifest.json
       - name: Byg appen
         working-directory: desktop
         run: npx electron-builder --publish never

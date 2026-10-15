@@ -1,17 +1,18 @@
 {
   "name": "white-dust-desktop",
   "productName": "White Dust",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "WHITE_DUST — taktisk multiplayer-FPS",
   "author": "Linus Kivikoski",
   "license": "MIT",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder",
-    "dist:win": "electron-builder --win",
-    "dist:mac": "electron-builder --mac",
-    "dist:linux": "electron-builder --linux"
+    "dist": "node ../scripts/game-update.js --base build/game-manifest.json && electron-builder",
+    "dist:win": "node ../scripts/game-update.js --base build/game-manifest.json && electron-builder --win",
+    "dist:mac": "node ../scripts/game-update.js --base build/game-manifest.json && electron-builder --mac",
+    "dist:linux": "node ../scripts/game-update.js --base build/game-manifest.json && electron-builder --linux",
+    "manifest": "node ../scripts/game-update.js --base build/game-manifest.json"
   },
   "devDependencies": {
     "electron": "^33.2.0",
@@ -28,6 +29,7 @@
     },
     "files": [
       "main.js",
+      "updater.js",
       "package.json"
     ],
     "win": {
@@ -85,6 +87,10 @@
         "filter": [
           "**/*"
         ]
+      },
+      {
+        "from": "build/game-manifest.json",
+        "to": "game/manifest.json"
       }
     ],
     "publish": [
