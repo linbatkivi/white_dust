@@ -23,7 +23,7 @@ const fs = require('fs'), os = require('os'), path = require('path'), url = requ
   const ok = (c, m) => { console.log((c ? '  ok   ' : '  FEJL ') + m); if (!c) bad++; };
   const BUDGET = { tris: 260000, meshes: 520, ms: 6000 };
   for (const mp of WD.MAP_LIST) {
-    if (mp.id === 'inferno' || mp.id === 'canals') { console.log('\n' + mp.id + ': forfattet bane (world.bin) – motorens reservegeometri af kollisionskasserne testes ikke her (test/nav.js + foto-tur)'); continue; }
+    if (mp.id === 'inferno' || mp.id === 'canals' || mp.id === 'ascension') { console.log('\n' + mp.id + ': forfattet bane (world.bin) – motorens reservegeometri af kollisionskasserne testes ikke her (test/nav.js + foto-tur)'); continue; }
     const W = WD.buildWorld(mp.id), t0 = Date.now(), V = createVisuals(THREE, WD, W, ct, 4, createThemes);
     const world = V.buildWorldMesh(), decor = V.buildDecor(), doors = V.buildDoors(), fx = V.buildFx(), ms = Date.now() - t0;
     let tris = 0, nan = 0, meshes = 0, noBake = 0;

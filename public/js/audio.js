@@ -75,7 +75,7 @@ export function createAudio() {
   /* ---------------- v22: CINE-LYDE (intro-cutscene og MVP-film; Pixabay, tools/sounds/prep_cine.py) ----------------
      Hentes først når de skal bruges (cinePreload), så de ikke forsinker indlæsningen af banen. cine(name, {vol, rate, at, loop, pos}) */
   const CINE = ['truck_arrive', 'truck_brake', 'air_hiss', 'van_doors', 'metal_door', 'idle', 'rev', 'pickup', 'skid', 'brake_squeal', 'car_door', 'land', 'steps', 'gear', 'cock', 'reload',
-    'radio', 'battlecry', 'arrive_fx', 'boom', 'braam', 'hit', 'whoosh', 'rise', 'slowmo', 'heart', 'casings'].map(n => 'cine_' + n);
+    'radio', 'battlecry', 'arrive_fx', 'boom', 'braam', 'hit', 'whoosh', 'rise', 'slowmo', 'heart', 'casings', 'rain', 'rain_in', 'gutter', 'thunder1', 'thunder2', 'thunder3', 'thunder4'].map(n => 'cine_' + n);
   let cineLoad = null;
   function cinePreload() {
     if (cineLoad) return cineLoad;

@@ -183,11 +183,26 @@ const CFG = {
       ['B-site (SWAT) før Hijackers kommer over Sydbroen', 'swat', [38, 31, 1.0], 'hij', [26, 37, 1.0]],
       ['B-site (SWAT) før Hijackers kommer op fra Iskælderen', 'swat', [38, 31, 1.0], 'hij', [34.7, 28.5, 1.0]]
     ]
+  },
+  ascension: {   // v25: klosteret i regn og nat (tools/asc/layout.py) – seks niveauer fra krypten (−1,5) til CT (6,0); målene er zonernes midter
+    snap: 3.5,
+    targets: Object.assign({ 'A-site (plant)': [A_PL[0], A_PL[1], W.sites.A.y], 'B-site (plant)': [B_PL[0], B_PL[1], W.sites.B.y] },
+      Object.fromEntries(require('../shared/asc_data.js').labels.filter(l => l[0].length > 1).map(l => [l[0], [l[1], l[2], l[3]]]))),
+    timings: [
+      ['A-site (SWAT) før Hijackers kommer op ad Long A', 'swat', [A_PL[0], A_PL[1], W.sites.A.y], 'hij', [47.8, -11.9, 4.5]],
+      ['A-site (SWAT) før Hijackers kommer gennem Søjlegangen', 'swat', [A_PL[0], A_PL[1], W.sites.A.y], 'hij', [33.2, -14.1, 3]],
+      ['B-site (SWAT) før Hijackers kommer op ad Main B', 'swat', [B_PL[0], B_PL[1], W.sites.B.y], 'hij', [-27.4, -1.6, 3]]
+    ]
   }
 }[MAPID];
 
 /* ---------------- 1. rækkevidde fra begge spawns ---------------- */
 const fromT = dijkstra(SPT.x, SPT.z, SPT.y), fromC = dijkstra(SPC.x, SPC.z, SPC.y);
+if (CFG.snap) for (const [name, p] of Object.entries(CFG.targets)) {          // v25: zonemidter (kan ligge på en trappe/kasse) → nærmeste nåede gulv
+  let best = null, bd = Infinity;
+  for (const k of fromT.dist.keys()) { if (!fromC.dist.has(k)) continue; const [ix, iz, yq] = k.split(',').map(Number), d = Math.hypot(ix * G - p[0], iz * G - p[1]) + Math.abs(yq / 10 - p[2]) * 0.5; if (d < bd && Math.abs(yq / 10 - p[2]) < CFG.snap) { bd = d; best = [ix * G, iz * G, yq / 10]; } }
+  if (best && bd < CFG.snap) CFG.targets[name] = best;
+}
 const reached = (res, p) => { for (const [k, d] of res.dist) { const [ix, iz, yq] = k.split(',').map(Number); if (Math.hypot(ix * G - p[0], iz * G - p[1]) < 1.1 && Math.abs(yq / 10 - p[2]) < 0.35) return d; } return Infinity; };
 console.log(`\nRækkevidde (graf: ${fromT.dist.size} / ${fromC.dist.size} tilstande):`);
 for (const [name, p] of Object.entries(CFG.targets)) {
@@ -354,21 +369,23 @@ if (MAPID === 'nuke' && W.data) {
 /* ---------------- 7. ramper i fuld fart ---------------- */
 console.log('\nRamper:');
 for (const r of W.ramps) {
-  const len = r.a1 - r.a0, mid = (r.w0 + r.w1) / 2;
+  // v25: brede ramper med dækning på (Ascension) – rampen skal kunne løbes hele vejen i mindst én fri bane; en ende uden indgang (muret til,
+  // adgang fra siden) springes over i den retning
+  const len = r.a1 - r.a0, mid = (r.w0 + r.w1) / 2, lanes = [mid, r.w0 + 0.8, r.w1 - 0.8, (r.w0 + mid) / 2, (r.w1 + mid) / 2]; for (let w = r.w0 + 0.5; w < r.w1 - 0.4; w += 0.6) lanes.push(w);
   for (const dir of [1, -1]) {
-    const off = (() => { for (const o of [1.5, 1.1, 0.8]) for (const m of [(r.w0 + r.w1) / 2, r.w0 + 0.8, r.w1 - 0.8]) { const a = dir > 0 ? r.a0 - o : r.a1 + o, x = r.axis === 'x' ? a : m, z = r.axis === 'x' ? m : a;
-      const g = WD.groundAt(W, x, z, (dir > 0 ? r.ya : r.yb) + 0.3, 0.5); if (g > -Infinity && !WD.isBlocked(W, x, z, g, PL.H)) return o; } return 1.5; })();   // v17: mur tæt ved rampens fod (Nuke B)
-    const startA = dir > 0 ? r.a0 - off : r.a1 + off, endA = dir > 0 ? r.a1 + 0.6 : r.a0 - 0.6;
-    const yaw = r.axis === 'x' ? (dir > 0 ? -Math.PI / 2 : Math.PI / 2) : (dir > 0 ? Math.PI : 0), y0 = dir > 0 ? r.ya : r.yb;
-    let x, z, gy = -Infinity;
-    for (const w of [mid, r.w0 + 0.8, r.w1 - 0.8, (r.w0 + mid) / 2, (r.w1 + mid) / 2]) {        // start i en fri bane (ikke klods op ad en kasse)
-      x = r.axis === 'x' ? startA : w; z = r.axis === 'x' ? w : startA; gy = WD.groundAt(W, x, z, y0 + 0.3, 0.5);
-      if (gy > -Infinity && !WD.isBlocked(W, x, z, gy, PL.H) && !WD.isBlocked(W, r.axis === 'x' ? startA + (dir > 0 ? 2 : -2) : x, r.axis === 'x' ? z : startA + (dir > 0 ? 2 : -2), WD.groundAt(W, r.axis === 'x' ? startA + (dir > 0 ? 2 : -2) : x, r.axis === 'x' ? z : startA + (dir > 0 ? 2 : -2), y0 + 0.6, 0.8), PL.H)) break;
+    const y0 = dir > 0 ? r.ya : r.yb, yaw = r.axis === 'x' ? (dir > 0 ? -Math.PI / 2 : Math.PI / 2) : (dir > 0 ? Math.PI : 0);
+    let best = null, entered = false;
+    for (const off of [1.5, 1.1, 0.8]) for (const w of lanes) {
+      const startA = dir > 0 ? r.a0 - off : r.a1 + off, x = r.axis === 'x' ? startA : w, z = r.axis === 'x' ? w : startA, gy = WD.groundAt(W, x, z, y0 + 0.3, 0.5);
+      if (gy === -Infinity || WD.isBlocked(W, x, z, gy, PL.H)) continue;
+      const b = WD.newBody(x, gy, z); let t = 0, minV = 99, al = 0;
+      while (t < 10) { WD.stepBody(W, b, { fx: 1, sx: 0, yaw }, 1 / 60); t += 1 / 60; const a = r.axis === 'x' ? b.x : b.z; al = dir > 0 ? a - startA : startA - a; if (al > off + 0.3) entered = true; if (al > off + 0.6 && al < off + len - 1.2) minV = Math.min(minV, Math.hypot(b.vx, b.vz)); if (al >= off + len - 1.0) break; }
+      if (al >= off + len - 1.0 && minV > 5.0 && (!best || t < best.t)) best = { t, minV };
     }
-    if (gy === -Infinity) continue;
-    const b = WD.newBody(x, gy, z); let t = 0, minV = 99;
-    while (t < 10) { WD.stepBody(W, b, { fx: 1, sx: 0, yaw }, 1 / 60); t += 1 / 60; const a = r.axis === 'x' ? b.x : b.z, al = dir > 0 ? a - startA : startA - a; if (al > 1.5 && al < len) minV = Math.min(minV, Math.hypot(b.vx, b.vz)); if (dir > 0 ? a >= endA : a <= endA) break; }
-    (t < 10 && minV > 5.0) ? okm(`rampe ${r.axis} ${r.a0}..${r.a1} ${dir > 0 ? '→' : '←'}: ${t.toFixed(2)} s, min fart ${minV.toFixed(2)}`) : fail(`rampe ${r.axis} ${r.a0}..${r.a1}: ${t.toFixed(2)} s, min fart ${minV.toFixed(2)}`);
+    const lab = `rampe ${r.axis} ${r.a0}..${r.a1} ${dir > 0 ? '→' : '←'}`;
+    if (best) okm(`${lab}: ${best.t.toFixed(2)} s, min fart ${best.minV.toFixed(2)}`);
+    else if (!entered) okm(`${lab}: ingen indgang fra denne ende (adgang fra siden)`);
+    else fail(`${lab}: ingen fri bane hele vejen`);
   }
 }
 /* ---------------- 8. C4-regler + spawns ---------------- */

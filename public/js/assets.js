@@ -29,7 +29,8 @@ export const ASSET_SETS = {
   },
   inferno: { dir: '/assets/inferno/', havn: true, sky: 'sky.hdr?v20', tex: [], models: [] },   // v16: forfattet efter 3D-printet (tools/inferno/) – samme loader som de_havn
   havn: { dir: '/assets/havn/', havn: true, sky: 'sky.hdr', tex: [], models: [] },
-  canals: { dir: '/assets/canals/', havn: true, sky: 'sky.hdr?v20', tex: [], models: [] },   // v16: CS:GO de_canals fra brugerens Blender-import (tools/canals/)
+  canals: { dir: '/assets/canals/', havn: true, sky: 'sky.hdr?v20', tex: [], models: [] },
+  ascension: { dir: '/assets/asc/', havn: true, sky: 'sky.hdr', tex: [], models: [] },     // v25: klosteret i regn og nat (tools/asc/)   // v16: CS:GO de_canals fra brugerens Blender-import (tools/canals/)
   ancient: {
     dir: '/assets/ancient/',
     tex: ['mossy_stone_wall', 'old_stone_wall', 'mossy_cobblestone', 'rock_pitted_mossy', 'leaves_forest_ground', 'bark_brown_02', 'mossy_sandstone', 'large_sandstone_blocks_01'],

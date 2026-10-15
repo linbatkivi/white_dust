@@ -18,6 +18,7 @@
   const CANALS_DATA = (typeof module === 'object' && module.exports) ? require('./canals_data.js') : (typeof self !== 'undefined' ? self.WD_CANALS : null);
   const HAVN_DATA = (typeof module === 'object' && module.exports) ? require('./havn_data.js') : (typeof self !== 'undefined' ? self.WD_HAVN : null);
   const ANCIENT_DATA = (typeof module === 'object' && module.exports) ? require('./ancient_data.js') : (typeof self !== 'undefined' ? self.WD_ANCIENT : null);
+  const ASC_DATA = (typeof module === 'object' && module.exports) ? require('./asc_data.js') : (typeof self !== 'undefined' ? self.WD_ASC : null);   // v25
 
   /* ---------------------------------------------------------------- konstanter */
   const PL = {
@@ -821,6 +822,7 @@
     if (INFERNO_DATA) REG.inferno = mapInferno(K);
     if (HAVN_DATA) REG.havn = mapHavn(K);
     if (CANALS_DATA) REG.canals = mapCanals(K);
+    if (ASC_DATA) REG.ascension = mapAscension(K);
   }
 
   function mapWhiteDust() {
@@ -1030,6 +1032,34 @@
         for (const l of AD.labels) H.labels.push({ text: l[0], x: l[1], z: l[2], y: l[3], kind: l[0] === 'A' || l[0] === 'B' ? 'site' : undefined });
         const sites = {}; for (const k in AD.sites) { const S = AD.sites[k]; sites[k] = { x0: S[0], z0: S[1], x1: S[2], z1: S[3], y: S[4] }; }
         const spawns = { hij: AD.spawns.hij.map(p => ({ x: p[0], y: AD.levels.T, z: p[1], yaw: p[2] })), swat: AD.spawns.swat.map(p => ({ x: p[0], y: AD.levels.CT, z: p[1], yaw: p[2] })) };
+        return { sites, spawns };
+      }
+    };
+  }
+
+  /* ================================================================ de_ascension (v25) ================================================================
+     Klosteret på bjergtoppen i regn og nat – bygget præcist efter brugerens oversigtskort (docs/ascension_overview.jpg):
+     tools/asc/layout.py → fields.py → export_collision.py → shared/asc_data.js; grafikken bygges og bages i Blender (tools/asc/build.py).
+     Syv niveauer: krypten (−1,5) · T (0) · klostergården/Mid (1,5) · galleriet og B (3,0) · A (4,5) · CT (6,0) · Heaven (6,0). */
+  function mapAscension() {
+    const D = ASC_DATA, G = D.grid;
+    return {
+      id: 'ascension', name: 'Ascension', desc: 'Klosteret på bjergtoppen i regn og nat · krypten, klostergården, katedralens galleri og klokketårnet over A.',
+      GW: G.GW, GH: G.GH, GX0: G.GX0, GZ0: G.GZ0, data: D,
+      layers: [{ id: 'G', yb: -4, yt: WALL_TOP, tiles: { '#': { solid: true }, ' ': { void: true } } }],
+      grid(H) { H.fill(0, 0, G.GW - 1, G.GH - 1, ' '); },
+      props(H) {
+        const { wallBox, cyl, stairs, fRamp } = H;
+        for (const b of D.boxes) wallBox(b[0], b[1], b[2], b[3], b[4], b[5], b[6]);
+        for (const r of D.ramps) fRamp(r[0], r[1], r[2], r[3], r[4], r[5], r[6]);
+        for (const t of D.stairs) { const [x0, z0, x1, z1, ax, ya, yb, n] = t, lo = Math.min(ya, yb); stairs(x0, z0, x1, z1, ax, yb > ya ? 1 : -1, lo, Math.abs(yb - ya), n, lo - 0.3, 'stone'); }
+        for (const c of D.cyls) cyl(c[0], c[1], c[2], c[3], c[4], c[5]);
+        for (const r of D.rails) H.rail(r[0], r[1], r[2], r[3], r[4], r[5], 'stone');
+      },
+      meta(H) {
+        for (const l of D.labels) H.labels.push({ text: l[0], x: l[1], z: l[2], y: l[3], kind: l[0] === 'A' || l[0] === 'B' ? 'site' : undefined });
+        const sites = {}; for (const k in D.sites) { const S = D.sites[k]; sites[k] = { x0: S[0], z0: S[1], x1: S[2], z1: S[3], y: S[4] }; }
+        const spawns = { hij: D.spawns.hij.map(p => ({ x: p[0], y: D.levels.T, z: p[1], yaw: p[2] })), swat: D.spawns.swat.map(p => ({ x: p[0], y: D.levels.CT, z: p[1], yaw: p[2] })) };
         return { sites, spawns };
       }
     };

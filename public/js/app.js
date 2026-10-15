@@ -24,6 +24,7 @@ import { createAgentStage } from '/js/agentstage.js';
 import { createMenuFx } from '/js/menufx.js';
 import { createIntro } from '/js/intro.js';
 import { createMvpCine } from '/js/mvpcine.js';
+import { createNight } from '/js/night.js';
 import * as SK from '/js/skins.js';
 import { createInventory } from '/js/inventory.js';
 import { buildAK47 } from '/js/procguns.js';
@@ -1589,7 +1590,7 @@ $('nameInput').focus();
 const Renderer = (() => {
   let renderer, scene, camera, clock, pmrem = null, post = null, fxs = null;
   let V = null, Chars = null, Weap = null, Intro = null, introLoaded = false;
-  let sky = null, hemi, amb, sun, sunFar, worldGroup, decorGroup, doors = null, fxObj = null, mapObjs = [], envTex = null;
+  let sky = null, hemi, amb, sun, sunFar, worldGroup, decorGroup, doors = null, fxObj = null, mapObjs = [], envTex = null, night = null;
   const remoteModels = new Map();  // id -> render-state
   const tracers = [], flashes = [], tracerPool = [];
   const IMP_MAX = 160, impT = new Float32Array(IMP_MAX).fill(-1); let impMesh = null, impI = 0;   // skudhuller: ét InstancedMesh
@@ -1665,6 +1666,7 @@ const Renderer = (() => {
     const t0 = performance.now();
     for (const g of mapObjs) { scene.remove(g); disposeTree(g); } mapObjs = [];
     if (sky) { scene.remove(sky); disposeTree(sky); sky = null; }
+    if (night) { night.dispose(); night = null; }
     if (fxs) fxs.clear(); fireSys.clear(); smokeSys.clear();
     V = createVisuals(THREE, WD, W, canvasTexture, renderer.capabilities.getMaxAnisotropy(), createThemes, assets);
     const L = V.theme.light, PI = Math.PI, b = W.bounds, cx = (b.x0 + b.x1) / 2, cz = (b.z0 + b.z1) / 2;
@@ -1693,6 +1695,8 @@ const Renderer = (() => {
     const seen = new Set();
     // v11: med HDRI (L.ibl) får ALLE PBR-flader miljølys (diffust + glans; bagt himmel-synlighed dæmper det indendørs) – ellers kun metal
     for (const g of [worldGroup, decorGroup, doors.group]) g.traverse(o => { const m = o.material; if (!m || seen.has(m) || !m.isMeshStandardMaterial) return; seen.add(m); const p = m.userData.pbr; const metal = (p && p.metal >= 0.3) || (!p && m.roughness < 0.3); if (metal || L.ibl) { m.envMap = envTex; m.envMapIntensity = metal ? 0.85 : L.ibl; m.needsUpdate = true; } });
+    // v25: nat-baner – regn (skjult under tage), plask, lampeglød, glans i våde sten, lyn og torden
+    if (V.theme.rain || V.theme.night) try { night = createNight({ THREE, WD, W, scene, Audio, sun, sky, lightsUrl: V.theme.lightsUrl, rain: V.theme.rain }); } catch (e) { console.warn('[nat]', e); night = null; }
     if (minimapCtx) drawMinimapBase();
     try { buildSiteMarks(); } catch (e) { console.warn('[sites] markering', e); }
     if (Game.state === 'game') Audio.ambience(W.id);
@@ -2132,8 +2136,39 @@ const Renderer = (() => {
 
   /* ---------------- lokal spiller ---------------- */
   let stepPh = 0, wasGround = true;
-  function applyCam(x, y, z, yaw, pitch) { camera.position.set(x, y, z); camera.rotation.y = yaw; camera.rotation.x = pitch; }
+  // v25: kamera-rig (realistisk førstepersons-bevægelse). Kun position og rulning (roll) – sigtets retning (midten af skærmen) ændres ALDRIG,
+  // så sigtekornet altid peger præcis dér, hvor kuglen går. Fjedre (masse-fjeder-dæmper) giver bløde, fysiske overgange:
+  //   • gang: lodret bob (to pr. skridtcyklus), sideløbende vægtoverføring (én pr. cyklus) og en lille rulning med hvert skridt
+  //   • sidelæns løb: kameraet læner sig let ind i bevægelsen · stop: lille efterdønning frem/tilbage
+  //   • landing: kroppen dykker (dybde efter faldhastighed) og fjedrer op igen · hop: hovedet halter et øjeblik efter
+  //   • stilstand: rolig vejrtrækning (løft/sænk + næsten umærkelig rulning) · nedhukning dæmper alt
+  const rig = { land: 0, vland: 0, roll: 0, lat: 0, fwd: 0, vfwd: 0, vy0: 0, breathe: 0 };
+  function applyCam(x, y, z, yaw, pitch, roll) { camera.position.set(x, y, z); camera.rotation.y = yaw; camera.rotation.x = pitch; camera.rotation.z = roll || 0; }
   const _bc = { nx: 0, ny: 0, nz: 0 };
+  const _ro = { x: 0, y: 0, z: 0, roll: 0 };
+  function camRig(dt, spd, moving) {
+    const b = Game.body, cr = b.crouch ? 0.55 : 1, k = clamp(spd / 6, 0, 1) * cr, a = moving ? 1 : 0;
+    const cy = Math.cos(Game.yaw), sy = Math.sin(Game.yaw);
+    const vr = b.vx * cy - b.vz * sy, vf = -(b.vx * sy + b.vz * cy);                   // fart til højre / fremad (kameraets akser)
+    // gang: lodret bob 2× pr. cyklus (hælnedslag), sidevægt 1× pr. cyklus, rulning med skridtet
+    const bobY = a * (-Math.abs(Math.sin(stepPh)) * 0.034 + 0.017) * k;
+    const bobX = a * Math.sin(stepPh) * 0.022 * k;
+    // landing: fjeder (dyk og op igen), hop: hovedet halter lidt efter ved afsæt (op) og stiger
+    rig.vland += (-rig.land * 120 - rig.vland * 15) * dt; rig.land += rig.vland * dt;
+    // læn ind i sidelæns bevægelse (ca. 1,3° ved fuld fart) + skridt-rulning
+    const tRoll = clamp(-vr / 6.5, -1, 1) * 0.022 * cr + a * Math.sin(stepPh) * 0.006 * k;
+    rig.roll += (tRoll - rig.roll) * (1 - Math.exp(-8 * dt));
+    // efterdønning når man stopper/starter (kameraet "hænger" en anelse efter kroppens acceleration)
+    const acc = (vf - (rig.lastVf || 0)) / Math.max(dt, 1e-3); rig.lastVf = vf;
+    rig.vfwd += (-rig.fwd * 90 - rig.vfwd * 13 - clamp(acc, -40, 40) * 0.06) * dt; rig.fwd = clamp(rig.fwd, -0.04, 0.04); rig.fwd += rig.vfwd * dt;
+    // vejrtrækning i stilstand (ca. 15 åndedrag/min)
+    rig.breathe += dt * (moving ? 0.6 : 1.57);
+    const still = 1 - a, br = Math.sin(rig.breathe) * 0.0045 * still * (Game.scoped ? 0.3 : 1);
+    _ro.x = cy * bobX - sy * rig.fwd; _ro.z = -sy * bobX - cy * rig.fwd;
+    _ro.y = bobY + rig.land * 0.5 + br;
+    _ro.roll = rig.roll + Math.sin(rig.breathe * 0.5) * 0.0012 * still;
+    return _ro;
+  }
   function updateLocal(dt) {
     applyMouse(dt);
     if (!Game.self.alive && Game.phase !== 'buy') {   // SPECTATOR: kun holdkammerater (aldrig fjender, aldrig fri kamera)
@@ -2162,13 +2197,13 @@ const Renderer = (() => {
     const jump = !!KEY.Space;
     const walk = !!(KEY.ShiftLeft || KEY.ShiftRight) || (tm > 0.12 && tm < 0.6);   // let tryk på joysticket = lydløs gang
     Game.input.crouch = crouch;
-    const y0 = Game.body.y, g0 = Game.body.ground;
+    const y0 = Game.body.y, g0 = Game.body.ground; rig.vy0 = Game.body.vy || 0;
     WD.stepBody(W, Game.body, { fx: fw, sx: sd, yaw: Game.yaw, jump: jump && !frozen, crouch, walk, spd: WD.speedOf(Game.self.cur) * (Game.scoped ? 0.88 : 1) }, dt);
     // v12: trin/kanter (op til 0,5 m) løftes kroppen øjeblikkeligt – kameraet glider blødt efter (Source-stil), ingen ryk i billedet
     const dy = Game.body.y - y0;
     if (g0 && Game.body.ground && dy > 0.04 && dy < 0.6) Game.stepOff -= dy;
     Game.stepOff *= Math.exp(-dt / 0.055); if (Math.abs(Game.stepOff) < 0.002) Game.stepOff = 0;
-    if (Game.body.ground && !wasGround) Audio.click('land');
+    if (Game.body.ground && !wasGround) { Audio.click('land'); const imp = clamp((-rig.vy0 - 2) / 7, 0, 1); rig.vland -= 0.9 + imp * 2.6; }
     wasGround = Game.body.ground;
 
     // procedural pattern recoil: punch følger våbnets spray-mønster ved det aktuelle skudnummer; efter en pause
@@ -2186,8 +2221,8 @@ const Renderer = (() => {
     const spd = Math.hypot(Game.body.vx, Game.body.vz), moving = spd > 0.5 && Game.body.ground;
     stepPh += dt * spd * 1.7;
     if (moving && spd > 4 && Math.floor(stepPh / Math.PI) !== Math.floor((stepPh - dt * spd * 1.7) / Math.PI)) Audio.step(null, true, onMetal(Game.body.x, Game.body.y, Game.body.z));
-    const bob = moving ? Math.sin(stepPh) * 0.018 * clamp(spd / 6, 0, 1) : 0;
-    applyCam(Game.body.x, Game.body.y + Game.camEye + bob + Game.stepOff, Game.body.z, aimYaw(), aimPitch());
+    const camOff = camRig(dt, spd, moving);
+    applyCam(Game.body.x + camOff.x, Game.body.y + Game.camEye + camOff.y + Game.stepOff, Game.body.z + camOff.z, aimYaw(), aimPitch(), camOff.roll);
 
     if (frozen) { Game.firing = false; return; }
     if (w && w.kind === 'knife' && (Game.firing || Game.stabbing)) {          // kniv: hold venstre = hug igen og igen, højre = stik
@@ -2629,6 +2664,7 @@ const Renderer = (() => {
       if (devCam) { camera.position.set(devCam[0], devCam[1], devCam[2]); camera.rotation.set(devCam[4] || 0, devCam[3] || 0, 0); vmOn = false; }
       sky.position.copy(camera.position);
       V.update(dt, performance.now() / 1000, camera.position, decorGroup); fxObj.update(dt, performance.now() / 1000, camera.position);
+      if (night) night.update(dt, camera.position, performance.now() / 1000);
       camera.updateMatrixWorld(); _fw.set(0, 0, -1).applyQuaternion(camera.quaternion); _up.set(0, 1, 0).applyQuaternion(camera.quaternion); Audio.setListener(camera.position, _fw, _up);
       fxs.update(dt, camera.position);
       if (++shadowTick >= gfx.every) { shadowTick = 0; followShadow(); sun.shadow.needsUpdate = true; }   // skyggekort + placering opdateres sammen
@@ -2707,6 +2743,7 @@ const Renderer = (() => {
   }
   if (DEV) {   // v14 foto-tur: faste kameraer → kontaktark (4×3 billeder pr. ark, navn + koordinater på hvert billede)
     api.tourShots = () => tourShots();
+    api.night = () => night;
     api.tourSheet = (shots, cols, tw, th) => {
       cols = cols || 4; tw = tw || 640; th = th || 360;
       const out = document.createElement('canvas'), rows = Math.ceil(shots.length / cols); out.width = cols * tw; out.height = rows * th; const c2 = out.getContext('2d');

@@ -397,7 +397,7 @@ async function main() {
     const WDt = require('../shared/wd.js');
     A.send({ t: 'endgame' }); await A.wait(m => m.t === 'lobby' && m.ph === 'lobby', 3000); await sleep(200);
     const lob0 = A.log.filter(m => m.t === 'lobby').pop();
-    ok(lob0 && lob0.maps && lob0.maps.length === 6 && lob0.maps.some(m => m.id === 'inferno') && lob0.maps.some(m => m.id === 'havn') && lob0.maps.some(m => m.id === 'canals') && lob0.map === 'white_dust' && lob0.maps.every(m => m.desc), 'Lobbyen tilbyder 6 baner (inkl. Inferno, de_havn og de_canals) med beskrivelse (standard: white_dust)');
+    ok(lob0 && lob0.maps && lob0.maps.length === 7 && lob0.maps.some(m => m.id === 'ascension') && lob0.maps.some(m => m.id === 'inferno') && lob0.maps.some(m => m.id === 'havn') && lob0.maps.some(m => m.id === 'canals') && lob0.map === 'white_dust' && lob0.maps.every(m => m.desc), 'Lobbyen tilbyder 7 baner (inkl. Inferno, de_havn, de_canals og de_ascension) med beskrivelse (standard: white_dust)');
     A.clear(); B.clear(); B.send({ t: 'map', id: 'nuke' }); await sleep(250);
     ok(!A.log.find(m => m.t === 'lobby' && m.map === 'nuke'), 'Kun værten kan vælge bane');
     // v11.3: inventar-valg videresendes til alle i rummet – kun gyldige korte id'er overlever serverens validering

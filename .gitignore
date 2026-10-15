@@ -3,3 +3,4 @@ tools/
 *.blend
 *.blend1
 *.exr
+.cache/

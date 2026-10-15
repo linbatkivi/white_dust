@@ -10,6 +10,7 @@ import { ancientTheme } from './theme_ancient.js';
 import { infernoTheme } from './theme_inferno.js';
 import { havnTheme } from './theme_havn.js';
 import { canalsTheme } from './theme_canals.js';
+import { ascTheme } from './theme_asc.js';
 import { createDetails } from './details.js';
 
 export function createThemes(C) {
@@ -656,5 +657,5 @@ export function createThemes(C) {
     frondCard, plantRadial, curvedTrunk, palm, shrub, fern, grassTuft, vineStrip, jungleTree, seedAt, railing, ladderModel, lampFixture, doorLeaf, C };
   // v10: mikro-detaljer (decals), gesims og skybox-ring – oprettes først når et tema bygges (atlas-teksturen kræver canvas)
   const withDetails = f => () => { LIB.D = createDetails(LIB); return f(LIB); };
-  return { white_dust: withDetails(dustTheme), nuke: withDetails(nukeTheme), ancient: withDetails(ancientTheme), inferno: () => infernoTheme(LIB), havn: () => havnTheme(LIB), canals: () => canalsTheme(LIB) };
+  return { white_dust: withDetails(dustTheme), nuke: withDetails(nukeTheme), ancient: withDetails(ancientTheme), inferno: () => infernoTheme(LIB), havn: () => havnTheme(LIB), canals: () => canalsTheme(LIB), ascension: () => ascTheme(LIB) };
 }
