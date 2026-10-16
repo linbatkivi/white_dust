@@ -44,7 +44,7 @@ async function main() {
     ok(await A.$eval('#weaponName', el => el.textContent) === 'GLOCK-18', 'Hijackers starter med Glock-18');
     ok(await B.$eval('#weaponName', el => el.textContent) === 'USP-S', 'SWAT starter med USP-S');
     ok(await A.isVisible('#buyHint') || await A.evaluate(() => __wd.Game.phase !== 'buy'), 'Købsmulighed vises i købsfasen (tryk B)');
-    await A.click('#clickToPlay'); await sleep(200);
+    ok(!(await A.isVisible('#clickToPlay')), 'Ingen pausemenu ved kampstart'); await A.click('#gl', { force: true }); await sleep(200);
     if (process.env.E2E_HEADED) ok(await A.evaluate(() => document.pointerLockElement != null), 'Pointer lock aktiveres ved klik');   // (findes ikke i headless-browsere)
 
     console.log('\n== Runde ==');
