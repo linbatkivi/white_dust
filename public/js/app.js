@@ -1680,7 +1680,7 @@ const Renderer = (() => {
   let vmScene, vmCam, vmHemi, vmSun, vmLight;
   const vm = {
     models: {}, team: null, cur: null, drawT: 1, boltT: 1, shells: [], shellI: 0, throwT: 1, throwU: false, pinT: 1, c4: null,
-    meleeT: 1, meleeStab: false, meleeSide: 1, inspT: 1, knifeKey: null, kpose: [0, 0, 0, 0, 0, 0], KOFF: { karambit: [-0.03, 0.125, 0.0, 0.0, 0.0, 0.0] },
+    meleeT: 1, meleeStab: false, meleeSide: 1, inspT: 1, knifeKey: null, kpose: [0, 0, 0, 0, 0, 0], KOFF: { karambit: [-0.03, 0.125, 0.0, 0.0, 0.0, 0.0], karambitgold: [-0.03, 0.125, 0.0, 0.0, 0.0, 0.0], karambitscand: [-0.03, 0.125, 0.0, 0.0, 0.0, 0.0] },
     // fjedre (masse-fjeder-dæmper): sway følger musens inerti, kick = fysisk rekyl bagud mod kameraet + opad
     sway: { x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0 }, kick: { z: 0, vz: 0, r: 0, vr: 0, s: 0, vs: 0 }
   };
@@ -1911,8 +1911,8 @@ const Renderer = (() => {
       onStart: () => { document.body.classList.add('intro'); Game.intro = true; BuyMenu.hide(); IntroCard.show();
         // v26.3: introens musik (Race to Arms, Pixabay) – slutningen (2 s fade) lander præcis når introen slutter
         const left = Math.max(0, (Game.introUntil || 0) - performance.now()) / 1000;
-        Audio.playMusic('music_intro', { vol: 1, from: Math.max(0, Math.min(10, 13.55 - left)) }); },
-      onEnd: () => { document.body.classList.remove('intro'); Game.intro = false; IntroCard.hide(); if (Audio.musicPlaying('music_intro')) Audio.stopMusic(0.8); if (Game.spawnYaw !== undefined) { Game.yaw = Game.spawnYaw; Game.pitch = 0; } MouseIn.x = MouseIn.y = 0; } });
+        Audio.playMusic('music_intro', { vol: 2.6, from: Math.max(0, Math.min(10, 13.55 - left)) }); Audio.duck(0.3, 0.8); },   // v26.5: musikken højt, resten dæmpet
+      onEnd: () => { document.body.classList.remove('intro'); Game.intro = false; IntroCard.hide(); if (Audio.musicPlaying('music_intro')) Audio.stopMusic(0.8); Audio.duck(1, 1.2); if (Game.spawnYaw !== undefined) { Game.yaw = Game.spawnYaw; Game.pitch = 0; } MouseIn.x = MouseIn.y = 0; } });
     Intro.preload().then(() => { introLoaded = true; tryLoadAck(); });
     // v26: bombe-filmen (alle ser den, når serveren ved at bomben ikke kan nås at desarmere)
     BombCine = createBombCine({ THREE, WD, scene: () => scene, camera: () => camera, W: () => W, V: () => V, Audio, $,
@@ -1944,7 +1944,7 @@ const Renderer = (() => {
         COS.chars[f] = { scene, scale: 1.61 / Math.max(0.2, hy) };               // samme hovedhøjde som den procedurale figur (øjne/hitbox)
       } catch (e) { console.warn('[cos] figur ' + f, e); } }),
       ...SK.KNIVES.map(async k => { try {                                         // v19: Blender-modellerede knive
-        const { scene } = await retryLoad(() => loadGLB(THREE, '/assets/weapons/knives/knife_' + k.id + '.glb?v20')); COS.knives[k.id] = scene;
+        const { scene } = await retryLoad(() => loadGLB(THREE, '/assets/weapons/knives/knife_' + k.id + '.glb?v265')); COS.knives[k.id] = scene;
       } catch (e) { console.warn('[cos] kniv ' + k.id, e); } }),
       ...gunFiles.map(async f => { try {
         const { scene } = await loadGLB(THREE, '/assets/weapons/' + f + '.glb');

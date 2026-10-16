@@ -10,7 +10,7 @@
 //   træf-lyde: sprødt metallisk 'dink' ved headshot, dæmpet 'thud' ved kropsskud. Speakeren bruger browserens talesyntese (engelsk, som CS).
 // ==========================================================================
 export function createAudio() {
-  let ctx = null, master = null, sfx = null, sfxVol = null, musicBus = null, voiceBus = null, comp = null, noiseBuf = null, verbBuf = null, enabled = true;
+  let duckG = null, duckK = 1, ctx = null, master = null, sfx = null, sfxVol = null, musicBus = null, voiceBus = null, comp = null, noiseBuf = null, verbBuf = null, enabled = true;
   const VOL = { master: 0.8, sfx: 1, music: 0.6, voice: 0.9 };
   let vol = VOL.master;
   const MASTER = 0.55;
@@ -25,7 +25,7 @@ export function createAudio() {
     try { ctx = new AC({ latencyHint: 'interactive' }); } catch (e) { enabled = false; return; }
     comp = ctx.createDynamicsCompressor(); comp.threshold.value = -16; comp.knee.value = 12; comp.ratio.value = 4; comp.attack.value = 0.003; comp.release.value = 0.2;
     master = ctx.createGain(); master.gain.value = MASTER * vol; master.connect(comp); comp.connect(ctx.destination);
-    sfxVol = ctx.createGain(); sfxVol.gain.value = VOL.sfx; sfxVol.connect(master);
+    sfxVol = ctx.createGain(); sfxVol.gain.value = VOL.sfx; duckG = ctx.createGain(); duckG.gain.value = duckK; sfxVol.connect(duckG); duckG.connect(master);   // duckG: v26.5 – alt andet end musikken dæmpes under introen
     sfx = ctx.createGain(); sfx.gain.value = 1; sfx.connect(sfxVol);                  // 'sfx' dæmpes af flashbang (tinnitus); sfxVol = brugerens SFX-slider
     musicBus = ctx.createGain(); musicBus.gain.value = VOL.music * 0.55; musicBus.connect(master);
     voiceBus = ctx.createGain(); voiceBus.gain.value = VOL.voice; voiceBus.connect(master);
@@ -41,7 +41,7 @@ export function createAudio() {
      Hentes straks ved sideindlæsning (fetch med genforsøg), afkodes i en suspenderet AudioContext før første klik,
      så de altid er klar. Mangler en fil, bruges den syntetiske lyd som reserve. Musik streames via <audio>-elementer. */
   const SND = ['gun_shot', 'sup_pistol', 'ann_swat_win', 'ann_hij_win', 'ann_planted', 'ann_defused', 'ann_switch', 'reload_magout', 'reload_magin', 'reload_rack', 'knife_swing', 'knife_hit1', 'knife_hit2', 'amb_birds', 'amb_traffic'];
-  const SND_V = 'v263';
+  const SND_V = 'v265';
   const raw = {}, buf = {};
   let loadedRes = null; const loaded = new Promise(r => { loadedRes = r; });
   async function fetchRetry(url, tries) {
@@ -81,7 +81,7 @@ export function createAudio() {
     if (cineLoad) return cineLoad;
     if (!ctx) build(); if (!ctx) return Promise.resolve();
     cineLoad = Promise.all(CINE.map(async n => {
-      if (buf[n]) return; const r = await fetchRetry('/assets/sounds/' + n + '.mp3?v22', 3); if (!r) return;
+      if (buf[n]) return; const r = await fetchRetry('/assets/sounds/' + n + '.mp3?' + SND_V, 3); if (!r) return;
       try { buf[n] = await ctx.decodeAudioData(r); } catch (e) {}
     }));
     return cineLoad;
@@ -119,13 +119,14 @@ export function createAudio() {
     const m = musicEl(name);
     if (!m.node) { try { m.node = ctx.createMediaElementSource(m.el); m.g = ctx.createGain(); m.node.connect(m.g); m.g.connect(musicBus); } catch (e) {} }
     if (curMusic && curMusic !== m) stopMusic(0.6);
-    curMusic = m; m.el.loop = !!o.loop;
+    curMusic = m; m.el.loop = !!o.loop; m.done = false;
+    if (!m.onEnd) { m.onEnd = true; m.el.addEventListener('ended', () => { m.done = true; if (curMusic === m) wantMusic = null; }); }   // v26.5: et nummer uden loop spilles kun én gang (introen startede forfra ved hver tast)
     if (o.from !== undefined) try { m.el.currentTime = o.from; } catch (e) {}
     const t = ctx.currentTime, gv = o.vol || 1;
     if (m.g) { m.g.gain.cancelScheduledValues(t); m.g.gain.setValueAtTime(o.fade ? 0.0001 : gv, t); if (o.fade) m.g.gain.exponentialRampToValueAtTime(gv, t + o.fade); }
     const p = m.el.play(); if (p && p.catch) p.catch(() => { /* autoplay blokeret: prøves igen ved næste klik/tast (init) */ });
   }
-  function retryMusic() { if (wantMusic && curMusic && curMusic.el.paused && !curMusic.stopped) playMusic(wantMusic.name, Object.assign({}, wantMusic.o, { from: undefined })); }
+  function retryMusic() { if (wantMusic && curMusic && curMusic.el.paused && !curMusic.el.ended && !curMusic.done && !curMusic.stopped) playMusic(wantMusic.name, Object.assign({}, wantMusic.o, { from: undefined })); }
   function stopMusic(fade) {
     const m = curMusic; wantMusic = null; if (!m) return; curMusic = null; m.stopped = true;
     const done = () => { m.el.pause(); m.stopped = false; };
@@ -342,6 +343,7 @@ export function createAudio() {
   }
   function setVolume(v) { setVolumes({ master: v }); }
   // v12: uafhængige busser (0..1)
+  function duck(k, fade) { duckK = k; if (duckG && ctx) duckG.gain.setTargetAtTime(k, ctx.currentTime, (fade || 0.4) / 3); }
   function setVolumes(o) {
     for (const k of ['master', 'sfx', 'music', 'voice']) if (o && Number.isFinite(o[k])) VOL[k] = Math.max(0, Math.min(1, o[k]));
     vol = VOL.master;
@@ -432,5 +434,5 @@ export function createAudio() {
     } catch (e) {}
   }
   if (typeof window !== 'undefined') try { build(); } catch (e) {}                 // v20: kontekst + afkodning straks (genoptages ved første klik)
-  return { loaded, cine, cinePreload, playMusic, stopMusic, musicTime, musicPlaying, init, setListener, shot, step, impact, door, beep, boom, hiss, click, pin, throwSnd, bounce, flashbang, tinnitus, glass, ignite, fizzle, fireLoop, setVolume, setVolumes, music, ambience, stopAmbience, announce, get ready() { return ok(); }, set enabled(v) { enabled = v; } };
+  return { duck, loaded, cine, cinePreload, playMusic, stopMusic, musicTime, musicPlaying, init, setListener, shot, step, impact, door, beep, boom, hiss, click, pin, throwSnd, bounce, flashbang, tinnitus, glass, ignite, fizzle, fireLoop, setVolume, setVolumes, music, ambience, stopAmbience, announce, get ready() { return ok(); }, set enabled(v) { enabled = v; } };
 }

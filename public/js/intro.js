@@ -547,7 +547,7 @@ export function createIntro(o) {
     cue('bolt', 0.35, () => { const n = o.night && o.night(); if (n && n.lightning) n.lightning(); });
     cue('hover', 3.9, () => { S.idle = snd('heli_hover', { vol: 0.95, loop: true, pos: hpos, ref: 16, fadeIn: 1.4 }); });
     cue('doors', 4.55, () => { snd('van_doors', { vol: 0.75, pos: hpos, rate: 1.15 }); snd('radio', { vol: 0.25 }); });
-    cue('cry', 4.95, () => snd('battlecry', { vol: 0.7 }));
+    cue('cry', 4.95, () => snd('battlecry', { vol: 1.5 }));   // v26.5: nyt råb; resten af introens lyde er dæmpet under musikken
     cue('slow', 5.2, () => { snd('slowmo', { vol: 0.7 }); snd('gear', { vol: 0.8 }); });
     cue('cock', 6.7, () => { snd('cock', { vol: 0.85, rate: 0.9 }); snd('cock', { vol: 0.6, at: 0.3, rate: 0.85 }); });
     cue('steps', 6.9, () => snd('steps', { vol: 0.7 }));
@@ -616,7 +616,7 @@ export function createIntro(o) {
     // lyd-cues
     const V0 = S.veh ? S.veh.g.position : S.P.stop, vpos = { x: V0.x, y: V0.y + 1, z: V0.z };
     if (S.foot) {
-      cue('radio', 0.2, () => snd(side === 'swat' ? 'radio' : 'battlecry', { vol: side === 'swat' ? 0.35 : 0.7 }));
+      cue('radio', 0.2, () => snd(side === 'swat' ? 'radio' : 'battlecry', { vol: side === 'swat' ? 0.6 : 1.5 }));
       cue('steps', 1.1, () => { snd('steps', { vol: 0.9 }); snd('gear', { vol: 0.8, at: 0.3 }); });
       cue('steps2', 2.9, () => snd('steps', { vol: 0.8, rate: 1.05 }));
       cue('slow', 2.6, () => snd('slowmo', { vol: 0.6 }));
@@ -635,7 +635,7 @@ export function createIntro(o) {
       cue('arr', 0, () => { S.eng = snd('pickup', { vol: 1.0, pos: vpos, ref: 7 }); snd('rev', { vol: 0.8, at: 0.4, pos: vpos }); });
       cue('skid', 2.15, () => snd('skid', { vol: 1.0, pos: vpos, ref: 9 }));
       cue('squeal', 2.9, () => snd('brake_squeal', { vol: 0.6, pos: vpos }));
-      cue('cry', 4.0, () => snd('battlecry', { vol: 0.75 }));
+      cue('cry', 4.0, () => snd('battlecry', { vol: 1.5 }));
       cue('slow', 4.05, () => { snd('slowmo', { vol: 0.7 }); snd('gear', { vol: 0.8 }); });
       cue('door', 4.3, () => snd('car_door', { vol: 0.9, pos: vpos }));
       cue('cock', 5.6, () => { snd('cock', { vol: 0.85, rate: 0.9 }); snd('cock', { vol: 0.6, at: 0.3, rate: 0.85 }); });

@@ -70,7 +70,7 @@ if (arg === '--base') {
     game, commit, created: new Date().toISOString(), minApp: MIN_APP, app: pkg.version,
     raw: `https://raw.githubusercontent.com/${REPO}/${commit}/`, lfs: `https://github.com/${REPO}/releases/download/${LFS_TAG}/`
   });
-  const web = process.env.WD_WEB || path.join(require('os').homedir(), 'Desktop', 'wd-web');
+  const web = process.env.WD_WEB || path.join(__dirname, '..', 'web');                 // hjemmesiden (GitHub Pages) ligger i wd/web (før på skrivebordet)
   const out = path.join(web, 'game', 'manifest.json');
   fs.mkdirSync(path.dirname(out), { recursive: true }); fs.writeFileSync(out, JSON.stringify(m));
   const w = { cwd: web };

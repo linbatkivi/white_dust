@@ -33,6 +33,7 @@ def define():
     defmat('glass', kind='glass'); defmat('window', kind='glass'); defmat('glass_door', kind='glass')
     defmat('trim_metal', color=(0.16, 0.17, 0.18), rough=0.35, metal=0.9); defmat('mullion', color=(0.06, 0.065, 0.07), rough=0.32, metal=0.85)
     defmat('baseboard', color=(0.08, 0.08, 0.085), rough=0.45); defmat('door_leaf', color=(0.34, 0.36, 0.38), rough=0.42, metal=0.2)
+    defmat('paint_white', color=(0.78, 0.78, 0.74), rough=0.55); defmat('paint_yellow', color=(0.86, 0.62, 0.06), rough=0.5); defmat('paint_black', color=(0.03, 0.03, 0.03), rough=0.6)   # v26.5: gulvmaling i parkeringskælderen
     defmat('light_off', color=(0.5, 0.52, 0.55), rough=0.3, emit=(0.55, 0.57, 0.62, 0.35))      # slukket armatur: mat opal, ikke et sort hul
     defmat('ceiling_paint', color=(0.74, 0.73, 0.70), rough=0.92)                   # v26: glat, malet gipsloft (kontorer) – lysmappet giver skyggerne
     defmat('light_panel', color=(0.95, 0.96, 1.0), emit=(0.95, 0.97, 1.0, 14.0)); defmat('light_strip', color=(0.95, 0.96, 1.0), emit=(0.9, 0.95, 1.0, 16.0))
@@ -157,13 +158,13 @@ def city():
     M.build(coll('city'))
 
 # ---------------------------------------------------------------- lys (gen.LIGHTS) og nattehimmel
-POWER = {'down': 16.0, 'emergency': 14.0, 'exit': 2.5, 'panel': 30.0, 'linear': 28.0, 'highbay': 220.0, 'server': 140.0, 'ring': 45.0, 'atrium': 260.0, 'street': 120.0}
-COLOR = {'down': (1.0, 0.8, 0.58), 'emergency': (1.0, 0.12, 0.06), 'exit': (0.2, 1.0, 0.45), 'panel': (1.0, 0.95, 0.88), 'linear': (0.92, 0.96, 1.0),
+POWER = {'wash': 70.0, 'down': 16.0, 'emergency': 14.0, 'exit': 2.5, 'panel': 30.0, 'linear': 28.0, 'highbay': 220.0, 'server': 140.0, 'ring': 45.0, 'atrium': 260.0, 'street': 120.0}
+COLOR = {'wash': (1.0, 0.88, 0.7), 'down': (1.0, 0.8, 0.58), 'emergency': (1.0, 0.12, 0.06), 'exit': (0.2, 1.0, 0.45), 'panel': (1.0, 0.95, 0.88), 'linear': (0.92, 0.96, 1.0),
          'highbay': (1.0, 0.92, 0.8), 'server': (0.55, 0.75, 1.0), 'ring': (1.0, 0.86, 0.66), 'atrium': (1.0, 0.88, 0.74), 'street': (1.0, 0.72, 0.45)}
 def lights(L):
     for k, l in enumerate(L):
         kind = l['kind']
-        if kind in ('street', 'down'): ld = bpy.data.lights.new('L%d' % k, 'SPOT'); ld.spot_size = math.radians(120 if kind == 'street' else 95); ld.spot_blend = 0.55; ld.shadow_soft_size = 0.05
+        if kind in ('street', 'down', 'wash'): ld = bpy.data.lights.new('L%d' % k, 'SPOT'); ld.spot_size = math.radians(120 if kind in ('street', 'wash') else 95); ld.spot_blend = 0.55; ld.shadow_soft_size = 0.05
         elif kind in ('emergency', 'exit'): ld = bpy.data.lights.new('L%d' % k, 'POINT'); ld.shadow_soft_size = 0.05
         elif kind == 'ring': ld = bpy.data.lights.new('L%d' % k, 'POINT'); ld.shadow_soft_size = 0.25          # v26: atriets lysring
         else:

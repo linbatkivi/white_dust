@@ -79,6 +79,7 @@ export async function loadHavn(THREE, renderer, base = '/assets/havn/', maxAniso
         mat.color.setRGB(tint[0], tint[1], tint[2]);
       } else if (col) mat.color.setRGB(col[0], col[1], col[2]);
       if (d.emit) { mat.emissive.setRGB(d.emit[0], d.emit[1], d.emit[2]); mat.emissiveIntensity = Math.min(8, d.emit[3] * 0.25); }
+      if (/graffiti/.test(m.mat) && mat.map) { mat.emissive.setRGB(1, 1, 1); mat.emissiveMap = mat.map; mat.emissiveIntensity = 0.3; }   // v26.5: graffitien i kælderen skal kunne ses i mørket (reflekterende spraymaling)
     }
     const L = lmName ? lms.chunks[lmName] : null;
     if (L) { mat.lightMap = await lightmap(lmName); mat.userData.lmScale = L.scale; }

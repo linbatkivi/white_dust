@@ -172,7 +172,7 @@ def run(B, ROOMS, MATS, MI):
                 A = (slice(0, H - 1), slice(None)) if sgn > 0 else (slice(1, H), slice(None)); Bn = (slice(1, H), slice(None)) if sgn > 0 else (slice(0, H - 1), slice(None))
             fa, fb = np.nan_to_num(F[A], nan=-99), np.nan_to_num(F[Bn], nan=-99)
             same = (SLOPE[A] >= 0) & (SLOPE[A] == SLOPE[Bn])
-            m = WALK[A] & WALK[Bn] & ((fa - fb > 0.6) | ((fa - fb > 0.3) & (SLOPE[A] >= 0))) & ~same   # trapper/ramper: brystning fra 0,3 m
+            m = WALK[A] & WALK[Bn] & ((fa - fb > 0.6) | ((fa - fb > 0.3) & (SLOPE[A] >= 0))) & ~same & ~B['NORAIL'][A] & ~B['NORAIL'][Bn]   # trapper/ramper: brystning fra 0,3 m (ikke ved tærskler)
             q = np.round(fa * 10).astype(np.int64)                                  # 10 cm trin langs trapper
             oi, oj = A[0].start or 0, A[1].start or 0
             def rail(x0, z0, x1, z1, y, ia, ja):
@@ -254,7 +254,7 @@ def run(B, ROOMS, MATS, MI):
                 mat = 'walnut' if zname(i_a, j_a) in GLASS_RAIL else 'block_wall'
                 slope_wall(a0, a1, float(FC[i_a, j_a]), float(FC[i_b, j_b]), lo, t_['axis'], e, side, mat); nb2 += 1
             for (i, j, oi, oj) in cells:
-                ok = 0 <= oi < H and 0 <= oj < W and WALK[i, j] and WALK[oi, oj] and SLOPE[oi, oj] != k_ and FC[i, j] - F[oi, oj] > 0.3
+                ok = 0 <= oi < H and 0 <= oj < W and WALK[i, j] and WALK[oi, oj] and SLOPE[oi, oj] != k_ and FC[i, j] - F[oi, oj] > 0.3 and not B['NORAIL'][oi, oj]
                 if ok: run.append((i, j, oi, oj))
                 else: flush(run); run = []
             flush(run)
@@ -572,6 +572,50 @@ def run(B, ROOMS, MATS, MI):
             if extra: extra(cxp, fl, czp, yaw, fx, fz)
             mark(cells); n += 1
         return n
+    def garage(zi):
+        """v26.5: parkeringskælderen (CT Forgård) i orden: parkerede biler i malede båse langs nordvæggen, gul kørebanelinje,
+        advarselsstriber ved indkørslen til spawn, graffiti-skodder med væglamper (lyset bages, så graffitien ses i spillet), paller på række"""
+        m = ZID == zi; ii_, jj_ = np.nonzero(m)
+        def zmin_at(x):
+            j = int(x / S + B['CX']); col = np.nonzero(m[:, j])[0]; return cz(col.min()) if len(col) else None
+        def zmax_at(x):
+            j = int(x / S + B['CX']); col = np.nonzero(m[:, j])[0]; return cz(col.max() + 1) if len(col) else None
+        xw, xe = cx(jj_.min()), cx(jj_.max() + 1)
+        fl = float(np.nanmax(F[m]))
+        P = 0.006
+        def paint(x0, z0, x1, z1, mat): box(VIS, x0, fl + 0.001, z0, x1, fl + P, z1, mat, 't')
+        # nordvæggen: to strækninger på hver side af indkørslen til spawn
+        zn = zmin_at(0.0); zn2 = zmin_at(20.0); yaw_car = 90.0
+        bays = [(xw + 0.25, zn, [xw + 2.6, xw + 7.25]), (15.95, zn2, [18.55])]
+        for (xa, zw, cars) in bays:
+            for xc in cars:
+                put(ph('covered_car'), xc, fl, zw + 1.25, yaw_car + rnd.choice((0.0, 180.0)), [xc, fl + 0.7, zw + 1.25, 4.45, 1.4, 1.85])
+                for xl in (xc - 2.4, xc + 2.4): paint(xl - 0.06, zw + 0.02, xl + 0.06, zw + 2.55, 'paint_white')   # båsstreger
+                paint(xc - 2.4, zw + 2.55, xc + 2.4, zw + 2.67, 'paint_white')
+                box(VIS, xc - 0.8, fl, zw + 0.25, xc + 0.8, fl + 0.12, zw + 0.42, 'paint_yellow', 'nsewt')          # hjulstop
+            x0l, x1l = cars[0] - 2.4, cars[-1] + 2.4
+            paint(x0l, zw + 3.05, x1l, zw + 3.17, 'paint_yellow')                                                # kørebane
+        # advarselsstriber (gul/sort) på karmene ved indkørslen til spawn
+        jj0 = int(11.6 / S + B['CX']); col = np.nonzero(m[:, jj0])[0]; zt = cz(col.min())
+        for xj, sg in ((7.3, 1), (15.9, -1)):
+            for k in range(8):
+                box(VIS, xj - (0.012 if sg > 0 else 0), fl + k * 0.2, zt - 1.1, xj + (0.012 if sg < 0 else 0), fl + (k + 1) * 0.2, zt + 0.05, 'paint_yellow' if k % 2 == 0 else 'paint_black', 'ew')
+        paint(7.3, zt - 0.1, 15.9, zt + 0.02, 'paint_yellow')
+        # graffiti-skodder på sydvæggen + væglamper (bagt lys), og en ved spawnens bagvæg
+        for (xs, zs_, yaw_) in ((3.6, zmax_at(3.6), 180.0), (20.4, zmax_at(20.4), 180.0)):
+            if zs_ is None: continue
+            put(ph('rollershutter_door_graffiti'), xs, fl, zs_ - 0.01, yaw_)
+            put(ph('industrial_wall_lamp'), xs, fl + 3.05, zs_ - 0.02, yaw_)
+            B['LIGHTS'].append(dict(x=round(xs, 2), y=round(fl + 2.95, 2), z=round(zs_ - 0.55, 2), kind='wash', room='CT Forgård'))
+        # paller med kasser på række langs østvæggen (syd for A Rampe)
+        zr = zmax_at(23.0) or -20.0
+        for k in range(3):
+            zp = zr - 0.7 - k * 1.35
+            put(CUSTOM % 'pallet', xe - 0.55, fl, zp, 90.0, [xe - 0.55, fl + 0.45, zp, 0.85, 0.9, 1.22])
+            put(ph('wooden_military_crate'), xe - 0.55, fl + 0.14, zp, 90.0 + rnd.uniform(-4, 4))
+            if k != 1: put(ph('old_military_crate'), xe - 0.55, fl + 0.61, zp, 90.0 + rnd.uniform(-6, 6))
+        put(ph('fire_hydrant'), xw + 0.25, fl, zmax_at(xw + 1.0) - 0.4 if zmax_at(xw + 1.0) else -20.5, 90.0)
+        print('[dress] parkeringskælderen: biler i båse, striber, graffiti-skodder')
     def hang(zi, model, y, count, spacing=2.0):
         """på væggen (ikke vinduer, ikke over døre)"""
         n = 0
@@ -625,11 +669,11 @@ def run(B, ROOMS, MATS, MI):
                 against(zi, CUSTOM % 'coffee_bar', 2.4, 0.65, 1.05, 1, spacing=1.0, extra=stools)
         elif n in ('A Site', 'A Forplads'):
             pass
-        elif n in ('CT Spawn', 'CT Forgård'):
-            against(zi, ph('covered_car'), 2.2, 4.8, 1.5, 2 if n == 'CT Forgård' else 1, yaw_off=90.0, spacing=2.0)
-            hang(zi, ph('rollershutter_door'), 0.0, 2, 6.0)
-            against(zi, ph('concrete_road_barrier'), 1.9, 0.6, 0.8, 3, spacing=3.0)
+        elif n == 'CT Spawn':
+            against(zi, ph('concrete_road_barrier'), 1.9, 0.6, 0.8, 2, spacing=3.0)
             against(zi, ph('industrial_storage_cart'), 1.0, 0.6, 1.0, 1, spacing=3.0)
+        elif n == 'CT Forgård':
+            garage(zi)
         elif n in ('Storage', 'Pillars B', 'B Site'):
             against(zi, ph('steel_frame_shelves_03'), 1.5, 0.6, 2.0, 3, spacing=1.0)
             against(zi, ph('cardboard_box_01'), 0.6, 0.6, 0.5, 4, spacing=1.0)

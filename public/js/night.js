@@ -139,7 +139,7 @@ export function createNight(o) {
     const dist = 0.3 + Math.random() * 2.8;                                        // "afstand": kort = kraftigt blink og brag
     bolt = { t: 0, pulses: [0, 0.09 + Math.random() * 0.05, 0.22 + Math.random() * 0.1].slice(0, 2 + (Math.random() < 0.6 ? 1 : 0)), str: 1.4 / (0.6 + dist), dist };
     const snd = dist < 0.9 ? (Math.random() < 0.5 ? 'thunder1' : 'thunder2') : dist < 1.9 ? 'thunder3' : 'thunder4';
-    setTimeout(() => o.Audio.cine && o.Audio.cine(snd, { vol: Math.min(0.42, 0.5 / (0.4 + dist)), music: false }), dist * 1100);   // v26: torden skruet ned (brugerønske)
+    setTimeout(() => o.Audio.cine && o.Audio.cine(snd, { vol: Math.min(0.16, 0.2 / (0.4 + dist)), music: false }), dist * 1100);   // v26.5: torden meget lavere (brugerønske)
   }
 
   // ---------------------------------------------------------------- lyd: regn ude / inde
@@ -156,7 +156,7 @@ export function createNight(o) {
     if ((poolT -= dt) <= 0) { poolT = 0.25; updatePool(cam); }
     for (const L of pool) if (L.userData.base) { const f = L.userData.fl; L.intensity = L.userData.base * (1 - f * (0.25 * Math.sin(t * 13 + L.position.x * 7) + 0.15 * Math.sin(t * 23 + L.position.z * 3))); }
     // lyn
-    if (R.lightning) { nextBolt -= dt; if (nextBolt <= 0) { nextBolt = 22 + Math.random() * 30; lightning(); } }
+    if (R.lightning) { nextBolt -= dt; if (nextBolt <= 0) { nextBolt = 35 + Math.random() * 40; lightning(); } }
     let fl = 0;
     if (bolt) {
       bolt.t += dt;
@@ -169,7 +169,7 @@ export function createNight(o) {
     // lyd efter tag-kortet: under tag → dæmpet regn + tagrende
     const roof = topAt(cam.x, cam.z) > cam.y + 0.2 ? 1 : 0;
     inside += (roof - inside) * Math.min(1, dt * 2.5);
-    if (rainOut) { rainOut.setVol(0.2 * (1 - inside) + 0.0001, 0.2); rainIn.setVol(0.13 * inside + 0.0001, 0.2); gutter.setVol(0.06 * inside + 0.02, 0.3); }   // v26: regn skruet ned (fylder ikke så meget)
+    if (rainOut) { rainOut.setVol(0.06 * (1 - inside) + 0.0001, 0.3); rainIn.setVol(0.035 * inside + 0.0001, 0.3); gutter.setVol(0.018 * inside + 0.006, 0.3); }   // v26.5: regnen langt lavere – kun en stemning i baggrunden
   }
   function dispose() {
     o.scene.remove(group); topTex.dispose(); g.dispose(); gs.dispose(); rainM.dispose(); splM.dispose();

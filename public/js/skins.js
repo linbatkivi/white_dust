@@ -68,27 +68,24 @@ export const GUN_FILE = { ak47: 'ak47', m4a1: 'm4a1', famas: 'famas', galil: 'ga
   he: { hij: 'he_east', swat: 'he_west' }, smoke: { hij: 'smoke_east', swat: 'smoke_west' }, flash: 'flash', incgren: 'incgren', molotov: 'molotov' };
 export const defaultAgent = side => side === 'hij' ? 'hij:olive' : 'swat:navy';
 
-/* ---- v12: KNIVE (procedurale modeller i weapons.js) × finishes. Valget gemmes som '<model>_<finish>' i inv.skins.knife ---- */
+/* ---- v26.5: KNIVE – brugerens færdige modeller med deres egne teksturer (tools/knives/import.py → assets/weapons/knives/knife_<id>.glb).
+   Hver kniv har sin egen finish (teksturen). Valget gemmes som '<id>_std' i inv.skins.knife (gamle '<model>_<finish>'-valg falder tilbage til standard) ---- */
 export const KNIVES = [
-  { id: 'karambit', name: 'Karambit' },
-  { id: 'butterfly', name: 'Butterfly-kniv' },
-  { id: 'bayonet', name: 'M9 Bayonet' },
-  { id: 'talon', name: 'Talon-kniv' }
+  { id: 'karambitgold', name: 'Karambit', fin: 'Gold Runes', rarity: 'gold' },
+  { id: 'karambitscand', name: 'Karambit', fin: 'Scandinavian', rarity: 'gold' },
+  { id: 'gut', name: 'Gut-kniv', fin: 'Scandinavian', rarity: 'gold' },
+  { id: 'karambit', name: 'Karambit', fin: 'Vanilla', rarity: 'cov' },
+  { id: 'm9', name: 'M9 Bayonet', fin: 'Vanilla', rarity: 'cov' },
+  { id: 'kabar', name: 'KA-BAR', fin: 'Field Issue', rarity: 'cls' },
+  { id: 'classic', name: 'Classic-kniv', fin: 'CS 1.6', rarity: 'res' }
 ];
-export const KNIFE_FINISHES = [
-  { id: 'vanilla', name: 'Vanilla', rarity: 'cov' },
-  { id: 'damascus', name: 'Damascus Steel', rarity: 'cov' },
-  { id: 'crimson', name: 'Crimson Web', rarity: 'gold' },
-  { id: 'fade', name: 'Fade', rarity: 'gold' },
-  { id: 'doppler', name: 'Doppler', rarity: 'gold' },
-  { id: 'tiger', name: 'Tiger Tooth', rarity: 'gold' }
-];
-export const defaultKnife = 'karambit_fade';
+export const KNIFE_FINISHES = KNIVES.map(k => ({ id: 'std', name: k.fin, rarity: k.rarity, knife: k.id }));
+export const defaultKnife = 'karambitgold_std';
 export function knifeOf(key) {
-  const [m, f] = String(key || '').split('_');
+  const m = String(key || '').split('_')[0];
   const model = KNIVES.find(k => k.id === m) || KNIVES.find(k => k.id === defaultKnife.split('_')[0]);
-  const fin = KNIFE_FINISHES.find(k => k.id === f) || KNIFE_FINISHES.find(k => k.id === defaultKnife.split('_')[1]);
-  return { model, finish: fin, key: model.id + '_' + fin.id, name: model.name + ' | ' + fin.name };
+  const fin = { id: 'std', name: model.fin, rarity: model.rarity };
+  return { model, finish: fin, key: model.id + '_std', name: model.name + ' | ' + model.fin };
 }
 export function agentOf(key, side) {
   const list = AGENTS[side] || AGENTS.swat, [aid, vid] = String(key || '').split(':');

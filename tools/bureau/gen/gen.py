@@ -87,7 +87,18 @@ setfy((x0_ - CX) * S, (x1_ - CX) * S, (y0_ - CY) * S, 21.4, -1.5)
 def fill(x0, x1, z0, z1):
     i0, j0 = _ij(x0, z0); i1, j1 = _ij(x1, z1); ZID[i0:i1, j0:j1] = -1; WALL0[i0:i1, j0:j1] = True
 fill(-12.8, -5.4, 11.0, 14.6)
-carve(-15.6, -12.4, 19.5, 21.4, 'Trappehallen', -1.5)
+carve(-15.6, -11.9, 19.5, 21.4, 'Trappehallen', -1.5)                     # v26.5: helt ind til reposen (før stod en 12 cm mur tilbage)
+# v26.5: tærskler uden gelænder (rampens sidegelænder spærrede døren fra Receptionen ud til helipad-trappen)
+NORAIL = np.zeros(ZID.shape, bool)
+def threshold(x0, x1, z0, z1, room, fy):
+    carve(x0, x1, z0, z1, room, fy); i0, j0 = _ij(x0, z0); i1, j1 = _ij(x1, z1); NORAIL[max(0, i0 - 2):i1 + 2, max(0, j0 - 2):j1 + 2] = True
+threshold(20.2, 21.95, 30.6, 32.7, 'T Base', 0.0)                             # Receptionen → helipad-trappen: 2,1 m bred dør
+# v26.5: Arch ↔ Søjlegangen A – åbning i muren mellem Arch-lommen og Søjlegangen (begge 3,0 m)
+carve(29.5, 32.3, -7.6, -4.3, 'Søjlegangen A', 3.0)
+# v26.5: Arch → Kaffebaren (Connector, 1,5 m lavere): ny trappe ned gennem muren
+carve(25.15, 27.55, -6.4, -2.5, 'Arch', 3.0)
+i0_, j0_ = _ij(25.15, -6.0); i1_, j1_ = _ij(27.55, -2.5)
+M['stairs'].append(dict(r=[j0_, i0_, j1_, i1_], axis='z', ya=3.0, yb=1.5))
 ZN = [z['name'] for z in M['zones']]; ZY = np.array([z['y'] for z in M['zones']], np.float32)
 WALK = ZID >= 0
 cx = lambda j: (j - CX) * S
@@ -190,7 +201,7 @@ def ext_behind(axis, sgn):
 WIN = np.zeros((H, W), bool); LUX = np.zeros((H, W), bool)
 for zi, n in enumerate(ZN):
     WIN |= (ZID == zi) & ROOMS[n]['win']; LUX |= (ZID == zi) & ROOMS[n]['lux']
-MATS = sorted({v for r in ROOMS.values() for v in (r['floor'], r['wall'], r['ceil']) if v} | {'facade', 'glass', 'ceiling_paint', 'light_panel', 'light_strip', 'trim_metal', 'baseboard', 'door_leaf', 'glass_door', 'light_off', 'exit_sign', 'beacon_red', 'window', 'light_down', 'walnut', 'walnut_slat', 'plaster_warm', 'mullion'})
+MATS = sorted({v for r in ROOMS.values() for v in (r['floor'], r['wall'], r['ceil']) if v} | {'facade', 'glass', 'ceiling_paint', 'light_panel', 'light_strip', 'trim_metal', 'baseboard', 'door_leaf', 'glass_door', 'light_off', 'exit_sign', 'beacon_red', 'window', 'light_down', 'walnut', 'walnut_slat', 'plaster_warm', 'mullion', 'paint_white', 'paint_yellow', 'paint_black'})
 MI = {m: i for i, m in enumerate(MATS)}
 fmat = np.full((H, W), -1, np.int32); wmat = fmat.copy(); cmat = fmat.copy()
 for zi, n in enumerate(ZN):

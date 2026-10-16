@@ -14,7 +14,7 @@ export function createMvpCine(o) {
   const clamp = (v, a, b) => v < a ? a : v > b ? b : v, smooth = t => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); }, lerp = (a, b, t) => a + (b - a) * t;
   const ease = t => { t = clamp(t, 0, 1); return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; };
   let root = null, cv = null, st = null, S = null, T = null, built = false;
-  const CUTS = [0, 1.7, 3.1, 4.9, 6.2, 8.0];          // + slowmotion ≈ 9,7 s i alt (serverens rundeslut med MVP = 10 s)                                    // indstillingernes starttider (s, filmtid)
+  const CUTS = [0, 1.7, 3.1, 4.9, 6.2, 10.4];         // v26.5: sidste indstilling holdes længere, så navn og statistik kan læses (≈ 12 s i alt; serveren giver 13 s)                                    // indstillingernes starttider (s, filmtid)
   const SHOTS = [3.6, 3.85, 4.12];                                              // skud (filmtid); det sidste = bullseye
   const HITS = [[0.15, 0.11], [-0.11, -0.13], [0, 0]];
   const V3 = (x, y, z) => new THREE.Vector3(x, y, z);

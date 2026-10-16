@@ -649,33 +649,28 @@ export function createWeapons(THREE, WD, opts) {
     for (const z of [0.022, 0.07]) { const sc = add(new THREE.CylinderGeometry(0.003, 0.003, 0.019, 10), K.dark, 0, -0.002, z); sc.rotation.z = Math.PI / 2; }
     return { knife: true, model: 'talon', tip: new THREE.Vector3(0, -0.03, -0.142) };
   };
-  // v19: realistiske knive modelleret i Blender (tools/knives/build.py: ægte slibning, blodrille, savtakker, afrundede greb, skruer).
-  //   Geometrien kommer fra GLB'en; materialerne er spillets egne (pr. materialenavn), så finishes og lys er uændrede.
-  //   Klingens UV = (z, y) i meter som ExtrudeGeometry => bladeMat med samme klinge-grænser som de procedurale modeller.
-  const KMETA = {
-    karambit: { blade: [-0.1, 0.0, -0.055, 0.032], tip: [0, -0.05, -0.098] }, butterfly: { blade: [-0.136, 0.0, -0.014, 0.012], tip: [0, -0.002, -0.135] },
-    bayonet: { blade: [-0.166, -0.01, -0.018, 0.017], tip: [0, -0.003, -0.165] }, talon: { blade: [-0.143, -0.006, -0.033, 0.034], tip: [0, -0.03, -0.142] }
-  };
-  function knifeFromGLB(g, M, model, fin, tpl) {
-    const K = kMats(M), km = KMETA[model], bm = bladeMat(M, fin, ...km.blade);
-    const ivory = M.knIvory || (M.knIvory = M.mk({ color: 0xe6dcc6, metalness: 0.05, roughness: 0.4 }));
-    const BY = { Blade: bm, Edge: K.edge, Steel: K.steel, Grip: K.grip, Wood: K.wood, Dark: K.dark, Ivory: ivory };
-    const root = tpl.clone(true), handles = [];
+  // v26.5: brugerens knivmodeller med egne teksturer (tools/knives/import.py) – samme ramme som før: grebet ved origo, klingen mod −Z
+  const KNEW = { karambitgold: [0, -0.002, -0.099], karambitscand: [0, -0.002, -0.099], karambit: [0, -0.001, -0.099], gut: [0, -0.007, -0.097],
+    m9: [0, 0.01, -0.182], kabar: [0, -0.017, -0.177], classic: [0, -0.008, -0.18] };
+  const KFALL = { karambitgold: 'karambit', karambitscand: 'karambit', karambit: 'karambit', gut: 'talon', m9: 'bayonet', kabar: 'bayonet', classic: 'bayonet' };
+  function knifeFromModel(g, M, model, tpl) {
+    const root = tpl.clone(true), cache = new Map();
     root.traverse(x => {
-      if (x.isMesh) { const nm = (x.material && x.material.name || '').replace(/\.\d+$/, ''); x.material = BY[nm] || K.steel; x.castShadow = true; }
-      if (/^handle\d$/.test(x.name)) handles[+x.name.slice(6)] = x;
+      if (!x.isMesh) return; x.castShadow = true;
+      const src = x.material; if (cache.has(src)) { x.material = cache.get(src); return; }
+      const p = { color: src.color ? src.color.getHex() : 0xffffff, map: src.map || null, normalMap: src.normalMap || null, roughnessMap: src.roughnessMap || null, metalnessMap: src.metalnessMap || null,
+        aoMap: src.aoMap || null, metalness: src.metalness !== undefined ? src.metalness : 0.8, roughness: src.roughness !== undefined ? src.roughness : 0.35 };
+      for (const k of Object.keys(p)) if (p[k] === null) delete p[k];
+      const m = M.mk ? M.mk(p) : new THREE.MeshStandardMaterial(p); m.side = THREE.DoubleSide; cache.set(src, m); x.material = m;
     });
     for (const c of root.children.slice()) g.add(c);
-    const meta = { knife: true, model, tip: new THREE.Vector3(...km.tip), glb: true };
-    if (handles.length === 2) meta.handles = handles;
-    return meta;
+    return { knife: true, model, tip: new THREE.Vector3(...KNEW[model]), glb: true };
   }
   B.knife = (g, M, skinKey) => {
-    const key = String(skinKey || 'karambit_fade'), [m, f] = key.split('_');
-    const model = KF[m] ? m : 'karambit', fin = KNIFE_PBR[f] ? f : 'fade';
-    const tpl = o.knifeTemplate && !(typeof window !== 'undefined' && window.__noKnifeGLB) ? o.knifeTemplate(model) : null;   // __noKnifeGLB: dev-sammenligning
-    if (tpl && KMETA[model]) { try { return knifeFromGLB(g, M, model, fin, tpl); } catch (e) { console.warn('[kniv] GLB', model, e); } }
-    return KF[model](g, M, fin);                                   // procedural reserve (fx før GLB'en er hentet / i tests)
+    const model = String(skinKey || 'karambitgold_std').split('_')[0], id = KNEW[model] ? model : 'karambitgold';
+    const tpl = o.knifeTemplate ? o.knifeTemplate(id) : null;
+    if (tpl) { try { return knifeFromModel(g, M, id, tpl); } catch (e) { console.warn('[kniv] GLB', id, e); } }
+    const meta = KF[KFALL[id]](g, M, 'vanilla'); meta.model = id; return meta;          // procedural reserve, til GLB'en er hentet (og i tests)
   };
 
   /* ======================================================== førstepersons-arme (v13) ========================================================
@@ -694,20 +689,27 @@ export function createWeapons(THREE, WD, opts) {
     c.strokeStyle = team === 'hij' ? 'rgba(30,26,16,.55)' : 'rgba(10,12,18,.6)'; c.setLineDash([5, 4]); c.lineWidth = 1.5;   // syninger
     for (const y of [h * 0.08, h * 0.92]) { c.beginPath(); c.moveTo(0, y); c.lineTo(w, y); c.stroke(); }
     c.setLineDash([]);
-  }, 256);
+  }, 1024);
   SK.glove = (team) => tex('glove_' + team, (c, w, h) => {
     const R = rnd(team === 'hij' ? 81 : 83);
     if (team === 'hij') {                                   // slidt brunt læder: krakeleringer og lyse slidpletter
       c.fillStyle = '#4a3220'; c.fillRect(0, 0, w, h);
-      for (let i = 0; i < 6000; i++) { const v = R() * 30 | 0; c.fillStyle = `rgba(${70 + v},${46 + v},${28 + v / 2},.35)`; c.fillRect(R() * w, R() * h, 2, 2); }
-      for (let i = 0; i < 260; i++) { c.strokeStyle = `rgba(20,12,6,${0.2 + R() * 0.3})`; c.lineWidth = 0.6; c.beginPath(); const x = R() * w, y = R() * h; c.moveTo(x, y); c.lineTo(x + R() * 14 - 7, y + R() * 14 - 7); c.stroke(); }
+      for (let i = 0; i < 70000; i++) { const v = R() * 30 | 0; c.fillStyle = `rgba(${70 + v},${46 + v},${28 + v / 2},.35)`; c.fillRect(R() * w, R() * h, 2, 2); }   // v26.5: 1024 px læder
+      c.strokeStyle = 'rgba(28,18,10,.6)'; c.setLineDash([7, 5]); c.lineWidth = 2.2;
+      for (const x of [w * 0.25, w * 0.75]) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, h); c.stroke(); } c.setLineDash([]);
+      for (let i = 0; i < 2600; i++) { c.strokeStyle = `rgba(20,12,6,${0.2 + R() * 0.3})`; c.lineWidth = 0.6; c.beginPath(); const x = R() * w, y = R() * h; c.moveTo(x, y); c.lineTo(x + R() * 14 - 7, y + R() * 14 - 7); c.stroke(); }
       for (let i = 0; i < 16; i++) { const x = R() * w, y = R() * h, r = 12 + R() * 40, g = c.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, 'rgba(150,110,70,.3)'); g.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g; c.fillRect(x - r, y - r, r * 2, r * 2); }
     } else {                                                // sort Nomex: fin strik-struktur
       c.fillStyle = '#1b1c1f'; c.fillRect(0, 0, w, h);
       for (let y = 0; y < h; y += 2) for (let x = (y % 4); x < w; x += 4) { c.fillStyle = 'rgba(255,255,255,.035)'; c.fillRect(x, y, 2, 1); }
-      for (let i = 0; i < 3000; i++) { c.fillStyle = `rgba(0,0,0,${R() * 0.25})`; c.fillRect(R() * w, R() * h, 2, 2); }
+      for (let i = 0; i < 40000; i++) { c.fillStyle = `rgba(0,0,0,${R() * 0.25})`; c.fillRect(R() * w, R() * h, 2, 2); }
+      c.strokeStyle = 'rgba(120,124,132,.35)'; c.setLineDash([6, 5]); c.lineWidth = 2;               // v26.5: syninger og forstærkede paneler
+      for (const x of [w * 0.18, w * 0.5, w * 0.82]) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, h); c.stroke(); }
+      for (const y of [h * 0.3, h * 0.7]) { c.beginPath(); c.moveTo(0, y); c.lineTo(w, y); c.stroke(); }
+      c.setLineDash([]);
+      for (let i = 0; i < 18; i++) { c.fillStyle = 'rgba(255,255,255,.05)'; c.fillRect(R() * w, R() * h, 20 + R() * 60, 3); }   // slid på kanterne
     }
-  }, 256);
+  }, 1024);
   const armMatCache = {};
   function armMats(team) {
     if (armMatCache[team]) return armMatCache[team];
@@ -716,22 +718,25 @@ export function createWeapons(THREE, WD, opts) {
       if (p.map && o.derivePBR) { const d = o.derivePBR(THREE, p.map, { normal: nrm || 0.5, rough: p.roughness, metal: p.metalness }); if (d && d.normalMap) { m.normalMap = d.normalMap; m.normalScale.set(0.8, 0.8); } }
       if (o.withBake) o.withBake(m, true); return m;
     };
-    const fab = SK.fabric(team), glv = SK.glove(team); fab.repeat.set(2, 3); glv.repeat.set(1.5, 1.5);
+    const fab = SK.fabric(team), glv = SK.glove(team); fab.repeat.set(2, 3); glv.repeat.set(1.5, 1.5); for (const t of [fab, glv]) t.anisotropy = 8;
     return (armMatCache[team] = {
       sleeve: mk({ color: 0xffffff, map: fab, roughness: 0.92, metalness: 0 }, 0.9),
       glove: mk({ color: 0xffffff, map: glv, roughness: hij ? 0.62 : 0.78, metalness: 0.02 }, 0.6),
-      skin: mk({ color: hij ? 0xb98a68 : 0xc49474, roughness: 0.55, metalness: 0 }),
+      skin: mk({ color: hij ? 0xb07e5e : 0xc49474, roughness: 0.62, metalness: 0 }),
       armor: mk({ color: 0x0d0e10, roughness: 0.35, metalness: 0.25 }),
       strap: mk({ color: hij ? 0x2a2418 : 0x15181d, roughness: 0.85, metalness: 0 }),
-      metal: mk({ color: 0x9a9da2, roughness: 0.3, metalness: 0.9 })
+      metal: mk({ color: 0x9a9da2, roughness: 0.3, metalness: 0.9 }),
+      nail: mk({ color: 0xd8b8a4, roughness: 0.28, metalness: 0 }),
+      cord: mk({ color: 0x6b2a1c, roughness: 0.8, metalness: 0 }),
+      dial: (() => { const m = mk({ color: 0x0b1a10, roughness: 0.2, metalness: 0.1 }); m.emissive = new THREE.Color(0x2bd46a); m.emissiveIntensity = 0.12; return m; })()
     });
   }
-  const capsule = (r, len) => new THREE.CapsuleGeometry(r, Math.max(0.0005, len), 4, 10);
+  const capsule = (r, len) => new THREE.CapsuleGeometry(r, Math.max(0.0005, len), 8, 22);   // v26.5: runde fingre (før 4 × 10 – kantede)
   function rbox(w, h, d, r) {                               // afrundet kasse (ekstruderet afrundet rektangel med fas) – håndryg, knobeskytter
     const s = new THREE.Shape(), x = w / 2 - r, y = h / 2 - r;
     s.moveTo(-x, -h / 2); s.lineTo(x, -h / 2); s.quadraticCurveTo(w / 2, -h / 2, w / 2, -y); s.lineTo(w / 2, y); s.quadraticCurveTo(w / 2, h / 2, x, h / 2);
     s.lineTo(-x, h / 2); s.quadraticCurveTo(-w / 2, h / 2, -w / 2, y); s.lineTo(-w / 2, -y); s.quadraticCurveTo(-w / 2, -h / 2, -x, -h / 2);
-    const bv = Math.min(r, d / 2 - 1e-4), g = new THREE.ExtrudeGeometry(s, { depth: Math.max(1e-4, d - bv * 2), bevelEnabled: true, bevelThickness: bv, bevelSize: bv * 0.8, bevelSegments: 3, curveSegments: 4 });
+    const bv = Math.min(r, d / 2 - 1e-4), g = new THREE.ExtrudeGeometry(s, { depth: Math.max(1e-4, d - bv * 2), bevelEnabled: true, bevelThickness: bv, bevelSize: bv * 0.8, bevelSegments: 6, curveSegments: 10 });
     g.translate(0, 0, -(d - bv * 2) / 2); return g;
   }
   function seg(parent, a, b, r, m) {                        // kapsel fra punkt a til b
@@ -754,7 +759,12 @@ export function createWeapons(THREE, WD, opts) {
           const nx = [Math.cos(ang) * R, Math.sin(ang) * R, z];
           const fingerless = hij && k === 2;                // Hijackers: fingerløse handsker – yderste led er bar hud
           seg(hand, prev, nx, FR[f] * (k === 2 ? 0.9 : 1), fingerless ? T.skin : T.glove);
-          if (k === 0) { const kn = new THREE.Mesh(new THREE.SphereGeometry(FR[f] * 1.12, 10, 8), T.glove); kn.position.set(...prev); hand.add(kn); }
+          if (k === 0) { const kn = new THREE.Mesh(new THREE.SphereGeometry(FR[f] * 1.12, 22, 16), T.glove); kn.position.set(...prev); hand.add(kn); }
+          else { const jn = new THREE.Mesh(new THREE.SphereGeometry(FR[f] * (k === 2 ? 0.96 : 1.04), 18, 12), fingerless && k === 2 ? T.skin : T.glove); jn.position.set(...prev); hand.add(jn); }   // v26.5: led-knoer (ingen sømme)
+          if (fingerless && k === 2) {                       // negl på den bare fingerspids
+            const a2 = ang - (LEN[f][k] / R) * 0.25, nl = new THREE.Mesh(new THREE.SphereGeometry(FR[f] * 0.62, 12, 8), T.nail);
+            nl.scale.set(1, 0.32, 1.25); nl.position.set(Math.cos(a2) * (R + FR[f] * 0.62), Math.sin(a2) * (R + FR[f] * 0.62), z); nl.lookAt(0, 0, z); hand.add(nl);
+          }
           prev = nx;
         }
       }
@@ -772,14 +782,20 @@ export function createWeapons(THREE, WD, opts) {
       }
       // håndled + underarm (egen retning): manchet, ærme med folder (drejet profil) og ærmekant
       const wrist = new THREE.Group(); wrist.position.set(-(rg + 0.008), 0.085, 0); arm.add(wrist);
-      const prof = (pts, seg2) => new THREE.LatheGeometry(pts.map(p => new THREE.Vector2(p[0], p[1])), seg2 || 18);
+      const prof = (pts, seg2) => new THREE.LatheGeometry(pts.map(p => new THREE.Vector2(p[0], p[1])), Math.max(40, seg2 || 18));
       const cuff = new THREE.Mesh(prof([[0.001, -0.02], [0.03, -0.02], [0.034, -0.012], [0.035, 0.03], [0.031, 0.036], [0.001, 0.036]]), T.glove); wrist.add(cuff);
       const sl = [[0.001, 0.02], [0.04, 0.02], [0.046, 0.03]];
       for (let i = 0; i < 9; i++) { const y = 0.05 + i * 0.045, r = 0.046 + i * 0.0026; sl.push([r + (i % 2 ? 0.004 : -0.001), y], [r + 0.001, y + 0.022]); }   // folder
       sl.push([0.07, 0.48], [0.001, 0.48]);
       const sleeve = new THREE.Mesh(prof(sl, 20), T.sleeve); wrist.add(sleeve);
-      const hem = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.006, 6, 20), T.sleeve); hem.rotation.x = Math.PI / 2; hem.position.y = 0.028; wrist.add(hem);
-      if (!hij) { const wt = new THREE.Mesh(prof([[0.001, 0], [0.036, 0], [0.037, 0.016], [0.001, 0.016]], 16), T.strap); wt.position.y = 0.0; wrist.add(wt); }
+      const hem = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.006, 12, 48), T.sleeve); hem.rotation.x = Math.PI / 2; hem.position.y = 0.028; wrist.add(hem);
+      if (!hij) {                                           // SWAT: taktisk ur på håndleddet (rem + kasse + lysende urskive)
+        const wt = new THREE.Mesh(prof([[0.001, 0], [0.036, 0], [0.037, 0.016], [0.001, 0.016]], 16), T.strap); wt.position.y = 0.0; wrist.add(wt);
+        const cs = new THREE.Mesh(new THREE.CylinderGeometry(0.0135, 0.0145, 0.0075, 32), T.armor); cs.rotation.z = Math.PI / 2; cs.position.set(-0.0395, 0.008, 0); wrist.add(cs);
+        const dl = new THREE.Mesh(new THREE.CircleGeometry(0.0108, 32), T.dial); dl.rotation.y = -Math.PI / 2; dl.position.set(-0.0436, 0.008, 0); wrist.add(dl);
+      } else {                                              // Hijackers: flettet paracord-armbånd
+        const pc = new THREE.Mesh(new THREE.TorusGeometry(0.037, 0.0042, 10, 48), T.cord); pc.rotation.x = Math.PI / 2; pc.position.y = 0.006; wrist.add(pc);
+      }
       // orientering: hånden fra (hånd-retning, grebsakse); underarmen peger selvstændigt (håndleddet bøjer)
       const _X = new THREE.Vector3(), _Y = new THREE.Vector3(), _Z = new THREE.Vector3(), _m = new THREE.Matrix4(), _q = new THREE.Quaternion();
       // mirror = venstre hånd: modellen spejles i X (fingrene krummer den anden vej), så ryggen af hånden ligger i retning Y×Z
@@ -1020,7 +1036,7 @@ export function createWeapons(THREE, WD, opts) {
     if (meta.knife) {                                      // v13: kniven holdes i et rigtigt hammergreb: grebet i hånden, klingen op/ind mod midten, æggen væk fra armen
       const kp = new THREE.Group(), kids = body.children.slice(); for (const c of kids) { body.remove(c); kp.add(c); }
       // v14: karambit holdes i OMVENDT greb (pegefingeren i ringen, klingen ud under lillefingeren og buet fremad) – de andre i hammergreb
-      const rev = meta.model === 'karambit', KG = (typeof window !== 'undefined' && window.__kgrip) || {};
+      const rev = /^karambit/.test(meta.model || ''), KG = (typeof window !== 'undefined' && window.__kgrip) || {};
       const gz = meta.gripZ !== undefined ? meta.gripZ : rev ? 0.07 : 0.055, S = 1.45;   // førstepersons-kniv: lidt større end virkeligheden (som i CS)
       const b = new THREE.Vector3(...(rev ? (KG.b || [0.5, 0.7, 0.3]) : [-0.5, 0.78, -0.38])).normalize();   // tommelfinger-siden af grebet (hammer: klingens retning, omvendt: ringens)
       const f = new THREE.Vector3(...(rev ? (KG.f || [0.42, -0.62, 0.66]) : [0.5, -0.55, 0.67])).normalize();   // underarmen: mod nederste højre hjørne

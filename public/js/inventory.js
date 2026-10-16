@@ -68,10 +68,10 @@ export function createInventory(opt) {
     const list = tab === 'agents'
       ? S.AGENTS[side].map(a => a.variants.map(v => card(inv.agent[side] === a.id + ':' + v.id, v.rarity, a.name, v.name, `data-agent="${a.id}:${v.id}"`)).join('')).join('')
       : tab === 'knives'
-        ? S.KNIFE_FINISHES.map(f => card(kn.finish.id === f.id, f.rarity, '★ ' + f.name, kn.model.name, `data-kfin="${f.id}"`)).join('')
+        ? S.KNIVES.map(k => card(kn.model.id === k.id, k.rarity, '★ ' + k.name, k.fin, `data-kmodel="${k.id}"`)).join('')
         : S.WEAPON_SKINS.map(s => card(skinOf(gun, side) === s.id, s.rarity, s.name, WNAME[gun], `data-skin="${s.id}"`)).join('');
     const guns = tab === 'knives'
-      ? S.KNIVES.map(k => `<button class="iv-gun${k.id === kn.model.id ? ' sel' : ''}" data-kmodel="${k.id}">★ ${k.name}<small>${k.id === kn.model.id ? kn.finish.name : ''}</small></button>`).join('')
+      ? ''
       : S.GUNS.map(g => `<button class="iv-gun${g === gun ? ' sel' : ''}" data-gun="${g}">${WNAME[g]}<small>${S.SKIN_BY_ID[skinOf(g, side)].name}</small></button>`).join('');
     const title = tab === 'agents' ? `${cur.agent.name}<small>${cur.variant.name}</small>` : tab === 'knives' ? `★ ${kn.model.name}<small>${kn.finish.name}</small>` : `${WNAME[gun]}<small>${sk.name}</small>`;
     const rr = tab === 'agents' ? rar(cur.variant.rarity) : tab === 'knives' ? rar(kn.finish.rarity) : rar(sk.rarity);
@@ -81,7 +81,7 @@ export function createInventory(opt) {
       <div class="iv-body">
         <div class="iv-left">
           <div class="iv-side"><button data-side="swat" class="${side === 'swat' ? 'sel swat' : 'swat'}">SWAT</button><button data-side="hij" class="${side === 'hij' ? 'sel hij' : 'hij'}">HIJACKERS</button></div>
-          ${tab !== 'agents' ? `<div class="iv-guns">${guns}</div>` : ''}
+          ${tab === 'skins' ? `<div class="iv-guns">${guns}</div>` : ''}
           <div class="iv-list">${list}</div>
         </div>
         <div class="iv-right">
@@ -102,7 +102,7 @@ export function createInventory(opt) {
     if (b.dataset.gun) { gun = b.dataset.gun; render(); return; }
     if (b.dataset.agent) { inv.agent[side] = b.dataset.agent; changed(); return; }
     if (b.dataset.skin) { inv.skins[gun] = b.dataset.skin; changed(); return; }
-    if (b.dataset.kmodel) { inv.skins.knife = b.dataset.kmodel + '_' + knifeKey().finish.id; changed(); return; }
+    if (b.dataset.kmodel) { inv.skins.knife = b.dataset.kmodel + '_std'; changed(); return; }
     if (b.dataset.kfin) { inv.skins.knife = knifeKey().model.id + '_' + b.dataset.kfin; changed(); }
   });
   el.addEventListener('mousedown', e => { if (e.target === el) close(); });

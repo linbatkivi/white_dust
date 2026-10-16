@@ -19,7 +19,7 @@ const PORT = parseInt(process.env.PORT, 10) || 3000;
 const FAST = !!process.env.WD_FAST;   // kun til automatiske tests
 const TIMES = FAST
   ? { buy: 2, grace: 3, round: 14, end: 1.2, plant: 0.6, defuse: 1.0, bomb: 6, over: 2, load: 5, intro: 0, mvp: 0, rcine: 0, bpost: 0 }
-  : { buy: 12, grace: 10, round: 100, end: 5, plant: 3.2, defuse: 6, bomb: 40, over: 42, load: 90, intro: 13, mvp: 5, rcine: 4.8, bpost: 6.5 };   // v22: intro = cutscenen ved kampstart · mvp = ekstra tid til MVP-filmen   // grace: købe i spawn de første 10 s · over: sejrs-sekvensen (musikken) · load: maks. ventetid på at alle har indlæst banen
+  : { buy: 12, grace: 10, round: 100, end: 5, plant: 3.2, defuse: 6, bomb: 40, over: 42, load: 90, intro: 13, mvp: 8, rcine: 4.8, bpost: 6.5 };   // v22: intro = cutscenen ved kampstart · mvp = ekstra tid til MVP-filmen   // grace: købe i spawn de første 10 s · over: sejrs-sekvensen (musikken) · load: maks. ventetid på at alle har indlæst banen
 const MAX_PLAYERS = 10, WIN_ROUNDS = 7, HALF = 6, START_MONEY = WD.ECON.start, MAX_MONEY = WD.ECON.max;
 const GRACE_GAME = 25000, GRACE_LOBBY = 8000;
 const SNAP_MS = 50;
@@ -203,7 +203,7 @@ function cleanCos(c) {
   const out = { agent: {}, skins: {} };
   if (!c || typeof c !== 'object') return out;
   for (const s of ['swat', 'hij']) { const v = c.agent && c.agent[s]; if (typeof v === 'string' && /^[a-z0-9_]{1,16}:[a-z0-9_]{1,16}$/.test(v)) out.agent[s] = v; }
-  if (c.skins && typeof c.skins === 'object') for (const k of Object.keys(WD.WEAPONS)) { const v = c.skins[k]; if (typeof v === 'string' && /^[a-z_]{1,16}$/.test(v)) out.skins[k] = v; }
+  if (c.skins && typeof c.skins === 'object') for (const k of Object.keys(WD.WEAPONS)) { const v = c.skins[k]; if (typeof v === 'string' && /^[a-z0-9_]{1,24}$/.test(v)) out.skins[k] = v; }
   return out;
 }
 function lobbyMsg(room) {
