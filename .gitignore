@@ -3,6 +3,13 @@ tools/*
 !tools/bureau/
 tools/bureau/cache/
 tools/bureau/out/
+!tools/radar/
+tools/radar/out/
+!tools/vehicles/
+tools/vehicles/cache/
+tools/vehicles/src/
+!tools/sounds/
+tools/sounds/pixabay_raw/
 __pycache__/
 *.blend
 *.blend1

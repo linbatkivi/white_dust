@@ -115,6 +115,29 @@ def vtx_attr(ob, name):
     me.color_attributes.active_color = a
     return a
 
+def smooth_corners(me, L, it=3):
+    """vertex-lys (domæne: hjørne) → gennemsnit pr. (vertex, flade-normal) og et par Laplace-skridt inden for hver flade og på tværs af
+    delte hjørner i samme plan. Bevarer hårde kanter (forskellige normaler holdes adskilt)."""
+    nl = len(me.loops)
+    if nl == 0: return L
+    vi = np.empty(nl, np.int64); me.loops.foreach_get('vertex_index', vi)
+    pn = np.empty(len(me.polygons) * 3, np.float32); me.polygons.foreach_get('normal', pn); pn = pn.reshape(-1, 3)
+    ls = np.empty(len(me.polygons), np.int64); me.polygons.foreach_get('loop_start', ls)
+    lt = np.empty(len(me.polygons), np.int64); me.polygons.foreach_get('loop_total', lt)
+    poly = np.repeat(np.arange(len(me.polygons)), lt)
+    q = np.round(pn[poly] * 4).astype(np.int64)
+    key = vi * 1000 + (q[:, 0] + 5) * 100 + (q[:, 1] + 5) * 10 + (q[:, 2] + 5)
+    _, grp = np.unique(key, return_inverse=True); ng = grp.max() + 1
+    C = L[:, :3].astype(np.float64)
+    def group_avg(C):
+        s = np.zeros((ng, 3)); np.add.at(s, grp, C); c = np.bincount(grp, minlength=ng)[:, None]
+        return (s / np.maximum(c, 1))[grp]
+    C = group_avg(C)
+    for _ in range(it):
+        fs = np.zeros((len(me.polygons), 3)); np.add.at(fs, poly, C); fm = (fs / lt[:, None])[poly]
+        C = group_avg(0.55 * C + 0.45 * fm)
+    out = L.copy(); out[:, :3] = C; return out
+
 def bake_pass(ob, target, mode, sc, bg, sky, samples):
     """to additive pas (ingen subtraktion → ingen negativ støj der klippes til pletter):
        'sky' – himmel + lamper, direkte og indirekte, solen slukket;  'sun' – kun solens INDIREKTE lys (den direkte sol tegnes i spillet)"""
@@ -167,6 +190,7 @@ def bake_all(samples=int(os.environ.get('BU_BAKE_SAMPLES', 128))):
             Bv = np.empty(len(b.data) * 4, np.float32); b.data.foreach_get('color', Bv)
             if not any(o.type == 'LIGHT' and o.data.type == 'SUN' for o in bpy.data.objects): Bv[:] = 0
             L = np.clip(A.reshape(-1, 4) + Bv.reshape(-1, 4), 0, None); L[:, 3] = 1.0
+            L = smooth_corners(ob.data, L)                                    # v26: støjen pr. hjørne udglattes (ingen trekant-pletter)
             vl = vtx_attr(ob, 'vlm'); vl.data.foreach_set('color', L.ravel())
             ob.data.color_attributes.remove(ob.data.color_attributes['vlmA']); ob.data.color_attributes.remove(ob.data.color_attributes['vlmB'])
             man['chunks'][ob.name] = {'vtx': True, 'area': area(ob)}

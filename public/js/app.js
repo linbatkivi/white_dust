@@ -1837,7 +1837,7 @@ const Renderer = (() => {
       agentTemplate: (side, key) => { const a = SK.agentOf(key || SK.defaultAgent(side), side), tpl = COS.chars[a.agent.model]; return tpl ? { tpl, variant: a.variant, key: a.key } : COS.ready ? null : { pending: true }; },
       cloneSkinned: r => cloneSkinned(THREE, r), recolor: (root, v) => SK.recolorAgent(THREE, root, v, mkDyn) });
     // v22: intro-cutscenen (køretøj + holdet ankommer) – kører i selve banen med rendererens kamera
-    Intro = createIntro({ THREE, WD, scene: () => scene, camera: () => camera, W: () => W, chars: () => Chars, V: () => V, loadGLB, Audio, $,
+    Intro = createIntro({ THREE, WD, scene: () => scene, camera: () => camera, W: () => W, chars: () => Chars, V: () => V, night: () => night, loadGLB, Audio, $,
       myPos: () => Game.corrIdAt ? { x: Game.body.x, y: Game.body.y, z: Game.body.z, yaw: Game.spawnYaw !== undefined ? Game.spawnYaw : Game.yaw } : null,
       keepMs: () => Game.phase === 'buy' ? Game.phaseEnd - performance.now() : 0,
       matePos: id => { const r = Game.remotes.get(id); return r ? { x: r.rx, y: r.ry, z: r.rz, yaw: r.yaw } : null; },
@@ -2765,6 +2765,30 @@ const Renderer = (() => {
       return out;
     };
   }
+  if (DEV) {   // v26: intro-kontaktark – afspiller introen i faste skridt (1/30 s) og tager et billede ved hvert tidspunkt
+    api.introSheet = async (side, times, nMates, cols, tw, th) => {
+      ensureChars(); const I = api.intro(); await I.preload(); cols = cols || 4; tw = tw || 480; th = th || 270;
+      const mates = Array.from({ length: nMates || 5 }, (_, i) => ({ id: 'm' + i, me: i === 0 }));
+      if (!I.play({ side, mates }, 12000)) return null;
+      const out = document.createElement('canvas'), rows = Math.ceil(times.length / cols); out.width = cols * tw; out.height = rows * th; const c2 = out.getContext('2d');
+      const RW = tw * 2, RH = th * 2; renderer.setPixelRatio(1); renderer.setSize(RW, RH, false); if (post && post.setSize) post.setSize(RW, RH);
+      camera.aspect = RW / RH; camera.updateProjectionMatrix();
+      const eu = new THREE.Euler(0, 0, 0, 'YXZ');
+      for (let i = 0; i < times.length; i++) {
+        while (I.active && I.t < times[i] - 1e-3) I.update(1 / 30);
+        if (!I.active) break;
+        eu.setFromQuaternion(camera.quaternion, 'YXZ'); devCam = [camera.position.x, camera.position.y, camera.position.z, eu.y, eu.x];
+        for (let k = 0; k < 2; k++) { shadowTick = 99; frame(k ? 1 / 60 : 0.3); }
+        const X = (i % cols) * tw, Y = Math.floor(i / cols) * th;
+        c2.drawImage(renderer.domElement, 0, 0, RW, RH, X, Y, tw, th);
+        c2.fillStyle = 'rgba(0,0,0,.55)'; c2.fillRect(X, Y, 70, 22); c2.fillStyle = '#fff'; c2.font = '700 14px monospace'; c2.fillText(I.t.toFixed(2) + ' s', X + 6, Y + 16);
+      }
+      devCam = null; if (I.active) I.stop();
+      renderer.setPixelRatio(prCur); renderer.setSize(innerWidth, innerHeight); if (post && post.setSize) { const v = renderer.getDrawingBufferSize(new THREE.Vector2()); post.setSize(v.x, v.y); }
+      camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+      return out;
+    };
+  }
   if (DEV) {   // v14: tredjeperson-kontaktark – en figur pr. våben, set fra højre side (greb og støttehånd tydelige)
     api.tpSheet = (ids, side, cols, tw, th) => {
       ensureChars(); side = side || 'swat'; cols = cols || 4; tw = tw || 320; th = th || 320;
@@ -2861,7 +2885,13 @@ async function runTour(id, only) {
   const params = new URLSearchParams(location.search);
   const joinCode = params.get('join');
   if (joinCode && /^\d{4}$/.test(joinCode)) { $('codeInput').value = joinCode; $('joinRow').classList.remove('hidden'); }
-  if (DEV) window.__wd = { victory: m => startVictory(m), hudRE: m => HUD.roundEnd(m), introPlay: (ms) => { const I = Renderer.intro(); return I.preload().then(() => I.play({ side: Game.side, mates: [...Game.players.entries()].filter(([, p]) => p.side === Game.side).map(([id, p]) => ({ id, cos: p.cos, me: id === Game.meId })) }, ms || 13000)); }, Game, Renderer, Net, BuyMenu, get W() { return W; }, WD, THREE, KEY, Settings, act: { nadeStart, nadeRelease, fireStart, fireEnd, switchWeapon, startFlash, startReloadLocal }, tour: runTour };
+  if (DEV) window.__wd = { victory: m => startVictory(m), hudRE: m => HUD.roundEnd(m), introPlay: (ms) => { const I = Renderer.intro(); return I.preload().then(() => I.play({ side: Game.side, mates: [...Game.players.entries()].filter(([, p]) => p.side === Game.side).map(([id, p]) => ({ id, cos: p.cos, me: id === Game.meId })) }, ms || 13000)); }, Game, Renderer, Net, BuyMenu, get W() { return W; }, WD, THREE, KEY, Settings, act: { nadeStart, nadeRelease, fireStart, fireEnd, switchWeapon, startFlash, startReloadLocal }, tour: runTour,
+    introSheet: async (id, side, times, name) => {                               // v26: node pw/intro.js – kontaktark af introen → docs/qa/<name>.jpg
+      if (Renderer.mapId !== id) await runTour(id, [{ n: 'load', x: 0, y: 2, z: 0, yaw: 0 }]);
+      const cv = await Renderer.introSheet(side, times); if (!cv) return null;
+      const blob = await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.88)); const f = (name || 'intro_' + id + '_' + side) + '.jpg';
+      const r = await fetch('/dev/save?f=' + encodeURIComponent(f), { method: 'POST', body: blob }); return r.ok ? f : null;
+    } };
   if (DEV && params.get('tour')) { runTour(params.get('tour')); return; }
 
   const sess = loadSession();

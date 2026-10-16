@@ -96,7 +96,7 @@ def ext_behind(axis, sgn):
 WIN = np.zeros((H, W), bool); LUX = np.zeros((H, W), bool)
 for zi, n in enumerate(ZN):
     WIN |= (ZID == zi) & ROOMS[n]['win']; LUX |= (ZID == zi) & ROOMS[n]['lux']
-MATS = sorted({v for r in ROOMS.values() for v in (r['floor'], r['wall'], r['ceil']) if v} | {'facade', 'glass', 'light_panel', 'light_strip', 'trim_metal', 'baseboard', 'door_leaf', 'glass_door', 'light_off', 'exit_sign', 'beacon_red', 'window', 'light_down', 'walnut', 'walnut_slat', 'plaster_warm', 'mullion'})
+MATS = sorted({v for r in ROOMS.values() for v in (r['floor'], r['wall'], r['ceil']) if v} | {'facade', 'glass', 'ceiling_paint', 'light_panel', 'light_strip', 'trim_metal', 'baseboard', 'door_leaf', 'glass_door', 'light_off', 'exit_sign', 'beacon_red', 'window', 'light_down', 'walnut', 'walnut_slat', 'plaster_warm', 'mullion'})
 MI = {m: i for i, m in enumerate(MATS)}
 fmat = np.full((H, W), -1, np.int32); wmat = fmat.copy(); cmat = fmat.copy()
 for zi, n in enumerate(ZN):
@@ -331,7 +331,7 @@ for zi, n in enumerate(ZN):
             y = float(C[i, j]) if not ATR[i, j] else float(F[i, j] + 7.5)
             w, d = {'panel': (0.6, 1.2), 'linear': (0.18, 1.5), 'highbay': (0.5, 0.5), 'server': (0.16, 2.4), 'atrium': (0.9, 0.9)}[kind]
             # nat: kun en del af lyset er tændt – klynger efter position (så hele gange/hjørner er mørke), mørke rum: intet
-            frac = {'panel': 0.38, 'linear': 0.5, 'highbay': 0.55, 'server': 0.85, 'atrium': 0.5}[kind] * (0.0 if r.get('dark') else 1.0)
+            frac = {'panel': 0.38, 'linear': 0.5, 'highbay': 0.9, 'server': 0.95, 'atrium': 0.5}[kind] * (0.28 if r.get('dark') else 1.0)   # v26: kælder/lager tændt hele natten · mørke rum: enkelte lysrør
             cluster = (math.sin(x * 0.37 + z * 0.11) * 0.5 + 0.5) * 0.7 + ((i * 7 + j * 13) % 10) / 10.0 * 0.3
             on = cluster < frac
             mat = ('light_panel' if kind in ('panel', 'highbay', 'atrium') else 'light_strip') if on else 'light_off'

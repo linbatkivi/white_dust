@@ -10,7 +10,7 @@ src = open(os.path.join(HERE, 'build_props.py')).read()
 exec(src[:src.index('# ---------------------------------------------------------------- modellerne')])     # hjælperne: mat, box, cyl, export, reset
 OUT = os.path.join(HERE, 'cache', 'custom')
 bpy.ops.wm.read_factory_settings(use_empty=True)
-PLY = mat('case_phenolic', (0.032, 0.032, 0.034), 0.62, 0.0)
+PLY = mat('case_phenolic', (0.24, 0.255, 0.22), 0.55, 0.0)            # mørk oliven-grå fenolplade (læsbar dækning)
 ALU = mat('case_alu', (0.70, 0.71, 0.72), 0.32, 1.0)
 CHROME = mat('case_chrome', (0.80, 0.80, 0.80), 0.18, 1.0)
 RUB = mat('case_rubber', (0.015, 0.015, 0.016), 0.85, 0.0)

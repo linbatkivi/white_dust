@@ -23,7 +23,7 @@ t2 = top.copy()
 for _ in range(14):                                                    # murens højde = højeste nabo-loft (inden for murtykkelsen)
     n = t2.copy(); n[1:] = np.maximum(n[1:], t2[:-1]); n[:-1] = np.maximum(n[:-1], t2[1:]); n[:, 1:] = np.maximum(n[:, 1:], t2[:, :-1]); n[:, :-1] = np.maximum(n[:, :-1], t2[:, 1:])
     t2 = np.where(WALK, t2, n)
-mass = ~WALK & near & (t2 > -50)
+mass = ~WALK & near & (t2 > -50) & ~G.EXT                                     # v26: kun bygningens egne mure – ikke tomrummet udenfor
 key = np.where(mass, np.round(t2 * 4).astype(np.int64), -1)
 for (a0, b0, a1, b1, k) in rects(mass, key): box(cx(b0), cz(a0), cx(b1), cz(a1), BASE, k / 4.0, 'wall')
 # lofter (inde): plade fra loftet og 0,3 m op – stopper granater og hop
@@ -75,10 +75,16 @@ NAMES = {'CT Spawn': 'Parkeringskælder', 'CT Forgård': 'Varegården', 'A Site'
          'T Spawn': 'Tagterrassen', 'T Ramp': 'Helipad-trappen', 'T Base': 'Receptionen', 'Mid T': 'Elevatorlobbyen', 'B Site': 'B – Våbenkammeret',
          'Connector': 'Kaffebaren', 'Long A': 'Long A', 'Top Mid': 'Top Mid', 'Lower B': 'Kedelrummet'}
 labels = [[NAMES.get(z['name'], z['name']), round(cx((z['r'][0] + z['r'][2]) / 2), 2), round(cz((z['r'][1] + z['r'][3]) / 2), 2), z['y']] for z in M['zones']]
+# v26: intro – hijackernes helikopter svæver ud for tagterrassens sydlige brystning (skids lige over brystningen, døren mod terrassen)
+zt = G.ZN.index('T Spawn'); ii_, jj_ = np.nonzero(ZID == zt); jc = int((jj_.min() + jj_.max()) / 2); ie = int(ii_.max()) + 1
+io = ie
+while io < H and not G.VOID[io, jc]: io += 1                                    # brystningens yderside
+intro = {'hij': {'mode': 'heli', 'edge': round(cz(ie), 2), 'outer': round(cz(io), 2), 'parapet': G.PARAPET,
+                 'hover': [round(cx(jc + 0.5), 2), round(G.PARAPET + 0.3, 2), round(cz(io) + 1.7, 2)], 'yaw': round(math.pi / 2, 4)}}
 X0, X1 = math.floor(cx(j0)), math.ceil(cx(j1)); Z0, Z1 = math.floor(cz(i0)), math.ceil(cz(i1))
 D = {'version': '1', 'grid': {'GX0': X0, 'GZ0': Z0, 'GW': int((X1 - X0) / 2) + 1, 'GH': int((Z1 - Z0) / 2) + 1},
      'boxes': boxes, 'ramps': ramps, 'stairs': stairs, 'rails': rails, 'cyls': [], 'doors': [], 'ladders': [], 'labels': labels, 'sites': sites,
-     'spawns': {'hij': pts(M['spawns']['hij'], 0.0), 'swat': pts(M['spawns']['swat'], math.pi)}, 'levels': {'T': 0.0, 'CT': 6.0}, 'water': []}
+     'spawns': {'hij': pts(M['spawns']['hij'], 0.0), 'swat': pts(M['spawns']['swat'], math.pi)}, 'levels': {'T': 0.0, 'CT': 6.0}, 'water': [], 'intro': intro}
 txt = ('/* AUTOGENERERET af tools/bureau/export_collision.py – redigér ikke i hånden.\n   de_bureau: luksus-bureauet øverst i et højhus om natten. */\n'
        '(function (root) {\n  const D = ' + json.dumps(D, ensure_ascii=False, separators=(',', ':')) + ';\n'
        "  if (typeof module === 'object' && module.exports) module.exports = D; else root.WD_BUREAU = D;\n})(typeof self !== 'undefined' ? self : this);\n")

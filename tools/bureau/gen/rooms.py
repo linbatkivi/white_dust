@@ -5,7 +5,7 @@
 #   light: armaturtype (down = varme indbyggede spots langs væggene, panel, linear, highbay, server, none)
 #   lux: luksusrum (valnødvægge, lamelloft) · win: panoramavinduer på ydervægge med fri udsigt · dark: kun nødlys
 L = dict(floor='marble_white', wall='lux_wall', ceil='plaster_warm', light='down', lux=True, win=True)       # lobby/repræsentation
-O = dict(floor='carpet_dark', wall='plaster_warm', ceil='ceiling_tile', light='panel', win=True)            # kontorer
+O = dict(floor='carpet_dark', wall='plaster_warm', ceil='ceiling_paint', light='panel', win=True)            # kontorer (glat gipsloft – ingen systemloft-plader)
 ROOMS = {
     # bagvejen: SWAT kører ind i parkeringskælderen/varegården bag bygningen
     'CT Spawn':      dict(floor='concrete_floor', wall='block_wall', h=5.2, ceil='arch_concrete', light='highbay'),

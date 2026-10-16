@@ -7,8 +7,11 @@
 //   Om natten tænder køretøjet forlygterne (ét fast spotlys, så shaderne aldrig genoversættes), og i regn sprøjter vand i stedet for støv.
 //   Køretøjets vej findes automatisk på hver bane (fri, flad strækning ind mod holdets spawn – kollisions-test mod banens colliders),
 //   kameraet klippes mellem filmiske vinkler (lavt ved jorden, følgende, slowmotion, kran) og flyver til sidst ind i spillerens øjne.
+// v26: HELIKOPTER (de_bureau, banedata intro.hij.mode = 'heli'): hijackernes mørke helikopter kommer ind over byen i regnen med søgelyset
+//   tændt, flarer op og svæver ud for tagterrassens brystning (110 m over gaden); skydedørene glider op i rødt kabinelys, hijackerne springer
+//   fra dørkarmen op på brystningen og ned på terrassen under rotoren (slowmotion), og helikopteren letter og drejer væk ud over byen.
 // createIntro(o) -> { preload(), play(info, ms), update(dt) -> bool (styrer kameraet), stop(), active }
-//   o: { THREE, WD, scene, camera, W(), chars(), V(), loadGLB, Audio, $, myPos(), matePos(id), onStart(), onEnd() }
+//   o: { THREE, WD, scene, camera, W(), chars(), V(), night(), loadGLB, Audio, $, myPos(), matePos(id), onStart(), onEnd() }
 // ==========================================================================
 export function createIntro(o) {
   const { THREE, WD } = o;
@@ -19,7 +22,9 @@ export function createIntro(o) {
   const SPEC = {
     swat: { file: 'maxxpro', len: 6.4, wid: 2.7, wheelR: 0.66, gun: 'm4a1', rear: -2.75, rearY: 1.25, tailOpen: 2.13, tailT: 4.35, tailDur: 1.1 },
     hij: { file: 'gaz', len: 6.2, wid: 2.5, wheelR: 0.46, gun: 'ak47', rear: -3.1, rearY: 1.16, tailOpen: 1.5, tailT: 4.3, tailDur: 0.35,
-      seats: [[0.55, 1.16, -2.31], [-0.55, 1.16, -1.71], [0.0, 1.16, -1.11], [0.5, 0.0, 1.11], [-0.5, 0.0, 1.11]] }
+      seats: [[0.55, 1.16, -2.31], [-0.55, 1.16, -1.71], [0.0, 1.16, -1.11], [0.5, 0.0, 1.11], [-0.5, 0.0, 1.11]] },
+    heli: { file: 'heli', len: 10.9, wid: 2.4, rotorY: 3.2, rotorZ: -0.35, rotorR: 5.35, tailRotor: [0.2, 2.72, -7.82], tailR: 0.93, gun: 'ak47',
+      door: { z0: -1.38, z1: -0.02, sill: 0.86, x: 0.95, slide: 1.25 }, spot: [0.38, 0.46, 1.84] }
   };
   let headL = null;
 
@@ -29,11 +34,12 @@ export function createIntro(o) {
     loadP = Promise.all([
       ...Object.values(SPEC).map(async s => {
         try {
-          const [g, meta] = await Promise.all([o.loadGLB(THREE, '/assets/vehicles/' + s.file + '.glb?v25'), fetch('/assets/vehicles/' + s.file + '.json?v25').then(r => r.ok ? r.json() : null).catch(() => null)]);
+          const [g, meta] = await Promise.all([o.loadGLB(THREE, '/assets/vehicles/' + s.file + '.glb?v26'), fetch('/assets/vehicles/' + s.file + '.json?v26').then(r => r.ok ? r.json() : null).catch(() => null)]);
           TPL[s.file] = g.scene;
           if (meta) for (const k of ['len', 'wheelR', 'rear', 'rearY', 'tailOpen']) if (meta[k] !== undefined) s[k] = meta[k];
           if (meta && meta.wid) s.wid = Math.min(meta.wid, 2.7);
           if (meta && meta.seats) s.seats = meta.seats;
+          if (meta && s.file === 'heli') Object.assign(s, meta);
         } catch (e) { console.warn('[intro] køretøj', s.file, e); }
       }),
       o.Audio.cinePreload ? o.Audio.cinePreload() : null
@@ -171,6 +177,8 @@ export function createIntro(o) {
   function play(info, ms) {
     stop(); clearParked(); lights();
     const W = o.W(), side = info.side === 'hij' ? 'hij' : 'swat', spec = SPEC[side], C = o.chars();
+    const hcfg = W.data && W.data.intro && W.data.intro[side];
+    if (hcfg && hcfg.mode === 'heli' && TPL.heli && C) return playHeli(info, ms, hcfg);
     const P = plan(W, side); if (!P || !C) return false;
     const foot = P.drive < 6 ? planFoot(W, side, P) : null;              // ingen plads til køretøjet => til fods
     const veh = foot ? null : makeVehicle(spec.file);
@@ -345,9 +353,190 @@ export function createIntro(o) {
     });
   }
 
+
+  /* ================================================================ v26: HELIKOPTEREN ================================================================ */
+  let rotorTex = null;
+  function rotorTexture() {                                                  // bevægelsesuskarphed: svage, roterende bladspor (mørke og lyse striber)
+    if (rotorTex) return rotorTex;
+    const N = 256, c = document.createElement('canvas'); c.width = c.height = N; const g = c.getContext('2d'), m = N / 2;
+    for (let k = 0; k < 3; k++) {
+      const a0 = k * Math.PI * 2 / 3;
+      for (let j = 0; j < 26; j++) {
+        const a = a0 - j * 0.035, al = 0.22 * Math.pow(1 - j / 26, 2.2);
+        g.strokeStyle = `rgba(22,23,26,${al})`; g.lineWidth = 3.2; g.beginPath(); g.moveTo(m + Math.cos(a) * m * 0.08, m + Math.sin(a) * m * 0.08); g.lineTo(m + Math.cos(a) * m * 0.99, m + Math.sin(a) * m * 0.99); g.stroke();
+      }
+    }
+    const gr = g.createRadialGradient(m, m, m * 0.05, m, m, m); gr.addColorStop(0, 'rgba(60,62,66,0.06)'); gr.addColorStop(0.9, 'rgba(60,62,66,0.10)'); gr.addColorStop(1, 'rgba(60,62,66,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, N, N);
+    rotorTex = new THREE.CanvasTexture(c); rotorTex.colorSpace = THREE.SRGBColorSpace; return rotorTex;
+  }
+  function makeHeli() {
+    const v = makeVehicle('heli'); if (!v) return null;
+    const sp = SPEC.heli, n = v.nodes;
+    v.rotor = n.rotor; v.tailRotor = n.tail_rotor; v.doorL = n.door_l; v.doorR = n.door_r; v.spot = n.spot;
+    for (const d of [v.doorL, v.doorR]) if (d) d.userData.p0 = d.position.clone();
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(sp.rotorR, 48), new THREE.MeshBasicMaterial({ map: rotorTexture(), transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }));
+    disc.rotation.x = -Math.PI / 2; disc.position.set(0, sp.rotorY - 0.06, sp.rotorZ); disc.renderOrder = 3; v.root.add(disc); v.disc = disc;
+    const tdisc = new THREE.Mesh(new THREE.CircleGeometry(sp.tailR, 24), disc.material); tdisc.rotation.y = Math.PI / 2; tdisc.position.set(sp.tailRotor[0] + 0.02, sp.tailRotor[1], sp.tailRotor[2]); v.root.add(tdisc); v.tdisc = tdisc;
+    v.root.rotation.order = 'YXZ'; v.g.rotation.order = 'YXZ';
+    return v;
+  }
+  function playHeli(info, ms, cfg) {
+    const side = 'hij', spec = SPEC.heli, C = o.chars(), veh = makeHeli(); if (!veh) return false;
+    const th = (o.V() && o.V().theme) || {};
+    const H = V3(cfg.hover[0], cfg.hover[1], cfg.hover[2]), yaw = cfg.yaw, fwd = V3(Math.sin(yaw), 0, Math.cos(yaw)), rgt = V3(Math.cos(yaw), 0, -Math.sin(yaw));
+    const T = Math.max(9, (ms || 12000) / 1000);
+    // indflyvning: ude over byen (bag/syd for bygningen), kurver ind langs facaden og flarer op til svæv ud for brystningen
+    const away = rgt.clone().multiplyScalar(-1);                                // væk fra terrassen (ud over kanten)
+    const S0 = H.clone().addScaledVector(fwd, -44).addScaledVector(away, 26).setY(H.y + 22), C0 = H.clone().addScaledVector(fwd, -16).addScaledVector(away, 9).setY(H.y + 6);
+    const tD = Math.min(T - 3.6, 8.6);                                          // afgang
+    const P = { c: V3((cfg.land || cfg.hover)[0], 0, (cfg.land || cfg.hover)[2]), f: rgt.clone().multiplyScalar(-1), stop: H.clone() };
+    S = { heli: { H, yaw, fwd, rgt, S0, C0, cfg, tD, Tin: 4.7 }, t: 0, T, side, spec, P, veh, foot: null, men: [], slow: 1, sounds: [], wet: !!th.rain, night: !!th.night,
+      dust: makeDust(0x8a939c), lasers: [], fired: {}, info };
+    o.scene().add(S.dust.obj); o.scene().add(veh.g);
+    info.mates.slice(0, 5).forEach((m, i) => {
+      const h = C.buildHuman(side, m.cos && m.cos.agent ? m.cos.agent[side] : null); h.skins = (m.cos && m.cos.skins) || {};
+      o.scene().add(h.group); h.group.visible = false;
+      S.men.push({ h, id: m.id, me: !!m.me, i, ph: 'wait', x: 0, y: 0, z: 0, yaw: 0, tx: 0, tz: 0, ty: 0, crouch: true, air: false });
+    });
+    o.onStart && o.onStart();
+    return true;
+  }
+  const HP = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, roll: 0, v: 0 }, _hp2 = { x: 0, y: 0, z: 0 };
+  function bez(a, b, c, k, out) { const u = 1 - k; return out.set(u * u * a.x + 2 * u * k * b.x + k * k * c.x, u * u * a.y + 2 * u * k * b.y + k * k * c.y, u * u * a.z + 2 * u * k * b.z + k * k * c.z); }
+  function heliPose(t, out) {
+    const Hh = S.heli, H = Hh.H, Tin = Hh.Tin, u = clamp(t / Tin, 0, 1), k = 1 - Math.pow(1 - u, 2.4);
+    const p = bez(Hh.S0, Hh.C0, H, k, _v), p2 = bez(Hh.S0, Hh.C0, H, Math.min(1, k + 0.01), _w);
+    let yawV = Math.atan2(p2.x - p.x, p2.z - p.z); if (u > 0.98) yawV = Hh.yaw;
+    const bl = smooth((u - 0.45) / 0.55); let dy = ((Hh.yaw - yawV + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+    out.yaw = yawV + dy * bl; out.x = p.x; out.y = p.y; out.z = p.z;
+    out.pitch = 0.16 * (1 - smooth(u / 0.5)) - 0.26 * Math.sin(Math.PI * clamp((u - 0.5) / 0.5, 0, 1));   // næsen ned i fart, flare (næsen op) ved opbremsning
+    out.roll = -0.22 * Math.sin(Math.PI * clamp(u / 0.75, 0, 1)) * (dy > 0 ? 1 : -1);
+    out.v = (1 - u) * 18;
+    if (t >= Tin) { out.y += Math.sin(t * 1.7) * 0.07; out.roll += Math.sin(t * 1.13) * 0.018; out.pitch += Math.sin(t * 0.9) * 0.012; out.x += Math.sin(t * 0.7) * 0.05; }
+    if (t > Hh.tD) {                                                          // afgang: løft, næsen ned, fart frem og et sving ud over byen
+      const w = t - Hh.tD, a = smooth(w / 1.2);
+      out.y += 1.6 * w + 0.9 * w * w; out.pitch += 0.2 * a; out.roll += 0.28 * smooth((w - 0.6) / 1.4);
+      const d = 1.6 * w * w; out.x += Hh.fwd.x * d - Hh.rgt.x * d * 0.35 * a; out.z += Hh.fwd.z * d - Hh.rgt.z * d * 0.35 * a; out.yaw -= 0.25 * smooth((w - 0.5) / 2); out.v = d;
+    }
+    return out;
+  }
+  function hlocal(lx, ly, lz, out) { return out.set(lx, ly, lz).applyMatrix4(S.veh.root.matrixWorld); }
+  function heliShots(t) {
+    const Hh = S.heli, H = Hh.H, r = Hh.fwd, hp = V3(HP.x, HP.y + 1.6, HP.z), edge = Hh.cfg.edge;   // terrassen ligger nord for kanten (−z)
+    if (t < 2.7) {                                                               // A: lavt på terrassen – lyset skærer gennem regnen, helikopteren kommer ind over byen
+      const k = t / 2.7; return { pos: V3(H.x + r.x * 3.2, 0.55 + k * 0.15, edge - 3.6), look: hp.clone().lerp(V3(H.x, H.y + 2, H.z), k * 0.3), fov: 24 + k * 6 };
+    }
+    if (t < 4.7) {                                                               // B: fra terrassens hjørne – flaren ud for kanten, byen 110 m nede
+      const k = (t - 2.7) / 2.0; return { pos: V3(H.x - r.x * (5.2 - k * 1.0), 2.2 - k * 0.5, edge - 2.0 - k * 0.6), look: hp.clone().setY(HP.y + 1.3), fov: 46 };
+    }
+    if (t < 5.5) {                                                               // C: døren glider op – rødt kabinelys
+      const dp = hlocal(S.spec.door.x + 0.2, 1.4, -0.7, V3(0, 0, 0)), k = (t - 4.7) / 0.8; return { pos: V3(dp.x + r.x * (3.4 - k * 0.4), 1.75, edge - 3.8 + k * 0.3), look: dp, fov: 42 };
+    }
+    if (t < 7.7) {                                                               // D: helt nede ved terrassegulvet – de springer over brystningen mod kameraet (slowmotion)
+      const k = (t - 5.5) / 2.2; return { pos: V3(H.x + r.x * (4.2 - k * 0.8), 0.35 + k * 0.15, edge - 6.2 + k * 0.4), look: V3(H.x - r.x * 0.5, 1.5, edge + 0.3), fov: 50 };
+    }
+    return finalShots(t, 7.7);
+  }
+  function updateMenHeli(dt, t) {
+    const C = o.chars(), side = 'hij', tsec = performance.now() / 1000, sp = S.spec, edge = S.heli.cfg.edge, par = S.heli.cfg.parapet || 1.05;
+    S.men.forEach((m, i) => {
+      const h = m.h, ex = 5.05 + i * 0.34, lz = -0.25 - (i % 3) * 0.42;
+      if (m.ph === 'run' && !m.tgtFixed) {
+        const p = m.me ? o.myPos() : o.matePos(m.id), spl = o.W().spawns[side] || [], q = p || spl[i % Math.max(1, spl.length)];
+        if (q) { m.tx = q.x; m.tz = q.z; m.ty = q.y; m.tyaw = q.yaw !== undefined ? q.yaw : 0; m.tgtFixed = !!p; }
+      }
+      if (m.ph === 'wait' || m.ph === 'cabin') {
+        if (t < 4.75) { h.group.visible = false; return; }
+        m.ph = 'cabin'; h.group.visible = true; m.crouch = true;
+        const a = hlocal(sp.door.x - 0.25, sp.door.sill, lz, V3(0, 0, 0)); m.x = a.x; m.y = a.y; m.z = a.z; const rx = Math.cos(HP.yaw), rz = -Math.sin(HP.yaw); m.yaw = Math.atan2(-rx, -rz);          // kigger ud ad døren (helikopterens højre side)
+        if (t >= ex) {                                                       // spring: dørkarm → brystningens top → terrassen
+          const tx = a.x + S.heli.fwd.x * (i - 2) * 0.95, tz = a.z + S.heli.fwd.z * (i - 2) * 0.95;
+          m.ph = 'jump'; m.j0 = t; m.ax = a.x; m.ay = a.y; m.az = a.z; m.jx = tx; m.jy = par; m.jz = (edge + (S.heli.cfg.outer || edge + 0.4)) / 2; m.jdur = 0.42; m.crouch = false;
+          m.next = [tx + S.heli.fwd.x * (i % 2 ? 0.3 : -0.3), 0, edge - 1.2 - (i % 3) * 0.55, 0.5];
+        }
+      }
+      if (m.ph === 'jump') {
+        const k = clamp((t - m.j0) / m.jdur, 0, 1);
+        m.x = lerp(m.ax, m.jx, k); m.z = lerp(m.az, m.jz, k); m.y = lerp(m.ay, m.jy, k) + Math.sin(k * Math.PI) * 0.42;
+        m.air = k < 0.97; m.yaw = Math.atan2(-(m.jx - m.ax), -(m.jz - m.az));
+        if (k >= 1) {
+          if (m.next) { const nx = m.next; m.next = null; m.ax = m.x; m.ay = m.y; m.az = m.z; m.jx = nx[0]; m.jy = nx[1]; m.jz = nx[2]; m.jdur = nx[3]; m.j0 = t; }
+          else { m.ph = 'land'; m.l0 = t; m.air = false; snd('land', { vol: 0.55, pos: { x: m.x, y: m.y, z: m.z } }); }
+        }
+      } else if (m.ph === 'land') {
+        m.crouch = t - m.l0 < 0.35; if (t - m.l0 > 0.38) m.ph = 'run';
+      } else if (m.ph === 'run') {
+        const dx = m.tx - m.x, dz = m.tz - m.z, d = Math.hypot(dx, dz), spd = Math.min(5.0, d * 2.2) * dt;
+        m.crouch = S.t < S.heli.tD + 0.5 && d > 1.0;                                       // under rotoren: dukket løb
+        if (d > 0.08) { m.x += dx / d * Math.min(d, spd); m.z += dz / d * Math.min(d, spd); m.yaw = Math.atan2(-dx, -dz); }
+        else m.yaw = m.yaw + (((m.tyaw || 0) - m.yaw + Math.PI * 3) % (Math.PI * 2) - Math.PI) * Math.min(1, dt * 6);
+        const g = WD.groundAt(o.W(), m.x, m.z, m.y + 0.6, 0.9); if (isFinite(g)) m.y += (g - m.y) * Math.min(1, dt * 12);
+      }
+      C.animateHuman(h, dt, tsec, { x: m.x, y: m.y, z: m.z, yaw: m.yaw, pitch: m.ph === 'run' ? -0.12 : 0, alive: true, crouch: m.crouch, grounded: !m.air, wcode: (WD.WEAPONS[S.spec.gun] || {}).code || 0 });
+      if (!m.bakeT || tsec - m.bakeT > 0.15) { m.bakeT = tsec; const V = o.V(); if (V && V.probe) { const bk = [0, 0, 0, 0]; V.probe(m.x, m.y + 1.1, m.z, bk); bk[3] = Math.max(bk[3], 0.25); C.setBake(h, bk); } }
+    });
+  }
+  function updateHeli(dt) {
+    S.slowT = S.t > 5.25 && S.t < 6.5 ? 0.42 : 1; S.slow += (S.slowT - S.slow) * Math.min(1, dt * 6);
+    const sdt = dt * S.slow; S.t += sdt; const t = S.t, cam = o.camera(), v = S.veh, sp = S.spec, Hh = S.heli;
+    heliPose(t, HP);
+    v.g.position.set(HP.x, HP.y, HP.z); v.g.rotation.set(HP.pitch, HP.yaw, HP.roll);
+    const spin = t > Hh.tD + 6 ? 30 : 44;
+    if (v.rotor) v.rotor.rotation.y += spin * dt; if (v.tailRotor) v.tailRotor.rotation.x += 170 * dt;
+    if (v.disc) { v.disc.rotation.z -= 9 * dt; v.disc.material.opacity = 1; }
+    const dk = easeInOut((t - 4.55) / 0.6);                                     // skydedørene glider bagud på skinnen
+    for (const [d, s] of [[v.doorR, 1], [v.doorL, -1]]) if (d && d.userData.p0) { d.position.copy(d.userData.p0); d.position.z -= dk * sp.door.slide; d.position.x += s * 0.05 * Math.min(1, dk * 4); }
+    v.g.updateMatrixWorld(true);
+    // lys: søgelys (fejer over facaden, låser på landingsstedet), rødt antikollisionsblink, rødt kabinelys når dørene åbner
+    if (headL) {
+      hlocal(sp.spot[0], sp.spot[1] - 0.05, sp.spot[2], headL.sp.position);
+      const land = V3(Hh.H.x, 0, Hh.cfg.edge - 2.5), sweep = (1 - smooth((t - 1.5) / 3)) * 6;
+      headL.tg.position.set(land.x + Math.sin(t * 1.3) * sweep, land.y, land.z + Math.cos(t * 0.9) * sweep * 0.5);
+      headL.sp.intensity = (S.night ? 260 : 90) * (t > Hh.tD + 2.5 ? 0.3 : 1); headL.sp.angle = 0.32; headL.sp.penumbra = 0.6;
+      const bl = (t * 1.1) % 1 < 0.07; hlocal(0, 3.0, -1.9, headL.strobe.position); headL.strobe.color.setHex(0xff1a0a); headL.strobe.intensity = bl ? 34 : 0;
+      hlocal(0, 1.6, -0.7, headL.inner.position); headL.inner.color.setHex(0xff3322); headL.inner.intensity = dk * 10;
+    }
+    // filmisk fyldlys på helikopteren: byens skær nedefra og den kolde nattehimmel (proben udenfor er næsten sort)
+    if (!v.bakeT || t - v.bakeT > 0.15) { v.bakeT = t; const V = o.V(); if (V && V.probe) { const bk = [0, 0, 0, 0]; V.probe(HP.x, Math.min(HP.y + 1.4, 3), HP.z, bk); v.bake.value.set(Math.max(bk[0], 0.8), Math.max(bk[1], 0.88), Math.max(bk[2], 1.15), Math.max(1.0, bk[3])); } }
+    // rotorvind: sprøjt og regnvand piskes op fra terrassegulvet i en ring under rotoren
+    const low = HP.y < 9 && t < Hh.tD + 2.0;
+    if (low) {
+      S.dAcc = (S.dAcc || 0) + sdt * 46 * clamp(1 - (HP.y - 1) / 8, 0.2, 1);
+      while (S.dAcc > 1) { S.dAcc--; const a = Math.random() * Math.PI * 2, rr = 2.0 + Math.random() * 4.5; const x = HP.x + Math.cos(a) * rr, z = Math.min(Hh.cfg.edge - 0.2, HP.z + Math.sin(a) * rr - 2.0); S.dust.emit(x, 0.05, z, 1, 3.2, 0.35, 1.5); }
+    }
+    S.dust.update(sdt);
+    updateMenHeli(sdt, t);
+    // lyd
+    const hpos = { x: HP.x, y: HP.y + 2, z: HP.z };
+    cue('arr', 0, () => { S.eng = snd('heli_in', { vol: 1.0, pos: hpos, ref: 28 }); });
+    cue('bolt', 0.35, () => { const n = o.night && o.night(); if (n && n.lightning) n.lightning(); });
+    cue('hover', 3.9, () => { S.idle = snd('heli_hover', { vol: 0.95, loop: true, pos: hpos, ref: 16, fadeIn: 1.4 }); });
+    cue('doors', 4.55, () => { snd('van_doors', { vol: 0.75, pos: hpos, rate: 1.15 }); snd('radio', { vol: 0.25 }); });
+    cue('cry', 4.95, () => snd('battlecry', { vol: 0.7 }));
+    cue('slow', 5.2, () => { snd('slowmo', { vol: 0.7 }); snd('gear', { vol: 0.8 }); });
+    cue('cock', 6.7, () => { snd('cock', { vol: 0.85, rate: 0.9 }); snd('cock', { vol: 0.6, at: 0.3, rate: 0.85 }); });
+    cue('steps', 6.9, () => snd('steps', { vol: 0.7 }));
+    cue('out', Hh.tD, () => { if (S.idle) { try { S.idle.stop(2.2); } catch (e) {} S.idle = null; } S.eng = snd('heli_out', { vol: 1.0, pos: hpos, ref: 24 }); });
+    cue('fx', S.T - 4.8, () => snd('arrive_fx', { vol: 0.7, music: true }));
+    if (S.eng) S.eng.setPos(hpos); if (S.idle) S.idle.setPos(hpos);
+    // kamera
+    const sh = heliShots(t), tgt = sh.look;
+    if (sh.fp !== undefined || t >= 7.7) camSafe(tgt, sh.pos, cam.position); else cam.position.copy(sh.pos);
+    cam.lookAt(tgt);
+    if (Math.abs(cam.fov - sh.fov) > 0.01) { cam.fov = sh.fov; cam.updateProjectionMatrix(); }
+    if (sh.fp !== undefined) {
+      const me = S.men.find(m => m.me); if (me) me.h.group.visible = sh.fp < 0.75;
+      const L = o.$('introBars'); if (L) L.style.setProperty('--bar', ((1 - sh.fp) * 11).toFixed(2) + 'vh');
+    }
+    if (t >= S.T) { stop(); return false; }
+    return true;
+  }
+
   /* ---------------- hovedløkke ---------------- */
   function update(dt) {
     if (!S) return false;
+    if (S.heli) return updateHeli(dt);
     const target = S.slowT !== undefined ? S.slowT : 1; S.slow += (target - S.slow) * Math.min(1, dt * 6);
     const sdt = dt * S.slow; S.t += sdt; const t = S.t, side = S.side, cam = o.camera();
     // slowmotion: SWAT idet den første springer ud / hijackerne over ladet
@@ -379,7 +568,7 @@ export function createIntro(o) {
         }
       }
       g.updateMatrixWorld(true);
-      if (!v.bakeT || t - v.bakeT > 0.15) { v.bakeT = t; const V = o.V(); if (V && V.probe) { const bk = [0, 0, 0, 0]; V.probe(vp.x, vp.y + 1.4, vp.z, bk); v.bake.value.set(bk[0], bk[1], bk[2], Math.max(0.12, bk[3])); } }
+      if (!v.bakeT || t - v.bakeT > 0.15) { v.bakeT = t; const V = o.V(); if (V && V.probe) { const bk = [0, 0, 0, 0]; V.probe(vp.x, vp.y + 1.4, vp.z, bk); const fl = S.night ? 0.42 : 0.2; v.bake.value.set(Math.max(bk[0], fl), Math.max(bk[1], fl * 1.04), Math.max(bk[2], fl * 1.15), Math.max(0.5, bk[3])); } }   // v26: filmisk fyldlys (mørke kældre om natten)
       // støv fra hjulene (meget ved håndbremse-svinget)
       if (vp.v > 0.5 || (side === 'hij' && vp.slide > 0.02 && vp.slide < 0.98)) {
         S.dAcc = (S.dAcc || 0) + sdt * (side === 'hij' ? 26 : 10) * (S.wet ? 0.5 : 1) * (1 + (side === 'hij' ? vp.slide * (1 - vp.slide) * 10 : 0));
@@ -440,7 +629,8 @@ export function createIntro(o) {
     if (headL) { headL.sp.intensity = 0; headL.strobe.intensity = 0; headL.inner.intensity = 0; }
     for (const m of s.men) { o.scene().remove(m.h.group); if (m.laser) o.scene().remove(m.laser.g); }
     // køretøjet bliver holdende (parkeret) resten af købsfasen – så det ikke forsvinder for øjnene af spilleren
-    if (s.veh) { const left = o.keepMs ? o.keepMs() : 0; if (left > 200) { parked.push(s.veh.g); setTimeout(() => { o.scene().remove(s.veh.g); parked.splice(parked.indexOf(s.veh.g), 1); }, left); } else o.scene().remove(s.veh.g); }
+    if (s.veh && s.heli) o.scene().remove(s.veh.g);
+    else if (s.veh) { const left = o.keepMs ? o.keepMs() : 0; if (left > 200) { parked.push(s.veh.g); setTimeout(() => { o.scene().remove(s.veh.g); parked.splice(parked.indexOf(s.veh.g), 1); }, left); } else o.scene().remove(s.veh.g); }
     o.scene().remove(s.dust.obj);
     for (const h of s.sounds) try { h.stop(0.6); } catch (e) {}
     o.onEnd && o.onEnd();
