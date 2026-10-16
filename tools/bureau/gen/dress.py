@@ -597,11 +597,11 @@ def run(B, ROOMS, MATS, MI):
             against(zi, ph('drawer_cabinet'), 0.6, 0.6, 1.1, 3, spacing=1.0)
             against(zi, ph('potted_plant_04'), 0.7, 0.7, 1.6, 2, spacing=3.0)
             against(zi, ph('metal_trash_can'), 0.35, 0.35, 0.6, 2, spacing=2.0)
-            if n == 'Long A top':                                              # v26.3: venteplads øverst på Long A (var helt tom)
-                against(zi, ph('mid_century_lounge_chair'), 0.8, 0.8, 0.9, 3, spacing=1.4)
-                against(zi, ph('side_table_01'), 0.5, 0.5, 0.6, 2, spacing=2.0)
-                against(zi, ph('potted_plant_01'), 0.7, 0.7, 1.4, 3, spacing=2.5)
-                hang(zi, CUSTOM % 'wall_tv', 0.0, 2, 4.0)
+            if n == 'Long A top':                                              # v26.3: gennemgangen mellem Long A og A-sitet (var helt tom)
+                ii_, jj_ = np.nonzero(ZID == zi); xw, xe = cx(jj_.min()), cx(jj_.max() + 1); zn, zs = cz(ii_.min()), cz(ii_.max() + 1); fl_ = float(F[ii_[0], jj_[0]])
+                for (xx, yaw_, s_, zp) in ((xw, 90.0, 1, zs - 0.62), (xe, -90.0, -1, zn + 0.62)):   # op ad sidevæggene, fri af reolerne – midten er passage
+                    put(ph('potted_plant_04'), xx + s_ * 0.45, fl_, zp, rnd.uniform(0, 360), [xx + s_ * 0.45, fl_ + 0.8, zp, 0.6, 1.6, 0.6])
+                    if s_ < 0: put(CUSTOM % 'wall_tv', xx - 0.03, fl_ + 1.75, zn + 1.55, yaw_)          # (vestvæggen har allerede reol + kunst)
         elif n in LUXR:
             big = n in ('Mid', 'Arch', 'Top Mid', 'T Base', 'Mid T', 'Balkonen')
             def lounge(cxp, fl, czp, yaw, fx, fz):
