@@ -70,45 +70,49 @@
 </section>
 
 <!-- ============================================================ VENTERUM ============================================================ -->
-<section id="scr-lobby" class="screen hidden">
-  <div class="lobby-wrap">
-    <div class="lobby-head">
-      <div class="code-badge">
-        <span class="code-label">PARTY-KODE</span>
-        <span id="lobbyCode" class="code-big">----</span>
-      </div>
-      <button id="btnCopyCode" class="btn btn-tiny">KOPIÉR LINK</button>
-    </div>
-
-    <div class="map-pick">
-      <div class="map-pick-head"><span class="map-label">MAP POOL</span>
-        <span class="vmode"><button id="btnVmodePremier" class="vm-btn" data-vmode="premier" title="Holdene skiftes til at stemme baner ud – den sidste bane spilles">PREMIER</button><button id="btnVmodeHost" class="vm-btn" data-vmode="host" title="Værten vælger banen">VÆRT VÆLGER</button></span>
-        <span id="mapHostHint" class="map-host-hint">værten vælger banen</span></div>
-      <div id="mapCards" class="map-cards"></div>
-      <div id="mapDesc" class="map-desc"></div>
-    </div>
-    <h2 class="lobby-title">VÆLG HOLD</h2>
-    <div class="team-pick">
-      <div class="team-col team-hij">
-        <button id="btnTeamHij" class="team-btn">HIJACKERS <span id="cntHij" class="team-cnt">0/5</span></button>
-        <ul id="listHij" class="lobby-list"></ul>
-      </div>
-      <div class="team-col team-swat">
-        <button id="btnTeamSwat" class="team-btn">SWAT <span id="cntSwat" class="team-cnt">0/5</span></button>
-        <ul id="listSwat" class="lobby-list"></ul>
-      </div>
-    </div>
-    <div class="team-none">
-      <div class="team-none-head"><span>UDEN HOLD — fordeles automatisk</span><button id="btnTeamAuto" class="btn btn-tiny">VÆLG AUTO</button></div>
-      <ul id="lobbyList" class="lobby-list"></ul>
-    </div>
-    <p id="lobbyBalance" class="lobby-balance"></p>
-
-    <div class="lobby-foot">
-      <p id="lobbyHint" class="lobby-hint">Venter på at værten starter spillet…</p>
-      <button id="btnStart" class="btn btn-primary hidden">START SPIL</button>
-      <button id="btnInventoryLobby" class="btn btn-ghost">◆ INVENTAR</button>
-      <button id="btnLeave" class="btn btn-ghost">FORLAD</button>
+<section id="scr-lobby" class="screen lb hidden">
+  <!-- v26: venteværelset som missionsbriefing – baggrund fra de_bureau om natten, holdenes rostre, missionskort -->
+  <div class="lb-bg"><div class="lb-img"></div><div class="lb-shade"></div><div class="lb-rain"></div><div class="lb-scan"></div></div>
+  <div class="lobby-wrap lb-wrap">
+    <header class="lb-top">
+      <div class="lb-op"><span class="lb-live"><i></i>LIVE</span><span class="lb-kick">VENTEVÆRELSE</span><h1 class="lb-name">OPERATION <b>DE_BUREAU</b></h1></div>
+      <div class="lobby-head code-badge lb-code"><span class="code-label">PARTY-KODE</span><span id="lobbyCode" class="code-big">----</span><button id="btnCopyCode" class="btn btn-tiny">KOPIÉR LINK</button></div>
+    </header>
+    <div class="lb-grid">
+      <aside class="map-pick lb-mission">
+        <div class="lb-mapimg"><img src="/assets/ui/lobby_map.jpg" alt=""><canvas id="lbRadar" width="220" height="165" class="lb-radar"></canvas><span class="lb-mapname">DE_BUREAU</span></div>
+        <div class="map-pick-head"><span class="map-label">BANEVALG</span>
+          <span class="vmode"><button id="btnVmodePremier" class="vm-btn" data-vmode="premier" title="Holdene skiftes til at stemme baner ud – den sidste bane spilles">PREMIER</button><button id="btnVmodeHost" class="vm-btn" data-vmode="host" title="Værten vælger banen">VÆRT VÆLGER</button></span>
+          <span id="mapHostHint" class="map-host-hint">værten vælger banen</span></div>
+        <div id="mapCards" class="map-cards"></div>
+        <div id="mapDesc" class="map-desc"></div>
+        <div class="lb-obj">
+          <div class="lb-obj-h"><b>HIJACKERS</b><span>Spring ind fra helikopteren på tagterrassen og plant C4 på A (serverhallen) eller B (våbenkammeret).</span></div>
+          <div class="lb-obj-s"><b>SWAT</b><span>Rul ind gennem parkeringskælderen, forsvar begge sites og desarmér bomben, hvis den bliver plantet.</span></div>
+        </div>
+      </aside>
+      <main class="lb-teams">
+        <div class="team-pick">
+          <div class="team-col team-hij">
+            <button id="btnTeamHij" class="team-btn"><span class="tb-n">HIJACKERS</span><span class="tb-j">VÆLG HOLD ▸</span><span id="cntHij" class="team-cnt">0/5</span></button>
+            <ul id="listHij" class="lobby-list"></ul>
+          </div>
+          <div class="team-col team-swat">
+            <button id="btnTeamSwat" class="team-btn"><span class="tb-n">SWAT</span><span class="tb-j">VÆLG HOLD ▸</span><span id="cntSwat" class="team-cnt">0/5</span></button>
+            <ul id="listSwat" class="lobby-list"></ul>
+          </div>
+        </div>
+        <div class="team-none">
+          <div class="team-none-head"><span>UDEN HOLD — fordeles automatisk</span><button id="btnTeamAuto" class="btn btn-tiny">VÆLG AUTO</button></div>
+          <ul id="lobbyList" class="lobby-list"></ul>
+        </div>
+        <p id="lobbyBalance" class="lobby-balance"></p>
+        <div class="lobby-foot">
+          <p id="lobbyHint" class="lobby-hint">Venter på at værten starter spillet…</p>
+          <button id="btnStart" class="btn btn-primary lb-start hidden"><span>START OPERATIONEN</span></button>
+          <div class="lb-sec"><button id="btnInventoryLobby" class="btn btn-ghost">◆ INVENTAR</button><button id="btnLeave" class="btn btn-ghost">FORLAD</button></div>
+        </div>
+      </main>
     </div>
   </div>
 </section>

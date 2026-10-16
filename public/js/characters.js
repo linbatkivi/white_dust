@@ -287,7 +287,7 @@ export function createCharacters(THREE, WD, opts) {
     _v.subVectors(_T, _E).normalize().applyQuaternion(_q2.copy(up.quaternion).invert()); _q.setFromUnitVectors(_DN, _v); fo.quaternion.slerp(_q, k);
     if (handQ) { _q.copy(up.quaternion).multiply(fo.quaternion).invert().multiply(handQ); hand.quaternion.slerp(_q, k); }
   }
-  const POLE_R = new THREE.Vector3(0.6, -0.6, 0.5).normalize(), POLE_L = new THREE.Vector3(-0.7, -0.7, 0.15).normalize(), POLE_UP = new THREE.Vector3(0.7, 0.2, 0.6).normalize();
+  const POLE_R = new THREE.Vector3(0.6, -0.6, 0.5).normalize(), POLE_L = new THREE.Vector3(-0.7, -0.7, 0.15).normalize(), POLE_UP = new THREE.Vector3(0.7, 0.2, 0.6).normalize(), POLE_UL = new THREE.Vector3(-0.8, 0.1, 0.5).normalize();
   const _gr = new THREE.Vector3(), _gl = new THREE.Vector3(), _hq = new THREE.Quaternion(), HAND_OFF = new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI / 2 * 0.85, 0, 0)), _mw = new THREE.Vector3();
   const _gp = new THREE.Vector3(), _gp2 = new THREE.Vector3();
   const lerp3 = (out, a, b, t) => out.set(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t);
@@ -320,6 +320,9 @@ export function createCharacters(THREE, WD, opts) {
     if (s.reload && wdef && wdef.kind === 'gun') { if (h.rlT < 0) h.rlT = 0; h.rlT += dt / wdef.reload; if (h.rlT > 1) h.rlT = 1; } else h.rlT = -1;
     h.rl += ((h.rlT >= 0 && h.rlT < 1 ? 1 : 0) - h.rl) * e(10);
     h.thr = Math.min(1, h.thr + dt / 0.42);
+    // v26: film-poser – low ready (våbnet skråt ned), selvstændigt hoveddrej (afsøgning), håndsignal (venstre hånd op) og læn
+    h.rdy = (h.rdy || 0) + ((s.ready || 0) - (h.rdy || 0)) * e(7); h.sig = (h.sig || 0) + ((s.signal || 0) - (h.sig || 0)) * e(9);
+    h.look = (h.look || 0) + ((s.look || 0) - (h.look || 0)) * e(6); h.lean2 = (h.lean2 || 0) + ((s.lean || 0) - (h.lean2 || 0)) * e(6);
     if (s.alive) h.dead = -1; else { if (h.dead < 0) h.dead = first ? 2 : 0; h.dead += dt; }
     const prevPh = h.ph;
     h.ph += dt * (sp > 0.25 ? 2.2 + sp * 1.25 : 0);
@@ -349,9 +352,10 @@ export function createCharacters(THREE, WD, opts) {
     const wmB = h.weapon && h.weapon.userData, longGun = !!(wmB && wmB.butt !== undefined && !wmB.pistol && !isNade);
     h.blade = (h.blade || 0) + ((longGun && s.alive ? -0.44 * (1 - act) : 0) - (h.blade || 0)) * e(10);
     ez(B.spine.rotation, 'y', -Math.sin(ph) * 0.08 * run * (sp > 0.25 ? 1 : 0) + h.pin * 0.25 - thrK * 0.45 + h.rl * 0.12 + h.blade * 0.45, 12);
-    ez(B.chest.rotation, 'y', h.blade * 0.55, 12); ez(B.neck.rotation, 'y', -h.blade * 0.7, 12);
+    ez(B.chest.rotation, 'y', h.blade * 0.55 + h.look * 0.25, 12); ez(B.neck.rotation, 'y', -h.blade * 0.7 + h.look * 0.45, 12);
+    ez(B.spine.rotation, 'z', h.lean2 * 0.22, 10); ez(B.chest.rotation, 'z', h.lean2 * 0.18, 10);
     ez(B.neck.rotation, 'x', pitch * 0.15 - lean * 0.6, 14); ez(B.head.rotation, 'x', pitch * 0.15 - h.fl * 0.25 + h.rl * 0.25, 14);
-    ez(B.head.rotation, 'y', -h.pin * 0.2 + thrK * 0.3, 12);
+    ez(B.head.rotation, 'y', -h.pin * 0.2 + thrK * 0.3 + h.look * 0.4, 12);
     // ---- våben-pivot: sigte, rekyl, genladnings-tip; granat: hvile → spændt (split trukket) → kast
     const rlp = h.rlT >= 0 ? h.rlT : 1, tilt = h.rl * smooth(rlp / 0.15) * (1 - smooth((rlp - 0.85) / 0.15));
     if (h.nade > 0.5) {
@@ -361,7 +365,7 @@ export function createCharacters(THREE, WD, opts) {
       ez(h.gun.position, 'x', _gp.x, 22); ez(h.gun.position, 'y', _gp.y, 22); ez(h.gun.position, 'z', _gp.z, 22);
       ez(h.gun.rotation, 'x', pitch * 0.6 - (B.spine.rotation.x + B.chest.rotation.x) * 0.5 + h.pin * 0.8, 18); ez(h.gun.rotation, 'z', 0, 18); ez(h.gun.rotation, 'y', 0, 18);
     } else {
-      ez(h.gun.rotation, 'x', pitch - (B.spine.rotation.x + B.chest.rotation.x) + (act > 0.5 ? -1.1 : 0) + h.rec * 0.1 + tilt * 0.35, 20);
+      ez(h.gun.rotation, 'x', pitch - (B.spine.rotation.x + B.chest.rotation.x) + (act > 0.5 ? -1.1 : 0) + h.rec * 0.1 + tilt * 0.35 - h.rdy * 0.62, 20);
       ez(h.gun.rotation, 'z', tilt * 0.6, 14);
       // greb-position i kroppens rum: lange våben med kolben ved skulderen (butt = kolbens afstand bag grebet), pistoler med strakte arme
       const psi = B.spine.rotation.y + B.chest.rotation.y, wu = h.weapon && h.weapon.userData;
@@ -397,9 +401,10 @@ export function createCharacters(THREE, WD, opts) {
           h.rmag.visible = show;
           if (show) { h.rmag.position.copy(_gl); h.rmag.position.y -= pist ? 0.04 : 0.06; h.rmag.quaternion.copy(h.gun.quaternion); h.rmag.scale.set(pist ? 0.026 : 0.03, pist ? 0.1 : 0.16, pist ? 0.032 : 0.06); }
         } else h.rmag.visible = false;
+        if (h.sig > 0.01) _gl.lerp(_gp2.set(-0.16, 0.52, -0.2), h.sig);        // v26: håndsignal – venstre hånd op ved hovedet
         _hq.copy(h.gun.quaternion).multiply(HAND_OFF);
         ikArm(B.uarmR, B.farmR, B.handR, _gr, POLE_R, _hq, e(30));
-        ikArm(B.uarmL, B.farmL, B.handL, _gl, POLE_L, wm && h.rl < 0.5 ? _hq : null, e(30));
+        ikArm(B.uarmL, B.farmL, B.handL, _gl, h.sig > 0.5 ? POLE_UL : POLE_L, wm && h.rl < 0.5 && h.sig < 0.5 ? _hq : null, e(30));
       }
     } else {
       h.rmag.visible = false;

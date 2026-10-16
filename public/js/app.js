@@ -581,15 +581,20 @@ Net.on('lobby', m => {
   const lists = { hij: $('listHij'), swat: $('listSwat'), none: $('lobbyList') }, cnt = { hij: 0, swat: 0, none: 0 };
   for (const k in lists) lists[k].innerHTML = '';
   Game.myTeam = null;
+  const seen = Game._lobbySeen || new Set(), nowSeen = new Set();
   for (const p of m.players) {
     const k = p.team || 'none'; cnt[k]++;
     if (p.id === Game.meId) Game.myTeam = p.team || null;
     const li = document.createElement('li');
+    const key = p.id + ':' + k; nowSeen.add(key); if (!seen.has(key)) li.classList.add('join'); if (p.id === Game.meId) li.classList.add('me');   // v26: ny på holdet → glid ind
     li.innerHTML = `<span>${escapeHtml(p.name)}${p.id === Game.meId ? ' <i style="opacity:.55">(dig)</i>' : ''}</span>` + (p.id === m.host ? '<span class="host-tag">VÆRT</span>' : '')
       + (m.host === Game.meId && p.id !== Game.meId ? `<button class="kick-btn" data-kick="${p.id}" title="Smid ${escapeHtml(p.name)} ud af partyet">KICK</button>` : '');   // v20: kun værten kan kicke
     lists[k].appendChild(li);
   }
   const cap = m.cap || 5;
+  Game._lobbySeen = nowSeen;
+  for (const k of ['hij', 'swat']) for (let i = cnt[k]; i < cap; i++) { const li = document.createElement('li'); li.className = 'slot-empty'; li.textContent = 'LEDIG PLADS'; lists[k].appendChild(li); }   // v26: holdenes fem pladser
+  try { const cv = $('lbRadar'); if (cv && !cv.dataset.done) { cv.dataset.done = 1; const im = new Image(); im.onload = () => { const c = cv.getContext('2d'); c.clearRect(0, 0, cv.width, cv.height); const k = Math.min(cv.width / im.width, cv.height / im.height); c.drawImage(im, (cv.width - im.width * k) / 2, (cv.height - im.height * k) / 2, im.width * k, im.height * k); }; im.src = '/assets/radar/bureau_0.png'; } } catch (e) {}
   $('cntHij').textContent = cnt.hij + '/' + cap; $('cntSwat').textContent = cnt.swat + '/' + cap;
   $('btnTeamHij').classList.toggle('sel', Game.myTeam === 'hij'); $('btnTeamSwat').classList.toggle('sel', Game.myTeam === 'swat');
   $('btnTeamAuto').classList.toggle('hidden', !Game.myTeam);
@@ -2518,6 +2523,12 @@ const Renderer = (() => {
     vmHemi.color.set(L.hemiSky); vmHemi.groundColor.set(L.hemiGround); vmHemi.intensity = L.hemiInt * Math.PI;
     _sd.set(-L.sunPos[0], -L.sunPos[1], -L.sunPos[2]).normalize().applyQuaternion(_q.copy(camera.quaternion).invert());
     vmSun.position.copy(_sd).multiplyScalar(-5); vmSun.target.position.set(0, 0, 0); vmSun.color.set(L.sunColor); vmSun.intensity = L.sunInt * Math.PI * smooth((skyK - 0.3) / 0.45) * 0.9;
+    if (V.theme.night) {                                                        // v26: natbaner – rummets lamper (lys-proben) belyser våbnet + et svagt nøglelys oppefra/højre
+      const lum = (_bk[0] + _bk[1] + _bk[2]) / 3, mx = Math.max(_bk[0], _bk[1], _bk[2], 1e-3);
+      vmHemi.color.setRGB(0.35 + 0.65 * _bk[0] / mx, 0.35 + 0.65 * _bk[1] / mx, 0.35 + 0.65 * _bk[2] / mx); vmHemi.groundColor.setRGB(0.12, 0.12, 0.14);
+      vmHemi.intensity = clamp(0.55 + lum * 3.2, 0.55, 3.2);
+      vmSun.position.set(2.5, 3.5, 1.5); vmSun.color.setRGB(1.0, 0.94, 0.86); vmSun.intensity = clamp(0.5 + lum * 2.0, 0.5, 2.2);
+    }
     let g;
     if (showC4) { if (!vm.c4) { vm.c4 = Weap.c4View(); vmScene.add(vm.c4); } g = vm.c4; }
     else { if (!w) return false; g = vmFor(id); if (!g) return false; }

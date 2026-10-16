@@ -250,11 +250,14 @@ export function createIntro(o) {
       if (t < 4.3) {                                                            // B: tæt på forhjulet, kameraet følger med og stopper
         const k = (t - 2.3) / 2.0; return { pos: at(Fv, L * 0.5 + 1.6 - k * 0.8, 0.8 + k * 0.35, 3.9 + k * 0.5), look: at(Fv, L * 0.15, 1.15, 0.9), fov: 40 };
       }
-      if (t < 5.3) {                                                            // C: bagdørene – de slås op
+      if (t < 4.75) {                                                           // C: bagdørene – de slås op
         return { pos: at(Fs, -L / 2 - 3.6, 1.6, 1.4), look: at(Fs, -L / 2, 1.7, 0), fov: 40 };
       }
+      if (t < 5.4) {                                                            // C2: inde i mandskabsrummet – rampen sænkes, lyset vælter ind
+        const k = (t - 4.75) / 0.65, a = vlocal(0.95, 2.15, S.spec.rear + 2.9 - k * 0.25, V3(0, 0, 0)), b = vlocal(-0.4, 0.9 - k * 0.3, S.spec.rear - 4, V3(0, 0, 0)); return { pos: a, look: b, fov: 70, raw: true };
+      }
       if (t < 7.6) {                                                            // D: lavt bag køretøjet – operatørerne springer ud mod kameraet (slowmotion)
-        const k = (t - 5.3) / 2.3; return { pos: at(Fs, -L / 2 - 5.5 + k * 0.8, 0.35, -1.6 + k * 0.9), look: at(Fs, -L / 2 - 1.2, 1.15, 0), fov: 52 };
+        const k = (t - 5.3) / 2.3; return { pos: at(Fs, -L / 2 - 5.2 + k * 0.8, 0.4, -3.4 + k * 0.6), look: at(Fs, -L / 2 - 1.4, 1.15, -0.4), fov: 50 };
       }
     } else {
       if (t < 2.0) {                                                            // A: lavt foran – pickuppen drøner ind
@@ -274,9 +277,16 @@ export function createIntro(o) {
     const me = S.men.find(m => m.me), mp = o.myPos(), tF = S.T - 2.2;
     const focus = me ? V3(me.x, me.y, me.z) : S.P.c.clone();
     const yaw0 = mp ? mp.yaw : Math.atan2(-S.P.f.x, -S.P.f.z), fwd0 = V3(-Math.sin(yaw0), 0, -Math.cos(yaw0)), rgt0 = V3(-fwd0.z, 0, fwd0.x);
-    const orbit = (t - t0) * 0.16, cs = Math.cos(orbit), sn = Math.sin(orbit);
+    if (S.craneA === undefined) {                                                // v26: kranens retning: den mest frie omkring bagsiden
+      let best = 0, bf = -1;
+      for (const a of [0, 0.5, -0.5, 1.0, -1.0, 1.5, -1.5]) { const c = Math.cos(a), sa = Math.sin(a), bx = -fwd0.x * c + rgt0.x * sa, bz = -fwd0.z * c + rgt0.z * sa;
+        let fr = Infinity; for (const h of [1.2, 2.6]) for (const off of [-0.6, 0, 0.6]) fr = Math.min(fr, WD.raycastWorld(o.W(), focus.x + rgt0.x * off, focus.y + h, focus.z + rgt0.z * off, bx, 0, bz, 6));
+        const score = Math.min(fr, 5) - Math.abs(a) * 0.4; if (score > bf) { bf = score; best = a; } }
+      S.craneA = best; S.craneR = Math.max(2.6, Math.min(4.2, bf + Math.abs(best) * 0.4 - 0.6));
+    }
+    const orbit = S.craneA + (t - t0) * 0.16, cs = Math.cos(orbit), sn = Math.sin(orbit);
     const back = V3(-fwd0.x * cs + rgt0.x * sn, 0, -fwd0.z * cs + rgt0.z * sn);
-    const crane = focus.clone().addScaledVector(back, 4.2).addScaledVector(rgt0, 1.6).setY(focus.y + 2.6);
+    const crane = focus.clone().addScaledVector(back, S.craneR || 4.2).addScaledVector(rgt0, 0.8).setY(focus.y + 2.6);
     const look = focus.clone().setY(focus.y + 1.1).addScaledVector(fwd0, 2.5);
     if (t < tF) { const k = smooth((t - t0) / 0.9); return { pos: crane.clone().setY(crane.y + (1 - k) * 2.5), look, fov: 48 }; }
     const k = easeInOut((t - tF) / 2.2), eye = mp ? V3(mp.x, mp.y + 1.62, mp.z) : look;
@@ -338,8 +348,9 @@ export function createIntro(o) {
         else { m.yaw = m.yaw + (((m.tyaw || 0) - m.yaw + Math.PI * 3) % (Math.PI * 2) - Math.PI) * Math.min(1, dt * 6); }
         const g = WD.groundAt(o.W(), m.x, m.z, m.y + 0.6, 0.9); if (isFinite(g)) m.y += (g - m.y) * Math.min(1, dt * 12);
       }
-      C.animateHuman(h, dt, tsec, { x: m.x, y: m.y, z: m.z, yaw: m.yaw, pitch: m.ph === 'run' ? -0.12 : 0, alive: true, crouch: m.crouch, grounded: !m.air, wcode: (WD.WEAPONS[S.spec.gun] || {}).code || 0 });
-      if (!m.bakeT || tsec - m.bakeT > 0.15) { m.bakeT = tsec; const V = o.V(); if (V && V.probe) { const bk = [0, 0, 0, 0]; V.probe(m.x, m.y + 1.1, m.z, bk); C.setBake(h, bk); } }
+      const pose = filmPose(m, i, t);
+      C.animateHuman(h, dt, tsec, Object.assign({ x: m.x, y: m.y, z: m.z, yaw: m.yaw, pitch: m.ph === 'run' ? -0.12 : 0, alive: true, crouch: m.crouch || pose.kneel, grounded: !m.air, wcode: (WD.WEAPONS[S.spec.gun] || {}).code || 0 }, pose));
+      if (!m.bakeT || tsec - m.bakeT > 0.15) { m.bakeT = tsec; const V = o.V(); if (V && V.probe) { const bk = [0, 0, 0, 0]; V.probe(m.x, m.y + 1.1, m.z, bk); const fl = S.night ? 0.2 : 0; bk[0] = Math.max(bk[0], fl); bk[1] = Math.max(bk[1], fl); bk[2] = Math.max(bk[2], fl * 1.1); C.setBake(h, bk); } }
       // lasersigte langs våbnet
       if (m.laser) {
         const on = h.group.visible && h.flash; m.laser.g.visible = !!on;
@@ -431,8 +442,11 @@ export function createIntro(o) {
     if (t < 4.7) {                                                               // B: fra terrassens hjørne – flaren ud for kanten, byen 110 m nede
       const k = (t - 2.7) / 2.0; return { pos: V3(H.x - r.x * (5.2 - k * 1.0), 2.2 - k * 0.5, edge - 2.0 - k * 0.6), look: hp.clone().setY(HP.y + 1.3), fov: 46 };
     }
-    if (t < 5.5) {                                                               // C: døren glider op – rødt kabinelys
-      const dp = hlocal(S.spec.door.x + 0.2, 1.4, -0.7, V3(0, 0, 0)), k = (t - 4.7) / 0.8; return { pos: V3(dp.x + r.x * (3.4 - k * 0.4), 1.75, edge - 3.8 + k * 0.3), look: dp, fov: 42 };
+    if (t < 5.12) {                                                              // C: døren glider op – rødt kabinelys
+      const dp = hlocal(S.spec.door.x + 0.2, 1.4, -0.7, V3(0, 0, 0)), k = (t - 4.7) / 0.42; return { pos: V3(dp.x + r.x * (3.4 - k * 0.3), 1.75, edge - 3.8 + k * 0.2), look: dp, fov: 42 };
+    }
+    if (t < 5.55) {                                                              // C2: inde i kabinen – over skulderen ud mod terrassen og byen
+      const k = (t - 5.12) / 0.43; return { pos: hlocal(-0.7, 2.05, -1.35 - k * 0.15, V3(0, 0, 0)), look: hlocal(4.5, 0.4 - k * 0.3, -0.5, V3(0, 0, 0)), fov: 66, raw: true };
     }
     if (t < 7.7) {                                                               // D: helt nede ved terrassegulvet – de springer over brystningen mod kameraet (slowmotion)
       const k = (t - 5.5) / 2.2; return { pos: V3(H.x + r.x * (4.2 - k * 0.8), 0.35 + k * 0.15, edge - 6.2 + k * 0.4), look: V3(H.x - r.x * 0.5, 1.5, edge + 0.3), fov: 50 };
@@ -474,9 +488,26 @@ export function createIntro(o) {
         else m.yaw = m.yaw + (((m.tyaw || 0) - m.yaw + Math.PI * 3) % (Math.PI * 2) - Math.PI) * Math.min(1, dt * 6);
         const g = WD.groundAt(o.W(), m.x, m.z, m.y + 0.6, 0.9); if (isFinite(g)) m.y += (g - m.y) * Math.min(1, dt * 12);
       }
-      C.animateHuman(h, dt, tsec, { x: m.x, y: m.y, z: m.z, yaw: m.yaw, pitch: m.ph === 'run' ? -0.12 : 0, alive: true, crouch: m.crouch, grounded: !m.air, wcode: (WD.WEAPONS[S.spec.gun] || {}).code || 0 });
+      const pose = filmPose(m, i, t);
+      C.animateHuman(h, dt, tsec, Object.assign({ x: m.x, y: m.y, z: m.z, yaw: m.yaw, pitch: m.ph === 'run' ? -0.12 : 0, alive: true, crouch: m.crouch || pose.kneel, grounded: !m.air, wcode: (WD.WEAPONS[S.spec.gun] || {}).code || 0 }, pose));
       if (!m.bakeT || tsec - m.bakeT > 0.15) { m.bakeT = tsec; const V = o.V(); if (V && V.probe) { const bk = [0, 0, 0, 0]; V.probe(m.x, m.y + 1.1, m.z, bk); bk[3] = Math.max(bk[3], 0.25); C.setBake(h, bk); } }
     });
+  }
+  // v26: filmens kropssprog – low ready under løb/spring, holdlederen giver håndsignal, ved målet: afsøgning med hovedet,
+  //   hver anden går i knæ og sigter, én lader om. Bruges af alle intro-sekvenserne.
+  function filmPose(m, i, t) {
+    const P = { ready: 0, look: 0, signal: 0, lean: 0, reload: false, kneel: false };
+    if (m.ph === 'cabin' || m.ph === 'wait' || m.ph === 'ride') { P.ready = 0.7; P.look = Math.sin(t * 0.9 + i * 2.1) * 0.35; if (i === 0 && S.heli && t > 4.85 && t < 5.3) P.signal = 1; return P; }
+    if (m.ph === 'jump' || m.ph === 'land') { P.ready = 1; return P; }
+    if (m.ph === 'run') {
+      const d = Math.hypot(m.tx - m.x, m.tz - m.z);
+      if (d > 1.0) { P.ready = 1; P.lean = Math.sin(t * 2 + i) * 0.15; if (m.arr !== undefined) m.arr = undefined; return P; }
+      if (m.arr === undefined) m.arr = t;
+      const k = t - m.arr;
+      P.ready = k < 0.4 ? 1 - k / 0.4 : 0; P.look = Math.sin((t - m.arr) * 0.8 + i * 1.9) * 0.75; P.lean = Math.sin((t - m.arr) * 0.6 + i) * 0.35;
+      P.kneel = i % 2 === 1 && k > 0.3; if (i === 0 && k < 0.9) P.signal = 1; if (i === 2 && k > 0.8 && k < 2.6) P.reload = true;
+    }
+    return P;
   }
   function updateHeli(dt) {
     S.slowT = S.t > 5.25 && S.t < 6.5 ? 0.42 : 1; S.slow += (S.slowT - S.slow) * Math.min(1, dt * 6);
@@ -496,7 +527,7 @@ export function createIntro(o) {
       hlocal(sp.spot[0], sp.spot[1] - 0.05, sp.spot[2], headL.sp.position);
       const land = V3(Hh.H.x, 0, Hh.cfg.edge - 2.5), sweep = (1 - smooth((t - 1.5) / 3)) * 6;
       headL.tg.position.set(land.x + Math.sin(t * 1.3) * sweep, land.y, land.z + Math.cos(t * 0.9) * sweep * 0.5);
-      headL.sp.intensity = (S.night ? 260 : 90) * (t > Hh.tD + 2.5 ? 0.3 : 1); headL.sp.angle = 0.32; headL.sp.penumbra = 0.6;
+      headL.sp.intensity = (S.night ? 130 : 60) * (t > Hh.tD + 2.5 ? 0.3 : 1); headL.sp.angle = 0.32; headL.sp.penumbra = 0.6;
       const bl = (t * 1.1) % 1 < 0.07; hlocal(0, 3.0, -1.9, headL.strobe.position); headL.strobe.color.setHex(0xff1a0a); headL.strobe.intensity = bl ? 34 : 0;
       hlocal(0, 1.6, -0.7, headL.inner.position); headL.inner.color.setHex(0xff3322); headL.inner.intensity = dk * 10;
     }
@@ -525,7 +556,7 @@ export function createIntro(o) {
     if (S.eng) S.eng.setPos(hpos); if (S.idle) S.idle.setPos(hpos);
     // kamera
     const sh = heliShots(t), tgt = sh.look;
-    if (sh.fp !== undefined || t >= 7.7) camSafe(tgt, sh.pos, cam.position); else cam.position.copy(sh.pos);
+    if ((sh.fp !== undefined || t >= 7.7) && !sh.raw) camSafe(tgt, sh.pos, cam.position); else cam.position.copy(sh.pos);
     cam.lookAt(tgt);
     if (Math.abs(cam.fov - sh.fov) > 0.01) { cam.fov = sh.fov; cam.updateProjectionMatrix(); }
     if (sh.fp !== undefined) {
@@ -615,7 +646,7 @@ export function createIntro(o) {
     if (S.idle) S.idle.setPos(vpos);
     // kamera
     const sh = shots(t), tgt = sh.look;
-    camSafe(tgt, sh.pos, cam.position);
+    if (sh.raw) cam.position.copy(sh.pos); else camSafe(tgt, sh.pos, cam.position);
     cam.lookAt(tgt);
     if (Math.abs(cam.fov - sh.fov) > 0.01) { cam.fov = sh.fov; cam.updateProjectionMatrix(); }
     if (sh.fp !== undefined) {                                              // sidste skud: egen figur skjules når kameraet når øjnene

@@ -104,6 +104,9 @@ export function createMvpCine(o) {
     pose.yaw = yaw; pose.pitch = t > 3.2 && t < 4.9 ? 0.02 : t > 4.9 ? -0.32 * smooth((t - 4.9) / 0.5) * (1 - smooth((t - 6.0) / 0.8)) - 0.06 : -0.12;
     pose.reload = t > 1.8 && t < 3.0;
     pose.crouch = false;
+    // v26: kropssprog – low ready og afsøgning under gangen, våbnet skråt over brystet i slutposen, kort salut
+    pose.ready = t < 1.9 ? 1 : t > 6.2 ? 0.55 : 0; pose.look = t < 1.7 ? Math.sin(t * 2.2) * 0.4 : t > 6.9 ? Math.sin((t - 6.9) * 0.9) * 0.12 : 0;
+    pose.lean = t > 6.6 ? 0.14 : 0; pose.signal = t > 7.25 && t < 7.85 ? 1 : 0;
     // kamera pr. indstilling
     let p, l, fov;
     if (t < CUTS[1]) { const k = t / CUTS[1]; p = V3(0.3, 0.34, 2.6 - k * 0.2); l = V3(0, 1.2 + k * 0.05, lerp(-1.6, -0.4, k)); fov = 38; }
