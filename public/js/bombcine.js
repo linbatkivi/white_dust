@@ -70,7 +70,10 @@ export function createBombCine(o) {
     if (f < 0.38) { const u = (f - 0.12) / 0.26; return [lerp(1.15, 0.32, u) * k, lerp(0.48, 0.07, u) * k, lerp(0.1, 0.025, u) * k, a]; }
     const u = (f - 0.38) / 0.62; return [lerp(0.32, 0.035, u), lerp(0.07, 0.032, u), lerp(0.025, 0.03, u), a * (1 - u * 0.25)];
   };
-  const SMOKE = (p, f) => { const l = (p.l || 0.09) * 0.6; return [l, l * 0.96, l * 0.93, Math.sin(Math.PI * Math.min(1, f * 1.15)) * (p.a || 0.85)]; };
+  const SMOKE = (p, f) => {                                                   // sod: lyst op i orange nederst ved ilden (det første sekund), sort når den stiger og køles
+    const l = (p.l || 0.09) * 0.6, g = p.by === undefined ? 0 : Math.max(0, 1 - (p.y - p.by) / 3.2) * Math.max(0, 1 - p.t / 1.6);
+    return [l + g * 0.55, l * 0.96 + g * 0.22, l * 0.93 + g * 0.06, Math.sin(Math.PI * Math.min(1, f * 1.15)) * (p.a || 0.85)];
+  };
 
   /* ---------------- vragdele (instanced) ---------------- */
   function makeDebris(N) {
@@ -90,7 +93,7 @@ export function createBombCine(o) {
     dirs.sort((p, q) => q.free - p.free);
     const open = dirs[0], ceil = Math.min(9, WD.raycastWorld(W, B.x, B.y + 0.2, B.z, 0, 1, 0, 9) + 0.2);
     const tx = textures();
-    const fire = makePuffs(70, THREE.AdditiveBlending), flame = makePuffs(180, THREE.NormalBlending), smoke = makePuffs(160, THREE.NormalBlending), sparks = makePuffs(260, THREE.AdditiveBlending), dust = makePuffs(90, THREE.NormalBlending);
+    const fire = makePuffs(70, THREE.AdditiveBlending), flame = makePuffs(260, THREE.NormalBlending), smoke = makePuffs(160, THREE.NormalBlending), sparks = makePuffs(260, THREE.AdditiveBlending), dust = makePuffs(90, THREE.NormalBlending);
     sparks.mat.uniforms.map.value = tx.spark;
     for (const s2 of [smoke, dust, flame, fire, sparks]) sc.add(s2.pts);
     const debris = makeDebris(70); sc.add(debris.m);
@@ -116,11 +119,13 @@ export function createBombCine(o) {
     // kerne: et kort, hvidglødende glimt (additivt) – lever kun et kvart sekund
     for (let i = 0; i < 14; i++) spawnPuff(S.fire, { x: B.x + (R() - 0.5) * 0.5, y: B.y + 0.5 + R() * 0.4, z: B.z + (R() - 0.5) * 0.5, vx: (R() - 0.5) * 5, vy: 1 + R() * 3, vz: (R() - 0.5) * 5, drag: 4, lift: 1, life: 0.22 + R() * 0.12, s0: 0.8, s1: 3.0, hot: 1.6, r0: R() * 6 });
     // flammer: kugleformet udvidelse der ruller ud langs gulv og loft – lysende orange → glød → sod
-    for (let i = 0; i < 120; i++) { const a = R() * 6.283, u = R() * 2 - 1, sp = 3 + R() * 10, h = Math.sqrt(1 - u * u);
-      spawnPuff(S.flame, { x: B.x, y: B.y + 0.5 + R() * 0.7, z: B.z, vx: Math.cos(a) * h * sp, vy: Math.abs(u) * sp * 0.75 + 1.5, vz: Math.sin(a) * h * sp, drag: 3.4, lift: 2.2, life: 0.9 + R() * 1.1, s0: 0.5, s1: 1.8 + R() * 1.8, hot: 0.85 + R() * 0.4, ceil, r0: R() * 6, rs: (R() - 0.5) * 2.5 }); }
+    for (let i = 0; i < 170; i++) { const a = R() * 6.283, u = R() * 2 - 1, sp = 3 + R() * 11, h = Math.sqrt(1 - u * u);
+      spawnPuff(S.flame, { x: B.x, y: B.y + 0.5 + R() * 0.8, z: B.z, vx: Math.cos(a) * h * sp, vy: Math.abs(u) * sp * 0.8 + 1.8, vz: Math.sin(a) * h * sp, drag: 3.2, lift: 2.4, life: 1.0 + R() * 1.2, s0: 0.7, s1: 2.6 + R() * 2.4, hot: 0.85 + R() * 0.4, ceil, r0: R() * 6, rs: (R() - 0.5) * 2.5 }); }
+    // ildsøjlen: en tæt kerne af flammer der vælter op mod loftet og breder sig ud under det (svampeformen)
+    for (let i = 0; i < 40; i++) spawnPuff(S.flame, { x: B.x + (R() - 0.5) * 0.8, y: B.y + 0.6, z: B.z + (R() - 0.5) * 0.8, vx: (R() - 0.5) * 2, vy: 6 + R() * 7, vz: (R() - 0.5) * 2, drag: 2.0, lift: 2, life: 1.1 + R() * 0.8, s0: 1.0, s1: 3.2 + R() * 1.6, hot: 1.0, ceil, r0: R() * 6, rs: (R() - 0.5) * 2 });
     // sort røg: tung, ruller op og ud under loftet og bliver hængende
     for (let i = 0; i < 90; i++) { const a = R() * 6.283, sp = 1 + R() * 5;
-      spawnPuff(S.smoke, { x: B.x + (R() - 0.5) * 1.5, y: B.y + 1 + R() * 1.5, z: B.z + (R() - 0.5) * 1.5, vx: Math.cos(a) * sp, vy: 1.5 + R() * 4, vz: Math.sin(a) * sp, drag: 1.1, lift: 0.6, life: 3.5 + R() * 3, s0: 1.5, s1: 7 + R() * 5, l: 0.03 + R() * 0.05, a: 1.0, ceil: ceil - 0.6, r0: R() * 6, rs: (R() - 0.5) * 0.6 }); }
+      spawnPuff(S.smoke, { by: B.y, x: B.x + (R() - 0.5) * 1.5, y: B.y + 1 + R() * 1.5, z: B.z + (R() - 0.5) * 1.5, vx: Math.cos(a) * sp, vy: 1.5 + R() * 4, vz: Math.sin(a) * sp, drag: 1.1, lift: 0.6, life: 3.5 + R() * 3, s0: 1.5, s1: 7 + R() * 5, l: 0.03 + R() * 0.05, a: 1.0, ceil: ceil - 0.6, r0: R() * 6, rs: (R() - 0.5) * 0.6 }); }
     // gnister: hurtige, tunge, med tyngdekraft
     for (let i = 0; i < 240; i++) { const a = R() * 6.283, u = R() * 1.2 - 0.2, sp = 8 + R() * 18;
       spawnPuff(S.sparks, { x: B.x, y: B.y + 0.5, z: B.z, vx: Math.cos(a) * sp, vy: u * sp * 0.7 + 3, vz: Math.sin(a) * sp, drag: 0.6, lift: -14, life: 0.6 + R() * 1.4, s0: 0.12, s1: 0.04, hot: 1, ceil }); }
@@ -147,7 +152,7 @@ export function createBombCine(o) {
       if (tt < -0.9) { const k = smooth((tt + 2.6) / 1.7); return { pos: at(lerp(Math.min(far, 3.4), 1.0, k), 0.28 - k * 0.1, 0.6), look: at(0, 0.1, 0), fov: 36 - k * 6 }; }
       const k = smooth((tt + 0.9) / 0.9); return { pos: at(0.42 - k * 0.12, 0.13, 0.12), look: at(0, 0.07, -0.02), fov: 22 - k * 4 };
     }
-    if (tt < 1.5) { const k = tt / 1.5; return { pos: at(far * (0.95 + k * 0.05), Math.min(up - 0.3, 1.6 + k * 0.4), far * 0.25), look: at(0, 1.2 + k * 0.5, 0), fov: 58 + k * 4 }; }
+    if (tt < 1.5) { const k = tt / 1.5, fx = Math.min(far, 6.2); return { pos: at(fx * (0.92 + k * 0.08), Math.min(up - 0.3, 1.4 + k * 0.5), fx * 0.22), look: at(0, 1.3 + k * 0.5, 0), fov: 60 + k * 4 }; }
     if (tt < 3.1) { const k = (tt - 1.5) / 1.6, d2 = frameDir(S.open.a + 1.9), f2 = Math.max(3, Math.min(S.dirs.find(q => Math.abs(((q.a - S.open.a - 1.9) % 6.283 + 6.283) % 6.283) < 0.4) ? 7 : 5, 7));
       return { pos: B.clone().addScaledVector(d2, f2 - k * 0.6).setY(B.y + 0.5 + k * 0.3), look: B.clone().setY(B.y + Math.min(up, 3.5) * 0.7), fov: 66 }; }
     const k = smooth((tt - 3.1) / 1.4); return { pos: at(far * 0.8, Math.min(up - 0.3, 1.8 + k * 1.2), -far * 0.3), look: at(0, 1.5 + k, 0), fov: 60 };
@@ -192,7 +197,7 @@ export function createBombCine(o) {
       // efterbrænding: små flammer og røg der bliver ved at vælte op fra krateret
       if (tt > 0.3 && tt < 3.6) { S.emitT = (S.emitT || 0) + sdt; while (S.emitT > 0.05) { S.emitT -= 0.05; const R = Math.random;
         spawnPuff(S.flame, { x: S.B.x + (R() - 0.5) * 1.2, y: S.B.y + 0.15, z: S.B.z + (R() - 0.5) * 1.2, vx: (R() - 0.5), vy: 1.2 + R() * 1.8, vz: (R() - 0.5), drag: 1.5, lift: 1.6, life: 0.7 + R() * 0.6, s0: 0.3, s1: 1.1, hot: 0.9, r0: R() * 6, rs: 1 });
-        spawnPuff(S.smoke, { x: S.B.x + (R() - 0.5), y: S.B.y + 0.8, z: S.B.z + (R() - 0.5), vx: (R() - 0.5) * 0.6, vy: 1.6 + R(), vz: (R() - 0.5) * 0.6, drag: 0.8, lift: 0.5, life: 3 + R() * 2, s0: 1, s1: 4.5, l: 0.06, a: 0.75, ceil: S.B.y + S.ceil - 0.8, r0: R() * 6, rs: 0.3 }); } }
+        spawnPuff(S.smoke, { by: S.B.y, x: S.B.x + (R() - 0.5), y: S.B.y + 0.8, z: S.B.z + (R() - 0.5), vx: (R() - 0.5) * 0.6, vy: 1.6 + R(), vz: (R() - 0.5) * 0.6, drag: 0.8, lift: 0.5, life: 3 + R() * 2, s0: 1, s1: 4.5, l: 0.06, a: 0.75, ceil: S.B.y + S.ceil - 0.8, r0: R() * 6, rs: 0.3 }); } }
     }
     updatePuffs(S.fire, sdt, FIRE); updatePuffs(S.flame, sdt, FLAME); updatePuffs(S.smoke, sdt, SMOKE); updatePuffs(S.dust, sdt, SMOKE); updatePuffs(S.sparks, sdt, FIRE);
     // kamera + rystelser

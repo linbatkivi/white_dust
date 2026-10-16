@@ -389,7 +389,7 @@ def run(B, ROOMS, MATS, MI):
             put(ph(rnd.choice(('metal_tool_chest', 'industrial_pastic_container', 'portable_generator', 'tool_cart'))), xc, y, zc, yaw_long)
 
     # ------------------------------------------------------------ småting langs væggene
-    def wall_spots(room_mask, spacing):
+    def wall_spots(room_mask, spacing, slope=False):
         """punkter lige foran vægge i rummet: (x, z, yaw mod rummet)"""
         out = []
         for axis in ('x', 'z'):
@@ -398,7 +398,7 @@ def run(B, ROOMS, MATS, MI):
                     A = (slice(None), slice(0, W - 1)) if sgn > 0 else (slice(None), slice(1, W)); Bn = (slice(None), slice(1, W)) if sgn > 0 else (slice(None), slice(0, W - 1))
                 else:
                     A = (slice(0, H - 1), slice(None)) if sgn > 0 else (slice(1, H), slice(None)); Bn = (slice(1, H), slice(None)) if sgn > 0 else (slice(0, H - 1), slice(None))
-                m = room_mask[A] & ~WALK[Bn] & (SLOPE[A] < 0)
+                m = room_mask[A] & ~WALK[Bn] & ((SLOPE[A] < 0) | slope)
                 ii, jj = np.nonzero(m); oi, oj = A[0].start or 0, A[1].start or 0
                 step = int(spacing / S)
                 for i, j in zip(ii, jj):
@@ -447,6 +447,49 @@ def run(B, ROOMS, MATS, MI):
             if stack:
                 ex, ez = (0.9, 0.6) if yw % 180 == 0 else (0.6, 0.9)
                 put(CUSTOM % 'flight_case_s', px - 0.08, fl + 1.05, pz + 0.1, yw + 4.0, [px - 0.08, fl + 1.35, pz + 0.1, ex, 0.6, ez])
+    # ------------------------------------------------------------ v26: atriets midtpunkt – hængende lysring over en lounge-ø med skulptur
+    def obox(mesh, cxp, y0, czp, ang, L, Wd, Hh, mat):
+        """roteret kasse (om y): længde L langs vinklen ang, bredde Wd, højde Hh fra y0 – forsider udad"""
+        ca, sa = math.cos(ang), math.sin(ang); ux, uz = ca * L / 2, sa * L / 2; vx, vz = -sa * Wd / 2, ca * Wd / 2
+        P = [(cxp - ux - vx, y0, czp - uz - vz), (cxp + ux - vx, y0, czp + uz - vz), (cxp + ux + vx, y0, czp + uz + vz), (cxp - ux + vx, y0, czp - uz + vz)]
+        T = [(x, y0 + Hh, z) for (x, _, z) in P]; ctr = np.array([cxp, y0 + Hh / 2, czp])
+        for q in ([P[0], P[1], P[2], P[3]], [T[0], T[1], T[2], T[3]], [P[0], P[1], T[1], T[0]], [P[1], P[2], T[2], T[1]], [P[2], P[3], T[3], T[2]], [P[3], P[0], T[0], T[3]]):
+            a = [np.array(v, float) for v in q]; n = np.cross(a[1] - a[0], a[2] - a[1])
+            if np.dot(n, np.mean(a, axis=0) - ctr) < 0: q = q[::-1]
+            mesh.quad(q, mat, [(v[0] + v[2], v[1]) for v in q])
+    zi_mid = ZN.index('Mid'); ii_, jj_ = np.nonzero(ZID == zi_mid)
+    acx, acz = float(cx((jj_.min() + jj_.max()) / 2 + 0.5)), float(cz((ii_.min() + ii_.max()) / 2 + 0.5)) + 1.0
+    ai, aj = int(acz / S + B['CY']), int(acx / S + B['CX']); afl = float(F[ai, aj]); acl = float(C[ai, aj])
+    RR, NS, ry = 3.4, 32, min(acl - 2.2, afl + 5.4)
+    for k in range(NS):
+        a = (k + 0.5) / NS * 2 * math.pi
+        px, pz = acx + math.cos(a) * RR, acz + math.sin(a) * RR; tang = a + math.pi / 2; Ls = 2 * math.pi * RR / NS + 0.03
+        obox(VIS, px, ry, pz, tang, Ls, 0.34, 0.16, 'trim_metal')                         # mørk metalring
+        obox(VIS, px, ry - 0.025, pz, tang, Ls, 0.22, 0.03, 'light_strip')                  # lysbåndet på undersiden
+    for k in range(4):                                                                     # wirerne op til loftet
+        a = k * math.pi / 2 + math.pi / 4; px, pz = acx + math.cos(a) * RR, acz + math.sin(a) * RR
+        obox(VIS, px, ry + 0.16, pz, 0, 0.022, 0.022, acl - ry - 0.16, 'trim_metal')
+    for k in range(12):
+        a = k / 12 * 2 * math.pi; B['LIGHTS'].append(dict(x=round(acx + math.cos(a) * RR, 2), y=round(ry - 0.12, 2), z=round(acz + math.sin(a) * RR, 2), kind='ring', room='Mid'))
+    # lounge-øen under ringen: tæppe, to sofaer over for hinanden, sofabord, skulptur på sokkel, plantekummer i hjørnerne
+    put(CUSTOM % 'rug', acx, afl, acz, 0.0)
+    put(ph('sofa_03'), acx, afl, acz - 1.9, 0.0); put(ph('sofa_03'), acx, afl, acz + 1.9, 180.0)
+    put(ph('modern_coffee_table_01'), acx, afl, acz, 0.0)
+    put(CUSTOM % 'plinth', acx + 3.6, afl, acz, 0.0); put(ph('bronze_shark_statue'), acx + 3.6, afl + 1.0, acz, 90.0)
+    put(CUSTOM % 'plinth', acx - 3.6, afl, acz, 0.0); put(ph('marble_bust_01'), acx - 3.6, afl + 1.0, acz, -90.0)
+    for (dx_, dz_) in ((-2.6, -3.0), (2.6, -3.0), (-2.6, 3.0), (2.6, 3.0)): put(ph('potted_plant_04'), acx + dx_, afl, acz + dz_, rnd.uniform(0, 360))
+    print('[dress] atriets lysring og lounge-ø ved (%.1f, %.1f), ring i %.1f m' % (acx, acz, ry))
+    # ------------------------------------------------------------ v26: kunst og skærme på væggene i de lange gange (også på skrå gulve)
+    nart = 0
+    for n_ in ('Long A', 'Long A top', 'Søjlegangen A', 'B Halls vest', 'B Halls øst', 'Rampen', 'Connector', 'Back B'):
+        if n_ not in ZN: continue
+        for k_, (x, z, yaw, i, j) in enumerate(wall_spots(ZID == ZN.index(n_), 4.5, slope=True)):
+            if FREE[i, j] and SLOPE[i, j] < 0: continue
+            rad = math.radians(yaw); ox, oz = math.sin(rad) * 0.03, math.cos(rad) * 0.03
+            if k_ % 5 == 2: put(CUSTOM % 'wall_tv', x + ox, float(F[i, j]) + 1.7, z + oz, yaw)
+            else: put(CUSTOM % ('wall_art_%d' % (k_ % 4)), x + ox, float(F[i, j]) + 1.45, z + oz, yaw)
+            nart += 1
+    print('[dress] vægkunst/skærme i gangene', nart)
     # elevatorer i elevatorlobbyen, adgangsgates og metaldetektor i sikkerhedsslusen
     for n, model, cnt in (('Mid T', 'elevator_doors', 2),):
         zi = ZN.index(n); spots = sorted(wall_spots(ZID == zi, 2.8), key=lambda s: s[1])[:cnt]

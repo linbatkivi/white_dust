@@ -76,19 +76,78 @@ def area(ob):
     return sum(p.area for p in ob.data.polygons)
 
 def lightmap_uv(ob):
+    """v26: egen lysmap-UV uden sømme. Flader i samme akse-plan (vægge, gulve, lofter) samles i sammenhængende regioner og projiceres
+    plant i meter – nabofladers UV'er er derfor kontinuerlige, også ved T-samlinger hvor Blender ikke kan svejse dem (så ingen striber og
+    pletter langs strimmelkanterne). Skrå/andre flader får hver deres ø. Øerne pakkes på hylder med 3 texels luft."""
+    import bmesh as _bm
     me = ob.data
     if 'LM' not in me.uv_layers: me.uv_layers.new(name='LM')
     me.uv_layers.active = me.uv_layers['LM']
     for i, l in enumerate(me.uv_layers): l.active_render = (l.name == 'UVMap')
-    bpy.ops.object.select_all(action='DESELECT'); ob.select_set(True); bpy.context.view_layer.objects.active = ob
-    bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.select_all(action='SELECT')
-    # de_bureau: plane naboflader (gulvstrimler, vægfelter) samles først → én ø pr. flade i lysmappet (ingen striber ved strimmelkanter)
-    bpy.ops.mesh.remove_doubles(threshold=0.002)
-    bpy.ops.mesh.dissolve_limited(angle_limit=math.radians(0.5), delimit={'MATERIAL'})
-    bpy.ops.mesh.select_all(action='SELECT')
-    bpy.ops.uv.smart_project(angle_limit=math.radians(66), island_margin=0.003, area_weight=0.0, correct_aspect=True, scale_to_bounds=False)
-    bpy.ops.uv.pack_islands(rotate=True, margin=0.004)
-    bpy.ops.object.mode_set(mode='OBJECT')
+    bm = _bm.new(); bm.from_mesh(me); bm.faces.ensure_lookup_table(); uvl = bm.loops.layers.uv['LM']
+    groups = {}
+    for f in bm.faces:
+        n = f.normal; ax = max(range(3), key=lambda i: abs(n[i]))
+        if abs(n[ax]) > 0.999:
+            key = ('a', ax, 1 if n[ax] > 0 else -1, round(f.verts[0].co[ax], 3))
+            groups.setdefault(key, []).append(f)
+        else: groups[('f', f.index)] = [f]
+    def basis(f):
+        n = f.normal; ax = max(range(3), key=lambda i: abs(n[i]))
+        if abs(n[ax]) > 0.999: return [i for i in range(3) if i != ax], None
+        t = Vector((0, 0, 1)).cross(n); t = t.normalized() if t.length > 1e-4 else Vector((1, 0, 0)); b2 = n.cross(t).normalized(); return None, (t, b2)
+    islands = []
+    for key, fs in groups.items():
+        idx, tb = basis(fs[0])
+        P = (lambda v, idx=idx: (v[idx[0]], v[idx[1]])) if idx else (lambda v, tb=tb: (v.dot(tb[0]), v.dot(tb[1])))
+        boxes = []
+        for f in fs:
+            pts = [P(l.vert.co) for l in f.loops]; xs = [q[0] for q in pts]; ys = [q[1] for q in pts]; boxes.append((min(xs), min(ys), max(xs), max(ys)))
+        # sammenhængende regioner i planet (union-find via 0,5 m-gitter)
+        par = list(range(len(fs)))
+        def fd(i):
+            while par[i] != i: par[i] = par[par[i]]; i = par[i]
+            return i
+        cell = {}
+        for i, (x0, y0, x1, y1) in enumerate(boxes):
+            for gx in range(int(math.floor(x0 / 0.5 - 0.01)), int(math.floor(x1 / 0.5 + 0.01)) + 1):
+                for gy in range(int(math.floor(y0 / 0.5 - 0.01)), int(math.floor(y1 / 0.5 + 0.01)) + 1):
+                    for j in cell.get((gx, gy), ()):
+                        bx = boxes[j]
+                        if x0 <= bx[2] + 1e-3 and bx[0] <= x1 + 1e-3 and y0 <= bx[3] + 1e-3 and bx[1] <= y1 + 1e-3:
+                            ri, rj = fd(i), fd(j)
+                            if ri != rj: par[ri] = rj
+                    cell.setdefault((gx, gy), []).append(i)
+        comp = {}
+        for i in range(len(fs)): comp.setdefault(fd(i), []).append(i)
+        for ids in comp.values():
+            x0 = min(boxes[i][0] for i in ids); y0 = min(boxes[i][1] for i in ids); x1 = max(boxes[i][2] for i in ids); y1 = max(boxes[i][3] for i in ids)
+            islands.append({'faces': [fs[i] for i in ids], 'P': P, 'x0': x0, 'y0': y0, 'w': max(1e-3, x1 - x0), 'h': max(1e-3, y1 - y0)})
+    # tæthed: texels pr. meter (mindre øer får mindst 4 texels)
+    D = DENSITY; pad = 3.0 / D
+    for isl in islands:
+        isl['rot'] = isl['h'] > isl['w']
+        isl['W'], isl['H'] = (isl['h'], isl['w']) if isl['rot'] else (isl['w'], isl['h'])
+        isl['W'] = max(isl['W'], 4.0 / D); isl['H'] = max(isl['H'], 4.0 / D)
+    tot = sum((i['W'] + pad) * (i['H'] + pad) for i in islands)
+    shelf = max(math.sqrt(tot) * 1.08, max(i['W'] for i in islands) + pad)
+    islands.sort(key=lambda i: -i['H'])
+    x = y = rowh = 0.0
+    for isl in islands:
+        if x + isl['W'] + pad > shelf: x = 0.0; y += rowh; rowh = 0.0
+        isl['ox'], isl['oy'] = x + pad / 2, y + pad / 2; x += isl['W'] + pad; rowh = max(rowh, isl['H'] + pad)
+    side = max(shelf, y + rowh)
+    for isl in islands:
+        for f in isl['faces']:
+            for l in f.loops:
+                u, v = isl['P'](l.vert.co); u -= isl['x0']; v -= isl['y0']
+                if isl['rot']: u, v = v, u
+                l[uvl].uv = ((isl['ox'] + u) / side, (isl['oy'] + v) / side)
+    bm.to_mesh(me); bm.free()
+    texels = side * D; s2 = 256
+    while s2 < texels and s2 < 2048: s2 *= 2
+    ob['lm_size'] = s2
+    print('[uv] %s: %d øer, %.0f m side, %d² (%.1f texels/m)' % (ob.name, len(islands), side, s2, s2 / side), flush=True)
 
 def lm_size(ob):
     texels = area(ob) * DENSITY * DENSITY / 0.55
@@ -168,7 +227,7 @@ def bake_all(samples=int(os.environ.get('BU_BAKE_SAMPLES', 128))):
         t0 = time.time(); print('[bake] start %s %s' % (k, kind), flush=True)
         bpy.ops.object.select_all(action='DESELECT'); ob.select_set(True); bpy.context.view_layer.objects.active = ob
         if kind == 'lm':
-            lightmap_uv(ob); size = lm_size(ob)
+            lightmap_uv(ob); size = int(ob.get('lm_size', 0)) or lm_size(ob)
             imA = bake_img(ob, 'lmA_' + k, size); bake_pass(ob, 'IMAGE_TEXTURES', 'sky', sc, bg, sky, samples); A = px(imA).copy()
             if any(o.type == 'LIGHT' and o.data.type == 'SUN' for o in bpy.data.objects):
                 imB = bake_img(ob, 'lmB_' + k, size); bake_pass(ob, 'IMAGE_TEXTURES', 'sun', sc, bg, sky, samples); Bv = px(imB)

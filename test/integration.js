@@ -227,6 +227,7 @@ async function main() {
     ok(e3 && e3.win === 'swat' && e3.reason === 'defuse', 'SWAT vinder ved desarmering');
 
     console.log('\n== Runde 4: granater (kast-kraft, underhånd, HE, flashbang, molotov, smoke) ==');
+    const GX = -3.5, GY = 4.8, GZ = -1;   // fri 20 m bane på øverste etage (atriets lounge-ø står på den gamle x=12-linje)
     await hij.wait(m => m.t === 'round' && m.n === 4, 4000); await sleep(100);
     for (const b of bots) { b.send({ t: 'dbg', money: 9000, strip: 1 }); }
     await sleep(100);
@@ -236,27 +237,27 @@ async function main() {
     await sleep(150);
     ok(hij.self.inv.he === 1 && hij.self.inv.flash === 2 && hij.self.inv.smoke === 1 && hij.self.inv.molotov === 0, 'Granatgrænse: 4 i alt (molotov afvist som 5.)');
     await hij.waitSnap(s => s.ph === 'live', 5000);
-    hij.tp(LX, AY, AZ + 20); swat.tp(LX, AY, AZ + 5); await sleep(200);
-    hij.pos = { x: LX, y: AY, z: AZ + 20 }; swat.pos = { x: LX, y: AY, z: AZ + 5 };
+    hij.tp(GX, GY, GZ + 20); swat.tp(GX, GY, GZ + 5); await sleep(200);
+    hij.pos = { x: GX, y: GY, z: GZ + 20 }; swat.pos = { x: GX, y: GY, z: GZ + 5 };
     hij.send({ t: 'sw', w: 'he' }); await sleep(80);
     hij.sendIn({ n: 1 }); await sleep(150);
     ok((hij.snap.p.find(q => q[0] === hij.id)[6] & 32) !== 0, 'Trukket split (opladning) synkroniseres i snapshot (3.-persons-animation)');
     hij.clear(); swat.clear();
-    hij.send({ t: 'throw', o: [LX, AY + 1.6, AZ + 19.5], d: [0, 0.1, -1], u: 1 });
+    hij.send({ t: 'throw', o: [GX, GY + 1.6, GZ + 19.5], d: [0, 0.1, -1], u: 1 });
     ok(!!(await swat.wait(m => m.t === 'ev' && m.k === 'throw' && m.i === hij.id && m.u === 1, 1000)), 'Kast-event (underhånd) sendes til andre spillere');
     const boom = await swat.wait(m => m.t === 'ev' && m.k === 'boom', 4000);
     ok(!!boom, 'HE-granat eksploderer');
-    ok(boom && boom.z < AZ + 18 && boom.z > AZ + 5, 'Underhåndskast lander kort foran (z=' + (boom && boom.z) + ')');
+    ok(boom && boom.z < GZ + 18 && boom.z > GZ + 5, 'Underhåndskast lander kort foran (z=' + (boom && boom.z) + ')');
     await sleep(150);
     ok(swat.self.hp < 100 || !swat.self.alive, 'HE gør skade på modstanderen (hp=' + swat.self.hp + ', boom ' + (boom && [boom.x, boom.y, boom.z].join(',')) + ')');
     // flashbang: modstanderen kigger direkte på eksplosionen => lang blænding; kigger væk => kort
     swat.send({ t: 'dbg', hp: 100 }); swat.yaw = Math.PI; swat.sendIn(); hij.yaw = 0; hij.sendIn(); await sleep(80);
     hij.send({ t: 'sw', w: 'flash' }); await sleep(80); swat.clear(); hij.clear();
-    hij.send({ t: 'throw', o: [LX, AY + 1.6, AZ + 19.5], d: [0, 0.1, -1], u: 1 });
+    hij.send({ t: 'throw', o: [GX, GY + 1.6, GZ + 19.5], d: [0, 0.1, -1], u: 1 });
     const fl1 = await hij.wait(m => m.t === 'ev' && m.k === 'flash', 3000), fd1 = await swat.wait(m => m.t === 'ev' && m.k === 'flashed', 1000);
     ok(!!fl1 && fd1 && fd1.dur >= 3.0 && fd1.full === 1, 'Flashbang: direkte blik => ' + (fd1 && fd1.dur) + ' s fuld blænding');
     swat.clear(); hij.clear();
-    hij.send({ t: 'throw', o: [LX, AY + 1.6, AZ + 19.5], d: [0, 0.1, -1], pw: 1 });
+    hij.send({ t: 'throw', o: [GX, GY + 1.6, GZ + 19.5], d: [0, 0.1, -1], pw: 1 });
     const fl2 = await hij.wait(m => m.t === 'ev' && m.k === 'flash', 3000), fd2 = await swat.wait(m => m.t === 'ev' && m.k === 'flashed', 1000);
     ok(fl1 && fl2 && fl2.z < fl1.z - 6, 'Fuld kraft kaster markant længere end underhånd (z ' + (fl1 && fl1.z) + ' → ' + (fl2 && fl2.z) + ')');
     ok(fd2 && fd2.dur <= 1.0 && !fd2.full, 'Flashbang bag ryggen => kort blænding (' + (fd2 && fd2.dur) + ' s)');
@@ -265,11 +266,11 @@ async function main() {
     const fireBot = swat.self.inv.incgren ? swat : null;
     ok(!!fireBot && swat.self.inv.he === 1 && swat.self.inv.smoke === 1 && swat.self.inv.flash === 1, 'SWAT: brandgranat + HE + smoke + 1 flash (4. flash afvist pga. grænsen)');
     if (fireBot) {
-      swat.tp(LX, AY, AZ + 6); hij.tp(LX, AY, AZ + 20); await sleep(200); swat.pos = { x: LX, y: AY, z: AZ + 6 }; hij.pos = { x: LX, y: AY, z: AZ + 20 };
+      swat.tp(GX, GY, GZ + 6); hij.tp(GX, GY, GZ + 20); await sleep(200); swat.pos = { x: GX, y: GY, z: GZ + 6 }; hij.pos = { x: GX, y: GY, z: GZ + 20 };
       swat.send({ t: 'sw', w: 'incgren' }); await sleep(80); swat.clear(); hij.clear();
-      swat.send({ t: 'throw', o: [LX, AY + 1.6, AZ + 6.5], d: [0, 0.1, 1], u: 1 });
+      swat.send({ t: 'throw', o: [GX, GY + 1.6, GZ + 6.5], d: [0, 0.1, 1], u: 1 });
       const fe = await hij.wait(m => m.t === 'ev' && m.k === 'fire', 3000);
-      ok(fe && fe.w === 'incgren' && Math.abs(fe.y - AY) < 0.05, 'Brandgranaten antænder ved gulvkontakt (ildzone på gulvet, y=' + (fe && fe.y) + ')');
+      ok(fe && fe.w === 'incgren' && Math.abs(fe.y - GY) < 0.05, 'Brandgranaten antænder ved gulvkontakt (ildzone på gulvet, y=' + (fe && fe.y) + ')');
       const sf = await hij.waitSnap(s => s.f && s.f.length === 1, 1000);
       ok(!!sf && sf.f[0][5] > 6000, 'Ildzonen er med i snapshots (7 s varighed)');
       if (fe) {
@@ -278,7 +279,7 @@ async function main() {
         hij.send({ t: 'dbg', hp: 100 }); await sleep(60);
         hij.tp(fe.x, fe.y, fe.z); await sleep(60); hij.pos = { x: fe.x, y: fe.y, z: fe.z }; hij.sendIn();
         await sleep(1050);
-        hij.tp(LX, AY, AZ + 20); await sleep(80); hij.pos = { x: LX, y: AY, z: AZ + 20 }; hij.sendIn(); await sleep(150);
+        hij.tp(GX, GY, GZ + 20); await sleep(80); hij.pos = { x: GX, y: GY, z: GZ + 20 }; hij.sendIn(); await sleep(150);
         const lost = 100 - hij.self.hp;
         ok(lost >= 12 && lost <= 21 && hij.log.some(m => m.t === 'ev' && m.k === 'burn'), 'Skade over tid i ilden: ' + lost + ' HP på ~1 s (15 HP/s)');
         hij.send({ t: 'sw', w: 'smoke' }); await sleep(60); hij.clear();

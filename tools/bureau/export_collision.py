@@ -90,7 +90,7 @@ D = {'version': '1', 'grid': {'GX0': X0, 'GZ0': Z0, 'GW': int((X1 - X0) / 2) + 1
      'spawns': {'hij': pts(M['spawns']['hij'], 0.0), 'swat': pts(M['spawns']['swat'], math.pi)}, 'levels': {'T': 0.0, 'CT': 6.0}, 'water': [], 'intro': intro}
 # v26: lamperne til spillets lys-prober (alt der bevæger sig: våben i hånden, spillere, C4, tabte våben) – samme lamper som bagningen
 PK = {'down': (0.75, 7.0, 0xffcf94, True), 'panel': (1.1, 8.0, 0xfff2e0, True), 'linear': (1.0, 8.0, 0xeaf2ff, True), 'highbay': (2.2, 13.0, 0xffeccc, True),
-      'server': (1.6, 9.0, 0x8cc0ff, True), 'atrium': (2.4, 14.0, 0xffe0bc, True), 'street': (1.6, 12.0, 0xffb873, False), 'emergency': (0.9, 6.0, 0xff2010, False)}
+      'server': (1.6, 9.0, 0x8cc0ff, True), 'atrium': (2.4, 14.0, 0xffe0bc, True), 'street': (1.6, 12.0, 0xffb873, False), 'emergency': (0.9, 6.0, 0xff2010, False), 'ring': (1.1, 9.0, 0xffdcab, False)}
 pl = []
 for l in G.LIGHTS:
     k = PK.get(l['kind'])

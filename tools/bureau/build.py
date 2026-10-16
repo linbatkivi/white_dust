@@ -157,14 +157,15 @@ def city():
     M.build(coll('city'))
 
 # ---------------------------------------------------------------- lys (gen.LIGHTS) og nattehimmel
-POWER = {'down': 16.0, 'emergency': 14.0, 'exit': 2.5, 'panel': 30.0, 'linear': 28.0, 'highbay': 220.0, 'server': 140.0, 'atrium': 260.0, 'street': 120.0}
+POWER = {'down': 16.0, 'emergency': 14.0, 'exit': 2.5, 'panel': 30.0, 'linear': 28.0, 'highbay': 220.0, 'server': 140.0, 'ring': 45.0, 'atrium': 260.0, 'street': 120.0}
 COLOR = {'down': (1.0, 0.8, 0.58), 'emergency': (1.0, 0.12, 0.06), 'exit': (0.2, 1.0, 0.45), 'panel': (1.0, 0.95, 0.88), 'linear': (0.92, 0.96, 1.0),
-         'highbay': (1.0, 0.92, 0.8), 'server': (0.55, 0.75, 1.0), 'atrium': (1.0, 0.88, 0.74), 'street': (1.0, 0.72, 0.45)}
+         'highbay': (1.0, 0.92, 0.8), 'server': (0.55, 0.75, 1.0), 'ring': (1.0, 0.86, 0.66), 'atrium': (1.0, 0.88, 0.74), 'street': (1.0, 0.72, 0.45)}
 def lights(L):
     for k, l in enumerate(L):
         kind = l['kind']
         if kind in ('street', 'down'): ld = bpy.data.lights.new('L%d' % k, 'SPOT'); ld.spot_size = math.radians(120 if kind == 'street' else 95); ld.spot_blend = 0.55; ld.shadow_soft_size = 0.05
         elif kind in ('emergency', 'exit'): ld = bpy.data.lights.new('L%d' % k, 'POINT'); ld.shadow_soft_size = 0.05
+        elif kind == 'ring': ld = bpy.data.lights.new('L%d' % k, 'POINT'); ld.shadow_soft_size = 0.25          # v26: atriets lysring
         else:
             ld = bpy.data.lights.new('L%d' % k, 'AREA'); ld.shape = 'RECTANGLE'
             ld.size, ld.size_y = {'panel': (0.6, 1.2), 'linear': (0.18, 1.5), 'highbay': (0.5, 0.5), 'server': (0.16, 2.4), 'atrium': (0.9, 0.9)}.get(kind, (0.5, 0.5))
