@@ -5,7 +5,7 @@
 #   + småting langs væggene (brandslukkere, kameraer, ure, planter, el-skabe, ventilationskanaler)
 # Alt i spil-koordinater (X øst, Y op, Z syd). Props skrives som instanser (Godot sætter modellerne ind).
 # ==========================================================================
-import math, random
+import json, os, math, random
 import numpy as np
 
 def run(B, ROOMS, MATS, MI):
@@ -172,18 +172,18 @@ def run(B, ROOMS, MATS, MI):
                 A = (slice(0, H - 1), slice(None)) if sgn > 0 else (slice(1, H), slice(None)); Bn = (slice(1, H), slice(None)) if sgn > 0 else (slice(0, H - 1), slice(None))
             fa, fb = np.nan_to_num(F[A], nan=-99), np.nan_to_num(F[Bn], nan=-99)
             same = (SLOPE[A] >= 0) & (SLOPE[A] == SLOPE[Bn])
-            m = WALK[A] & WALK[Bn] & (fa - fb > 0.3) & ~same
+            m = WALK[A] & WALK[Bn] & ((fa - fb > 0.6) | ((fa - fb > 0.3) & (SLOPE[A] >= 0))) & ~same   # trapper/ramper: brystning fra 0,3 m
             q = np.round(fa * 10).astype(np.int64)                                  # 10 cm trin langs trapper
             oi, oj = A[0].start or 0, A[1].start or 0
             def rail(x0, z0, x1, z1, y, ia, ja):
                 nonlocal nr
                 g = zname(ia, ja) in GLASS_RAIL; h = 1.05
-                if SLOPE[ia, ja] >= 0 or (B['STEPS'][ia, ja]):                  # langs en trappe: glasvæg uden trappede profiler
-                    box(VIS, x0, y, z0, x1, y + h, z1, 'glass'); box(COL, x0, y, z0, x1, y + h, z1, 'wall'); nr += 1
+                if SLOPE[ia, ja] >= 0 or (B['STEPS'][ia, ja]):                  # langs en trappe: kollision i trin – det synlige er den skrå brystning
+                    box(COL, x0, y, z0, x1, y + h, z1, 'wall'); nr += 1
                     B['RAILS'].append([round(x0, 3), round(z0, 3), round(x1, 3), round(z1, 3), round(y, 3), h]); return
                 if g:
                     box(VIS, x0, y, z0, x1, y + h - 0.06, z1, 'glass')
-                    box(VIS, x0 - 0.01, y + h - 0.06, z0 - 0.01, x1 + 0.01, y + h, z1 + 0.01, 'trim_metal')
+                    box(VIS, x0 - 0.025, y + h - 0.07, z0 - 0.025, x1 + 0.025, y + h, z1 + 0.025, 'trim_metal')          # kraftig håndliste (tydelig om natten)
                     box(VIS, x0 - 0.008, y, z0 - 0.008, x1 + 0.008, y + 0.06, z1 + 0.008, 'trim_metal', 'nsewt')
                 else:
                     box(VIS, x0, y + h - 0.045, z0, x1, y + h, z1, 'trim_metal'); box(VIS, x0, y + 0.5, z0, x1, y + 0.53, z1, 'trim_metal')
@@ -214,11 +214,74 @@ def run(B, ROOMS, MATS, MI):
                         while j < len(row) and row[j] and q[il, j] == k: j += 1
                         z0, z1 = sorted((zb, zb - sgn * 0.05)); rail(cx(s + oj), z0, cx(j + oj), z1, float(fa[il, s]), ii, s + oj)
     print('[dress] gelænderstykker', nr)
+    # ------------------------------------------------------------ skrå brystninger langs trapper/ramper (følger hældningen – ingen savtakker)
+    FC = B['FC']; nb2 = 0
+    def slope_wall(a0, a1, ha0, ha1, lo, axis, e, sgn, mat):
+        """brystning fra a0 til a1 langs aksen, i linjen e (tværs), overkant ha0→ha1, underkant lo; tykkelse 0,08 m ud mod det lave rum"""
+        t0, t1 = (e, e + sgn * 0.08)
+        def P(a, y, t): return (t, y, a) if axis == 'z' else (a, y, t)
+        top = 1.0
+        A0 = [P(a0, lo, t0), P(a1, lo, t0), P(a1, ha1 + top, t0), P(a0, ha0 + top, t0)]
+        A1 = [P(a0, lo, t1), P(a1, lo, t1), P(a1, ha1 + top, t1), P(a0, ha0 + top, t1)]
+        uvs = lambda q: [((p[2] if axis == 'z' else p[0]), p[1]) for p in q]
+        ctr = np.mean(np.array(A0 + A1), axis=0)
+        def oq(q, want=None):                                                    # forsiden udad (væk fra midten) – eller i retningen want
+            q = [np.array(v, float) for v in q]; n = np.cross(q[1] - q[0], q[2] - q[1]); d = want if want is not None else np.mean(q, axis=0) - ctr
+            return [tuple(v) for v in (q if np.dot(n, d) >= 0 else q[::-1])]
+        for q in (A0, A1): q2 = oq(q); VIS.quad(q2, mat, uvs(q2))
+        for q in ([A0[0], A0[3], A1[3], A1[0]], [A0[1], A1[1], A1[2], A0[2]]): q2 = oq(q); VIS.quad(q2, mat, [(0, p[1]) for p in q2])
+        cap = [P(a0, ha0 + top + 0.05, t0 - sgn * 0.02), P(a1, ha1 + top + 0.05, t0 - sgn * 0.02), P(a1, ha1 + top + 0.05, t1 + sgn * 0.02), P(a0, ha0 + top + 0.05, t1 + sgn * 0.02)]
+        q2 = oq(cap, np.array([0, 1.0, 0])); VIS.quad(q2, 'trim_metal', [((p[2] if axis == 'z' else p[0]), p[0] if axis == 'z' else p[2]) for p in q2])
+        for (u0, u1) in ((0, 1), (2, 3)):                                        # afdækningens forkanter (5 cm)
+            e2 = [cap[u0], cap[u1], (cap[u1][0], cap[u1][1] - 0.05, cap[u1][2]), (cap[u0][0], cap[u0][1] - 0.05, cap[u0][2])]
+            q2 = oq(e2, np.array(e2[0]) - np.mean(np.array(cap), axis=0)); VIS.quad(q2, 'trim_metal', uvs(q2))
+    for k_, t_ in enumerate(B['TR']):
+        x0r, y0r, x1r, y1r = t_['r']
+        for side in (-1, 1):
+            # cellerne langs trappens side og nabocellen udenfor (lavere gulv)
+            if t_['axis'] == 'z':
+                cells = [(i, x0r if side < 0 else x1r - 1, i, x0r - 1 if side < 0 else x1r) for i in range(y0r, y1r)]
+            else:
+                cells = [(y0r if side < 0 else y1r - 1, j, y0r - 1 if side < 0 else y1r, j) for j in range(x0r, x1r)]
+            run = []
+            def flush(run):
+                nonlocal nb2
+                if len(run) < 3: return
+                (i_a, j_a, oi_a, oj_a), (i_b, j_b, oi_b, oj_b) = run[0], run[-1]
+                lo = min(float(F[oi, oj]) for (_, _, oi, oj) in run) - 0.02
+                if t_['axis'] == 'z': a0, a1, e = cz(i_a), cz(i_b + 1), (cx(x0r) if side < 0 else cx(x1r))
+                else: a0, a1, e = cx(j_a), cx(j_b + 1), (cz(y0r) if side < 0 else cz(y1r))
+                mat = 'walnut' if zname(i_a, j_a) in GLASS_RAIL else 'block_wall'
+                slope_wall(a0, a1, float(FC[i_a, j_a]), float(FC[i_b, j_b]), lo, t_['axis'], e, side, mat); nb2 += 1
+            for (i, j, oi, oj) in cells:
+                ok = 0 <= oi < H and 0 <= oj < W and WALK[i, j] and WALK[oi, oj] and SLOPE[oi, oj] != k_ and FC[i, j] - F[oi, oj] > 0.3
+                if ok: run.append((i, j, oi, oj))
+                else: flush(run); run = []
+            flush(run)
+    print('[dress] skrå trappebrystninger', nb2)
 
     # ------------------------------------------------------------ indretning: dækningsfelter → inventar
     CUSTOM = 'res://assets/models/custom/%s.glb'; PH = 'res://assets/models/%s/%s.gltf'
     ph = lambda n: PH % (n, n)
+    DIMS = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'model_dims.json')))
+    # v26: solide møbler får kollision efter deres egen form (målt i Blender, gen/modeldims_blender.py) – aldrig overblikkets felter
+    SOLID = {'desk_pair', 'reception_desk', 'sofa_02', 'sofa_03', 'weapon_locker', 'server_rack', 'steel_frame_shelves_02', 'steel_frame_shelves_03',
+             'wooden_military_crate', 'old_military_crate', 'concrete_road_barrier', 'metal_tool_chest', 'industrial_pastic_container', 'portable_generator',
+             'tool_cart', 'covered_car', 'potted_plant_04', 'planter_large', 'plinth', 'coffee_bar', 'flight_case', 'flight_case_s', 'drawer_cabinet', 'bookshelf',
+             'modern_coffee_table_01', 'cardboard_box_01', 'propane_tank'}
+    def auto_coll(model, x, y, z, yaw):
+        nm = model.split('/')[-1].rsplit('.', 1)[0]; d = DIMS.get(nm)
+        if nm not in SOLID or not d: return None
+        mn, mx = d['min'], d['max']; a = math.radians(yaw); c, s_ = math.cos(a), math.sin(a)
+        xs, zs = [], []
+        for px in (mn[0], mx[0]):
+            for pz in (mn[2], mx[2]): xs.append(px * c + pz * s_); zs.append(-px * s_ + pz * c)
+        x0, x1, z0, z1 = x + min(xs), x + max(xs), z + min(zs), z + max(zs)
+        y0 = y if '/custom/' not in model else y + mn[1]; h = mx[1] - mn[1]
+        if h < 0.25: return None                                                # tæpper, papir o.l.: ingen kollision
+        return [(x0 + x1) / 2, y0 + h / 2, (z0 + z1) / 2, x1 - x0, h, z1 - z0]
     def put(model, x, y, z, yaw=0.0, coll=None):
+        if coll is None: coll = auto_coll(model, x, y, z, yaw)
         e = dict(m=model, p=[round(x, 3), round(y, 3), round(z, 3)], yaw=round(yaw, 1))
         if coll:
             # for lidt loftshøjde til at stå oven på (< 1,95 m): kollisionen går helt op til loftet – ingen fastklemning mellem bord og loft
@@ -231,7 +294,28 @@ def run(B, ROOMS, MATS, MI):
     def floor_at(x, z):
         i, j = int(z / S + B['CY']), int(x / S + B['CX'])
         return float(F[i, j]) if 0 <= i < H and 0 <= j < W and WALK[i, j] else None
+    # passager (døråbninger, trapper/ramper) + 1,8 m: her står intet inventar – aldrig spærrede indgange
+    FREE = (SLOPE >= 0).copy()
+    for ax_, (i0, j0, i1, j1) in doors: FREE[max(0, i0):i1, max(0, j0):j1] = True
+    FREE_D = FREE.copy()
+    for _ in range(3):                                                         # 0,35 m: selve åbningen + lidt luft (dækning nær døre er ok)
+        n_ = FREE_D.copy(); n_[1:] |= FREE_D[:-1]; n_[:-1] |= FREE_D[1:]; n_[:, 1:] |= FREE_D[:, :-1]; n_[:, :-1] |= FREE_D[:, 1:]; FREE_D = n_
+    for _ in range(15):
+        n_ = FREE.copy(); n_[1:] |= FREE[:-1]; n_[:-1] |= FREE[1:]; n_[:, 1:] |= FREE[:, :-1]; n_[:, :-1] |= FREE[:, 1:]; FREE = n_
+    nskip = 0
     for (x0p, y0p, x1p, y1p, h) in M['cover']:
+        if FREE_D[y0p:y1p, x0p:x1p].any():                                    # i en passage: flyt feltet væk (op til 1,7 m) i stedet for at droppe det
+            fl0 = F[(y0p + y1p) // 2, (x0p + x1p) // 2]; best = None
+            for r in range(2, 15):
+                for (di, dj) in ((r, 0), (-r, 0), (0, r), (0, -r), (r, r), (r, -r), (-r, r), (-r, -r)):
+                    a0, a1, b0, b1 = y0p + di, y1p + di, x0p + dj, x1p + dj
+                    if a0 < 0 or b0 < 0 or a1 > H or b1 > W: continue
+                    blk = WALK[a0:a1, b0:b1]
+                    if blk.all() and not FREE_D[a0:a1, b0:b1].any() and np.nanmax(np.abs(F[a0:a1, b0:b1] - fl0)) < 0.05 and (SLOPE[a0:a1, b0:b1] < 0).all():
+                        best = (a0, b0, a1, b1); break
+                if best: break
+            if not best: nskip += 1; continue
+            y0p, x0p, y1p, x1p = best
         x0, z0, x1, z1 = cx(x0p), cz(y0p), cx(x1p), cz(y1p); xc, zc = (x0 + x1) / 2, (z0 + z1) / 2
         i, j = (y0p + y1p) // 2, (x0p + x1p) // 2; room = zname(i, j)
         if room is None: continue
@@ -271,7 +355,7 @@ def run(B, ROOMS, MATS, MI):
             if L > 4.0:
                 put(CUSTOM % 'reception_desk', xc, y, zc, 0.0 if along_x else 90.0); hh = 1.12
             else:
-                put(ph('pachira_aquatica_01'), xc, y, zc, rnd.uniform(0, 360)); hh = max(h, 1.1)
+                put(ph('potted_plant_04'), xc, y, zc, rnd.uniform(0, 360)); hh = max(h, 1.1)
         elif room in ('Mid T', 'Top Mid', 'Arch', 'Balkonen'):
             put(ph('sofa_02'), xc, y, zc, yaw_long); hh = 0.9
         elif room == 'B Site':
@@ -286,7 +370,7 @@ def run(B, ROOMS, MATS, MI):
             for k in range(n):
                 t = (k + 0.5) / n - 0.5
                 px, pz = (xc + t * L, zc) if along_x else (xc, zc + t * L)
-                put(ph(rnd.choice(('steel_frame_shelves_01', 'steel_frame_shelves_02'))), px, y, pz, yaw_long)
+                put(ph(rnd.choice(('steel_frame_shelves_02', 'steel_frame_shelves_03'))), px, y, pz, yaw_long)
             hh = 2.0
         elif room in ('CT Forgård', 'CT Spawn'):
             n = max(1, int(L / 1.25))
@@ -303,7 +387,6 @@ def run(B, ROOMS, MATS, MI):
                 put(ph('concrete_road_barrier'), px, y, pz, yaw_long)
         else:                                                                       # kælder/teknik: værkstedsting
             put(ph(rnd.choice(('metal_tool_chest', 'industrial_pastic_container', 'portable_generator', 'tool_cart'))), xc, y, zc, yaw_long)
-        props[-1]['c'] = [round(v, 3) for v in (xc, y + hh / 2, zc, lx, hh, lz)]     # kollision = overblikkets felt
 
     # ------------------------------------------------------------ småting langs væggene
     def wall_spots(room_mask, spacing):
@@ -342,11 +425,8 @@ def run(B, ROOMS, MATS, MI):
                 put(ph('wall_clock'), x + ox * 0.2, fl + 2.3, z + oz * 0.2, yaw)
             elif k == 5 and n in ('B Halls vest', 'Vent-gangen', 'Storage', 'Lower B'):
                 put(ph('metal_trash_can'), x + ox * 2.5, fl, z + oz * 2.5, rnd.uniform(0, 360))
-    # serverhallen og forpladsen: racks i rækker langs væggene (forsiden ud mod rummet) – aldrig foran trapper, ramper og døre (2 m fri)
-    FREE = (SLOPE >= 0).copy()
-    for ax_, (i0, j0, i1, j1) in doors: FREE[max(0, i0):i1, max(0, j0):j1] = True
-    for _ in range(17):
-        n_ = FREE.copy(); n_[1:] |= FREE[:-1]; n_[:-1] |= FREE[1:]; n_[:, 1:] |= FREE[:, :-1]; n_[:, :-1] |= FREE[:, 1:]; FREE = n_
+    print('[dress] dækningsfelter sprunget over (i passager): %d' % nskip)
+    # serverhallen og forpladsen: racks i rækker langs væggene (forsiden ud mod rummet) – aldrig foran trapper, ramper og døre (FREE)
     for n in ('A Site', 'A Forplads'):
         zi = ZN.index(n)
         for (x, z, yaw, i, j) in wall_spots(ZID == zi, 0.62):
@@ -462,7 +542,7 @@ def run(B, ROOMS, MATS, MI):
             hang(zi, ph('wall_clock'), 2.25, 1, 6.0)
             against(zi, CUSTOM % 'bookshelf', 0.9, 0.36, 2.0, 3, spacing=1.0)
             against(zi, ph('drawer_cabinet'), 0.6, 0.6, 1.1, 3, spacing=1.0)
-            against(zi, ph('pachira_aquatica_01'), 0.7, 0.7, 1.6, 2, spacing=3.0)
+            against(zi, ph('potted_plant_04'), 0.7, 0.7, 1.6, 2, spacing=3.0)
             against(zi, ph('metal_trash_can'), 0.35, 0.35, 0.6, 2, spacing=2.0)
         elif n in LUXR:
             big = n in ('Mid', 'Arch', 'Top Mid', 'T Base', 'Mid T', 'Balkonen')
@@ -477,7 +557,7 @@ def run(B, ROOMS, MATS, MI):
                 put(ph(rnd.choice(('bronze_shark_statue', 'horse_statue_01', 'marble_bust_01'))), cxp, fl + 1.0, czp, yaw)
             against(zi, CUSTOM % 'plinth', 0.7, 0.7, 1.0, 2 if big else 1, spacing=4.0, extra=statue)
             def plant(cxp, fl, czp, yaw, fx, fz):
-                put(ph('pachira_aquatica_01'), cxp, fl + 0.6, czp, rnd.uniform(0, 360))
+                put(ph('potted_plant_01'), cxp, fl + 0.6, czp, rnd.uniform(0, 360))
             against(zi, CUSTOM % 'planter_large', 0.9, 0.9, 0.62, 3 if big else 1, spacing=3.0, extra=plant)
             hang(zi, CUSTOM % ('wall_art_%d' % rnd.randint(0, 3)), 0.0, 3 if big else 2, 4.0)
             if n == 'Connector':

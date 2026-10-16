@@ -23,6 +23,7 @@ import { createLogo3D } from '/js/logo3d.js';
 import { createAgentStage } from '/js/agentstage.js';
 import { createMenuFx } from '/js/menufx.js';
 import { createIntro } from '/js/intro.js';
+import { createBombCine } from '/js/bombcine.js';
 import { createMvpCine } from '/js/mvpcine.js';
 import { createNight } from '/js/night.js';
 import * as SK from '/js/skins.js';
@@ -466,12 +467,23 @@ function refreshMatchButtons() {
   $('btnRestart').classList.toggle('hidden', !host); $('btnEndGame').classList.toggle('hidden', !host);
 }
 function confirmBtn(id, action) {
-  const b = $(id); b.dataset.l = b.textContent; let t = 0;
+  const b = $(id), lab = b.querySelector('b') || b, sub = b.querySelector('small'); b.dataset.l = lab.textContent; const s0 = sub ? sub.textContent : ''; let t = 0;
+  const reset = () => { lab.textContent = b.dataset.l; if (sub) sub.textContent = s0; b.classList.remove('confirm'); };
   b.addEventListener('click', e => {
     e.stopPropagation();
-    if (t) { clearTimeout(t); t = 0; b.textContent = b.dataset.l; action(); return; }
-    b.textContent = 'SIKKER? KLIK IGEN'; t = setTimeout(() => { t = 0; b.textContent = b.dataset.l; }, 3000);
+    if (t) { clearTimeout(t); t = 0; reset(); action(); return; }
+    lab.textContent = 'SIKKER? KLIK IGEN'; if (sub) sub.textContent = 'klik igen inden for 3 sekunder'; b.classList.add('confirm'); t = setTimeout(() => { t = 0; reset(); }, 3000);
   });
+}
+// v26: pausemenuens missionsinfo (bane, runde, stilling, hold)
+function fillPause() {
+  try {
+    const m = $('pmMeta'); if (!m) return; $('pmMap').textContent = 'DE_' + (W && W.id ? W.id.toUpperCase() : 'BUREAU');
+    const side = Game.side === 'hij' ? 'HIJACKERS' : Game.side === 'swat' ? 'SWAT' : '–';
+    m.innerHTML = `<div><small>RUNDE</small><b>${($('roundLabel').textContent || '').replace(/[^0-9]/g, '') || '–'}</b></div>`
+      + `<div><small>STILLING</small><b><span style="color:#6fa3ff">${$('scoreSwat').textContent}</span> – <span style="color:var(--red)">${$('scoreHij').textContent}</span></b></div>`
+      + `<div class="${Game.side === 'hij' ? 'hij' : 'swat'}"><small>DIT HOLD</small><b>${side}</b></div>`;
+  } catch (e) {}
 }
 confirmBtn('btnRestart', () => { Net.send({ t: 'restart' }); lockPointer(); });
 confirmBtn('btnEndGame', () => Net.send({ t: 'endgame' }));
@@ -707,16 +719,17 @@ Net.on('ev', m => {
     case 'hit': HUD.hitmarker(m.kill, m.hs); Renderer.flinchAim(); Audio.click(m.knife ? 'flesh' : m.hs ? 'hs' : 'hit'); if (m.kill) Audio.click('kill'); break;
     case 'hurt': HUD.damageIndicator(m.dx, m.dz, m.dmg); Renderer.shake(m.hs ? 0.3 : 0.18); break;
     case 'kill': HUD.killfeed(m); if (m.v === Game.meId) { HUD.showDead(); Game.nade = null; Game.firing = false; } break;
-    case 'end': HUD.roundEnd(m); break;
+    case 'end': if (!Renderer.deferEnd(m)) HUD.roundEnd(m); break;           // v26: under bombe-filmen vises rundeslut bagefter
     case 'pay': HUD.pay(m); break;
     case 'over': startVictory(m); break;
     case 'half': UI.toast('HALVLEG — I skifter side'); Audio.announce('Switching sides'); break;
     case 'plant': Renderer.onPlant(m); UI.toast('Bomben er plantet på site ' + m.site + '!'); Audio.announce('Bomb has been planted', { hi: true }); Audio.music('planted'); break;
-    case 'defuse': UI.toast('Bomben er desarmeret!'); Audio.announce('Bomb has been defused'); break;
+    case 'defuse': { const bc = Renderer.bombCine(); if (bc && bc.active) bc.cancel(); UI.toast('Bomben er desarmeret!'); Audio.announce('Bomb has been defused'); break; }
     case 'melee': Renderer.onRemoteMelee(m); break;
     case 'mwall': Renderer.onMeleeWall(m); break;
     case 'picked': Audio.click('pickup'); break;
-    case 'explode': Renderer.onExplode(m); break;
+    case 'explode': { const bc = Renderer.bombCine(); if (bc && bc.active) bc.explode(m); Renderer.onExplode(m); break; }
+    case 'doom': { const bc = Renderer.bombCine(); if (bc) bc.start(m); break; }   // v26: ingen kan nå at desarmere → bombe-filmen for alle
     case 'bombdrop': case 'bombpick': break;
     case 'boom': Renderer.onBoom(m); break;
     case 'smoke': Renderer.onSmokePop(m); break;
@@ -768,7 +781,7 @@ const KEY = {};
 // v12: 3 = kniv, 4 = bladr gennem granater (CS), 5 = HE, 6 = smoke, 7 = molotov/brandgranat, 8 = flashbang, Q = forrige våben
 const NADE_KEYS = { Digit5: ['he'], Digit6: ['smoke'], Digit7: ['molotov', 'incgren'], Digit8: ['flash'] };
 const Input = {
-  requestLockSoon() { if (TOUCH) { Touch.show(); return; } $('clickToPlay').classList.remove('hidden'); },
+  requestLockSoon() { if (TOUCH) { Touch.show(); return; } $('clickToPlay').classList.remove('hidden'); fillPause(); },
   init() {
     window.addEventListener('keydown', e => this._key(e, true));
     window.addEventListener('keyup', e => this._key(e, false));
@@ -778,7 +791,7 @@ const Input = {
     $('clickToPlay').addEventListener('click', () => { if (uiOpen()) return; if (TOUCH) Touch.resume(); else lockPointer(); });
     document.addEventListener('pointerlockchange', () => {
       const locked = document.pointerLockElement === gl;
-      $('clickToPlay').classList.toggle('hidden', locked);
+      $('clickToPlay').classList.toggle('hidden', locked); if (!locked) fillPause();
       if (!locked) { Game.scoped = false; Game.firing = false; if (!BuyMenu.open) { KEY.KeyW = KEY.KeyA = KEY.KeyS = KEY.KeyD = false; } if (Game.nade) nadeRelease(Game.nade.under); }
       if (!locked && BuyMenu.open) $('clickToPlay').classList.add('hidden');   // købshjulet bruger musemarkøren – ingen 'klik for at sigte'
     });
@@ -1390,10 +1403,31 @@ const HUD = {
     if (w && w.kind === 'gun' && am) { $('ammoMag').textContent = am.mag; $('ammoRes').textContent = am.res; }
     else if (w && w.kind === 'nade') { $('ammoMag').textContent = (s.inv && s.inv[s.cur]) || 0; $('ammoRes').textContent = '—'; }
     else { $('ammoMag').textContent = '—'; $('ammoRes').textContent = ''; }
+    // v26: udrustningen nede til højre – ikon, magasin som patroner, lav ammo, skift-animation og slot-liste med ikoner
+    const card = $('loCard'), team = s.side === 'hij' ? 'hij' : 'swat';
+    if (card) {
+      if (this._lc !== s.cur) { this._lc = s.cur; card.classList.remove('swap'); void card.offsetWidth; card.classList.add('swap'); this._lm = undefined; }
+      const ic = w ? Renderer.gunIcon(s.cur, team) : null, im = $('loIcon'); if (ic && im.src !== ic) im.src = ic; im.style.visibility = ic ? 'visible' : 'hidden';
+      if (!ic && w && !this._icT) this._icT = setTimeout(() => { this._icT = 0; this._lc = null; this.updateSelf(); }, 400);
+      const mag = am ? am.mag : 0, cap = w && w.mag ? w.mag : 0, gun = w && w.kind === 'gun' && am;
+      if (gun && this._lm !== undefined && mag < this._lm) { const e = $('ammoMag'); e.classList.remove('tick'); void e.offsetWidth; e.classList.add('tick'); }
+      this._lm = gun ? mag : undefined;
+      card.classList.toggle('low', !!gun && mag > 0 && mag <= Math.max(1, Math.ceil(cap * 0.25))); card.classList.toggle('empty', !!gun && mag === 0);
+      const pips = $('loPips'), segs = cap > 40 ? 20 : cap, per = cap > 40 ? cap / 20 : 1, on = gun ? Math.ceil(mag / per) : 0;
+      if (gun) { if (pips.childElementCount !== segs) pips.innerHTML = '<i></i>'.repeat(segs); pips.classList.toggle('seg', cap > 40); [...pips.children].forEach((p, i) => p.classList.toggle('off', i >= on)); pips.style.visibility = 'visible'; }
+      else pips.style.visibility = 'hidden';
+    }
+    const mn = $('moneyNum'); if (this._mo !== undefined && s.money > this._mo) { mn.classList.remove('bump'); void mn.offsetWidth; mn.classList.add('bump'); } this._mo = s.money;
     const slots = $('slotRow'); slots.innerHTML = '';
     const inv = s.inv || {};
-    const list = [[inv.primary, '1'], [inv.pistol, '2'], ['knife', '3'], [inv.he > 0 ? 'he' : null, '5'], [inv.smoke > 0 ? 'smoke' : null, '6'], [inv.molotov > 0 ? 'molotov' : inv.incgren > 0 ? 'incgren' : null, '7'], [inv.flash > 0 ? 'flash' : null, '8', inv.flash]];
-    for (const [id, key, cnt] of list) { if (!id) continue; const sp = document.createElement('span'); sp.textContent = key + ' ' + WEAPONS[id].name + (cnt > 1 ? ' ×' + cnt : ''); sp.className = id === s.cur ? 'active' : ''; slots.appendChild(sp); }
+    const row = (cls, key, icId, name, cnt) => { const d = document.createElement('div'); d.className = 'lo-slot ' + cls; const ic = icId ? Renderer.gunIcon(icId, team) : null;
+      d.innerHTML = `<span class="c">${cnt === undefined ? '' : cnt}</span><span class="n">${name}</span>${ic ? `<img src="${ic}">` : ''}<span class="k">${key}</span>`; slots.appendChild(d); return d; };
+    if (inv.primary) { const a = s.ammo && s.ammo[inv.primary]; row(inv.primary === s.cur ? 'active' : '', '1', inv.primary, WEAPONS[inv.primary].name, a ? a.mag + '/' + a.res : ''); }
+    if (inv.pistol) { const a = s.ammo && s.ammo[inv.pistol]; row(inv.pistol === s.cur ? 'active' : '', '2', inv.pistol, WEAPONS[inv.pistol].name, a ? a.mag + '/' + a.res : ''); }
+    row(s.cur === 'knife' ? 'active' : '', '3', 'knife', 'KNIV');
+    const nd = [['he', 'HE'], ['flash', 'FLASH'], ['smoke', 'SMOKE'], ['molotov', 'MOLOTOV'], ['incgren', 'BRAND']].filter(([k]) => inv[k] > 0);
+    if (nd.length) { const d = row('nades' + (nd.some(([k]) => k === s.cur) ? ' active' : ''), '4', null, ''); d.querySelector('.n').innerHTML = '<span class="ns">' + nd.map(([k, l]) => `<span class="${k === s.cur ? 'on' : ''}">${l}${inv[k] > 1 ? '<b>×' + inv[k] + '</b>' : ''}</span>`).join('') + '</span>'; }
+    if (inv.bomb) row('c4', '', null, '☢ C4 · DU BÆRER BOMBEN');
     BuyMenu.update();
     $('deadOverlay').classList.toggle('hidden', s.alive !== false || Game.phase === 'buy' || !!Game.endInfo);   // rundeslut-skærmen har forrang
   },
@@ -1589,7 +1623,7 @@ $('nameInput').focus();
    ========================================================================== */
 const Renderer = (() => {
   let renderer, scene, camera, clock, pmrem = null, post = null, fxs = null;
-  let V = null, Chars = null, Weap = null, Intro = null, introLoaded = false;
+  let V = null, Chars = null, Weap = null, Intro = null, introLoaded = false, BombCine = null, pendingEnd = null, bcHold = false;
   let sky = null, hemi, amb, sun, sunFar, worldGroup, decorGroup, doors = null, fxObj = null, mapObjs = [], envTex = null, night = null;
   const remoteModels = new Map();  // id -> render-state
   const tracers = [], flashes = [], tracerPool = [];
@@ -1844,6 +1878,10 @@ const Renderer = (() => {
       onStart: () => { document.body.classList.add('intro'); Game.intro = true; BuyMenu.hide(); IntroCard.show(); },
       onEnd: () => { document.body.classList.remove('intro'); Game.intro = false; IntroCard.hide(); if (Game.spawnYaw !== undefined) { Game.yaw = Game.spawnYaw; Game.pitch = 0; } MouseIn.x = MouseIn.y = 0; } });
     Intro.preload().then(() => { introLoaded = true; tryLoadAck(); });
+    // v26: bombe-filmen (alle ser den, når serveren ved at bomben ikke kan nås at desarmere)
+    BombCine = createBombCine({ THREE, WD, scene: () => scene, camera: () => camera, W: () => W, V: () => V, Audio, $,
+      onStart: () => { document.body.classList.add('intro'); $('introBars').classList.remove('hidden'); BuyMenu.hide(); },
+      onEnd: () => { document.body.classList.remove('intro'); $('introBars').classList.add('hidden'); if (pendingEnd) { const m = pendingEnd; pendingEnd = null; HUD.roundEnd(m); } } });
     Weap = createWeapons(THREE, WD, { canvasTexture, derivePBR, dynMat: mkDyn, withBake: (m, d) => V ? V.withBake(m, d) : m,
       gunTemplate: (id, team) => { const f = SK.GUN_FILE[id], n = f && typeof f === 'object' ? f[team === 'hij' ? 'hij' : 'swat'] : f; return n ? COS.guns[n] || null : null; },
       skinGun: (g, skinId, team, mk) => SK.skinGun(THREE, g, skinId, team, mk), knifeTemplate: m => COS.knives[m] || null });
@@ -2119,6 +2157,10 @@ const Renderer = (() => {
     const b = Game.bomb;
     if (!bombObj.dropped) { bombObj.dropped = Weap.c4Model(); bombObj.planted = Weap.c4Model(); bombObj.carry = Weap.c4Model(); for (const o of [bombObj.dropped, bombObj.planted, bombObj.carry]) { o.visible = false; scene.add(o); } }
     bombObj.dropped.visible = b.state === 1; if (b.state === 1) bombObj.dropped.position.set(b.x, b.y + 0.01, b.z);
+    // v26: C4'en belyses af rummets lys (lys-proben) – ellers er den sort på de forfattede baner om natten
+    bombObj.lt = (bombObj.lt || 0) - dt;
+    if (bombObj.lt <= 0 && b.state !== undefined) { bombObj.lt = 0.2; const bx = b.state === 0 && b.carrier ? (remoteModels.get(b.carrier) || {}).rx : b.x; V.probe(bx !== undefined ? bx : b.x, (b.y || 0) + 0.6, b.z, _bk); const mn = V.theme.night ? 0.22 : 0.1;
+      for (const o of [bombObj.dropped, bombObj.planted, bombObj.carry]) o.traverse(n => { const m = n.material; if (m && m.userData && m.userData.uBake) m.userData.uBake.value.set(Math.max(mn, _bk[0]), Math.max(mn, _bk[1]), Math.max(mn * 1.1, _bk[2]), Math.max(0.2, _bk[3])); }); }
     bombObj.planted.visible = b.state === 2;
     if (b.state === 2) {
       bombObj.planted.position.set(b.x, b.y + 0.01, b.z);
@@ -2364,7 +2406,7 @@ const Renderer = (() => {
     if (id === 'knife') vm.knifeKey = kSkin;
     if (!vm.models[id]) {
       const g = Weap.viewmodel(id, team, id === 'knife' ? kSkin : Inv.skin(id, team)); if (!g) return null;   // dit valgte skin (inventar)
-      g.traverse(n => { if (n.material && n.material.isMeshStandardMaterial) { n.material.envMap = envTex; n.material.needsUpdate = true; } });
+      g.traverse(n => { for (const m of (Array.isArray(n.material) ? n.material : [n.material])) if (m && m.isMeshStandardMaterial) { m.envMap = vmEnvTex() || envTex; m.needsUpdate = true; } });   // v26: eget studiemiljø til våbnene
       g.visible = false; vmScene.add(g); vm.models[id] = g;
     }
     return vm.models[id];
@@ -2449,6 +2491,20 @@ const Renderer = (() => {
     }
     return o;
   }
+  // v26: førstepersonsvåbnenes refleksioner: et neutralt 'studie' (lyse paneler i et mørkt rum) i stedet for nattehimlen –
+  //   metal (pistolslæder, løb) var sort på natbanerne. Styrken følger rummets lys (lys-proben), så våbnet stadig er mørkt i mørke rum.
+  let _vmEnv = null;
+  function vmEnvTex() {
+    if (_vmEnv || !renderer) return _vmEnv;
+    try {
+      if (!pmrem) pmrem = new THREE.PMREMGenerator(renderer);
+      const sc = new THREE.Scene(), room = new THREE.Mesh(new THREE.BoxGeometry(10, 6, 10), new THREE.MeshBasicMaterial({ color: 0x15171b, side: THREE.BackSide })); sc.add(room);
+      const pan = (w, h, x, y, z, ry, rx, c) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: c, side: THREE.DoubleSide })); m.position.set(x, y, z); m.rotation.set(rx || 0, ry || 0, 0); sc.add(m); };
+      pan(6, 1.2, 0, 2.9, 0, 0, Math.PI / 2, 0xffffff); pan(3, 2, -4.9, 1, 0, Math.PI / 2, 0, 0xffe2c0); pan(3, 2, 4.9, 1.4, 1, -Math.PI / 2, 0, 0x9fc4ff); pan(4, 1, 0, 0.5, -4.9, 0, 0, 0x606060);
+      _vmEnv = pmrem.fromScene(sc, 0.02).texture;
+    } catch (e) { _vmEnv = null; }
+    return _vmEnv;
+  }
   function updateViewmodel(dt) {
     const id = Game.self.cur, w = WEAPONS[id];
     const showC4 = Game.act === 'plant';
@@ -2467,7 +2523,8 @@ const Renderer = (() => {
     else { if (!w) return false; g = vmFor(id); if (!g) return false; }
     g.visible = true;
     const mats = g.userData.mats || [];
-    for (const m of mats) { if (m.userData.uBake) m.userData.uBake.value.set(_bk[0], _bk[1], _bk[2], Math.max(0.1, _bk[3])); if (m.isMeshStandardMaterial) m.envMapIntensity = 0.15 + 0.9 * skyK; }
+    const vmMin = V.theme.night ? 0.16 : 0.06;                                   // v26: våbnet i hånden er altid læsbart (også i mørke rum om natten)
+    for (const m of mats) { if (!m || !m.userData) continue; if (m.userData.uBake) m.userData.uBake.value.set(Math.max(vmMin, _bk[0]), Math.max(vmMin, _bk[1]), Math.max(vmMin * 1.1, _bk[2]), Math.max(0.1, _bk[3])); if (m.isMeshStandardMaterial) m.envMapIntensity = V.theme.night ? 0.35 + Math.min(0.9, (_bk[0] + _bk[1] + _bk[2]) * 0.6) : 0.15 + 0.9 * skyK; }
     const t = performance.now() / 1000, kind = !w ? 'rifle' : w.kind === 'knife' ? 'knife' : w.kind === 'nade' ? 'nade' : w.slot === 2 ? 'pistol' : w.id === 'awp' ? 'awp' : w.id === 'famas' ? 'famas' : 'rifle', base0 = VM_POS[w && w.id === 'molotov' ? 'molotov' : kind];
     // v14: karambit (omvendt greb) løftes og drejes, så den buede klinge ses under hånden (ellers gemt under skærmkanten)
     const KOFF = (kind === 'knife' && g.userData.meta && vm.KOFF[g.userData.meta.model]) || null, KR = KOFF ? KOFF.slice(3) : [0, 0, 0], base = KOFF ? [base0[0] + KOFF[0], base0[1] + KOFF[1], base0[2] + KOFF[2]] : base0;
@@ -2661,6 +2718,8 @@ const Renderer = (() => {
         camera.position.set(c.cx + Math.cos(a) * rr, c.y + 2 * Math.sin(tt * 0.3), c.cz + Math.sin(a) * rr); camera.lookAt(c.cx, c.ly, c.cz); vmOn = false;
       }
       if (Intro && Intro.active && Intro.update(dt)) vmOn = false;                 // v22: intro-cutscenen styrer kameraet
+      if (BombCine && BombCine.active && !bcHold && BombCine.update(dt)) vmOn = false;   // v26: bombe-filmen styrer kameraet
+      if (BombCine && BombCine.active && bcHold && BombCine.fov) { camera.fov = BombCine.fov; camera.updateProjectionMatrix(); vmOn = false; }
       if (devCam) { camera.position.set(devCam[0], devCam[1], devCam[2]); camera.rotation.set(devCam[4] || 0, devCam[3] || 0, 0); vmOn = false; }
       sky.position.copy(camera.position);
       V.update(dt, performance.now() / 1000, camera.position, decorGroup); fxObj.update(dt, performance.now() / 1000, camera.position);
@@ -2712,7 +2771,7 @@ const Renderer = (() => {
     } catch (e) { console.warn('[ikon]', e); iconQ = []; }
     if (iconQ.length) setTimeout(drainIcons, 16); else { iconBusy = false; if (BuyMenu.open) { BuyMenu._iconTick = (BuyMenu._iconTick || 0) + 1; BuyMenu.render(); } }
   }
-  const api = { intro: () => (ensureChars(), Intro), introReady: () => introLoaded, setQuality, gunIcon, get gfx() { return gfxName; }, get pr() { return prCur; }, get perf() { return perf; }, chars: () => (ensureChars(), Chars), weap: () => (ensureChars(), Weap), onCosmetics, mapReady: () => !loading && mapId === W.id, cosReady: () => COS.ready, setCine, init, loadMap, flinchAim, onRoundStart, onShotFx, inspect, onRemoteMelee, onMeleeWall, onPlant, onExplode, onBoom, onSmokePop, onFlashPop, onFirePop, onFireOut, onRemoteThrow, onThrowLocal, onPinPull, onWeaponChange, mouseDelta, shake, skinName, get mapId() { return mapId; } };
+  const api = { intro: () => (ensureChars(), Intro), bombCine: () => BombCine, deferEnd: m => { if (BombCine && BombCine.active) { pendingEnd = m; return true; } return false; }, introReady: () => introLoaded, setQuality, gunIcon, get gfx() { return gfxName; }, get pr() { return prCur; }, get perf() { return perf; }, chars: () => (ensureChars(), Chars), weap: () => (ensureChars(), Weap), onCosmetics, mapReady: () => !loading && mapId === W.id, cosReady: () => COS.ready, setCine, init, loadMap, flinchAim, onRoundStart, onShotFx, inspect, onRemoteMelee, onMeleeWall, onPlant, onExplode, onBoom, onSmokePop, onFlashPop, onFirePop, onFireOut, onRemoteThrow, onThrowLocal, onPinPull, onWeaponChange, mouseDelta, shake, skinName, get mapId() { return mapId; } };
   if (DEV) {   // v14: kontaktark over førstepersonsvåben (kun dev) – hvert våben renderes alene på neutral baggrund
     const sideCam = new THREE.PerspectiveCamera(30, 1.6, 0.01, 10);
     api.vmSheet = (ids, cols, tw, th, side) => {
@@ -2761,6 +2820,33 @@ const Renderer = (() => {
       });
       devCam = null;
       renderer.setPixelRatio(prevPR); renderer.setSize(innerWidth, innerHeight); if (post && post.setSize) { const v = renderer.getDrawingBufferSize(new THREE.Vector2()); post.setSize(v.x, v.y); }
+      camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+      return out;
+    };
+  }
+  if (DEV) {   // v26: bombe-filmens kontaktark – doom på et site, faste skridt (1/30 s), billede ved hvert tidspunkt (tid relativt til starten)
+    api.bombSheet = async (site, times, cols, tw, th) => {
+      const st = W.sites[site || 'A']; let best = null, bd = 1e9;
+      for (let x = st.x0; x <= st.x1; x += 0.5) for (let z = st.z0; z <= st.z1; z += 0.5) { if (!WD.plantSpot(W, x, st.y, z)) continue; const d = Math.hypot(x - (st.x0 + st.x1) / 2, z - (st.z0 + st.z1) / 2); if (d < bd) { bd = d; best = [x, z]; } }
+      Game.bomb = { state: 2, x: best[0], y: st.y, z: best[1], msLeft: 9000 };
+      const c4 = Weap.c4Model(); c4.position.set(best[0], st.y + 0.01, best[1]); scene.add(c4);
+      BombCine.start({ x: best[0], y: st.y, z: best[1], ms: 9000 }); bcHold = true;
+      cols = cols || 4; tw = tw || 480; th = th || 270;
+      const out = document.createElement('canvas'), rows = Math.ceil(times.length / cols); out.width = cols * tw; out.height = rows * th; const c2 = out.getContext('2d');
+      const RW = tw * 2, RH = th * 2; renderer.setPixelRatio(1); renderer.setSize(RW, RH, false); if (post && post.setSize) post.setSize(RW, RH);
+      camera.aspect = RW / RH; camera.updateProjectionMatrix();
+      const eu = new THREE.Euler(0, 0, 0, 'YXZ'); let tl = 0;
+      for (let i = 0; i < times.length; i++) {
+        while (BombCine.active && tl < times[i] - 1e-3) { BombCine.update(1 / 30); tl += 1 / 30; if (tl >= 9 && !BombCine.exploded) BombCine.explode({ x: best[0], y: st.y, z: best[1] }); }
+        if (!BombCine.active) break;
+        eu.setFromQuaternion(camera.quaternion, 'YXZ'); devCam = [camera.position.x, camera.position.y, camera.position.z, eu.y, eu.x];
+        for (let k = 0; k < 2; k++) { shadowTick = 99; frame(k ? 1 / 60 : 0.3); }
+        const X = (i % cols) * tw, Y = Math.floor(i / cols) * th;
+        c2.drawImage(renderer.domElement, 0, 0, RW, RH, X, Y, tw, th);
+        c2.fillStyle = 'rgba(0,0,0,.55)'; c2.fillRect(X, Y, 70, 22); c2.fillStyle = '#fff'; c2.font = '700 14px monospace'; c2.fillText(tl.toFixed(2) + ' s', X + 6, Y + 16);
+      }
+      devCam = null; bcHold = false; if (BombCine.active) BombCine.cancel(); scene.remove(c4);
+      renderer.setPixelRatio(prCur); renderer.setSize(innerWidth, innerHeight); if (post && post.setSize) { const v = renderer.getDrawingBufferSize(new THREE.Vector2()); post.setSize(v.x, v.y); }
       camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
       return out;
     };
@@ -2886,6 +2972,12 @@ async function runTour(id, only) {
   const joinCode = params.get('join');
   if (joinCode && /^\d{4}$/.test(joinCode)) { $('codeInput').value = joinCode; $('joinRow').classList.remove('hidden'); }
   if (DEV) window.__wd = { victory: m => startVictory(m), hudRE: m => HUD.roundEnd(m), introPlay: (ms) => { const I = Renderer.intro(); return I.preload().then(() => I.play({ side: Game.side, mates: [...Game.players.entries()].filter(([, p]) => p.side === Game.side).map(([id, p]) => ({ id, cos: p.cos, me: id === Game.meId })) }, ms || 13000)); }, Game, Renderer, Net, BuyMenu, get W() { return W; }, WD, THREE, KEY, Settings, act: { nadeStart, nadeRelease, fireStart, fireEnd, switchWeapon, startFlash, startReloadLocal }, tour: runTour,
+    bombSheet: async (id, site, times, name) => {                              // v26: node pw/bomb.js – kontaktark af bombe-filmen → docs/qa/<name>.jpg
+      if (Renderer.mapId !== id) await runTour(id, [{ n: 'load', x: 0, y: 2, z: 0, yaw: 0 }]);
+      const cv = await Renderer.bombSheet(site, times); if (!cv) return null;
+      const blob = await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.88)); const f = (name || 'bomb_' + id + '_' + site) + '.jpg';
+      const r = await fetch('/dev/save?f=' + encodeURIComponent(f), { method: 'POST', body: blob }); return r.ok ? f : null;
+    },
     introSheet: async (id, side, times, name) => {                               // v26: node pw/intro.js – kontaktark af introen → docs/qa/<name>.jpg
       if (Renderer.mapId !== id) await runTour(id, [{ n: 'load', x: 0, y: 2, z: 0, yaw: 0 }]);
       const cv = await Renderer.introSheet(side, times); if (!cv) return null;

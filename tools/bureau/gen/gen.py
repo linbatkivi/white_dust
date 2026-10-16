@@ -21,6 +21,28 @@ WALL0 = R['wall'].copy()
 for (x0_, z0_, x1_, z1_) in M.get('cores', [[9.2, 18.6, 14.6, 21.4]]):
     i0_, i1_, j0_, j1_ = int(z0_ / S + CY), int(z1_ / S + CY), int(x0_ / S + CX), int(x1_ / S + CX)
     ZID[i0_:i1_, j0_:j1_] = -1; WALL0[i0_:i1_, j0_:j1_] = True
+FY0 = R['fy'].astype(np.float64).copy()
+# v26: trapperne i vestfløjen rettet (brugerens feedback: trapper der ender i en mur, Dark lukket af, mærkelig Lower B)
+#   carve(x0, x1, z0, z1, rum, gulvhøjde): åbner mure/sætter gulv · trapperne omlægges efter behov
+def _ij(x, z): return int(round(z / S + CY)), int(round(x / S + CX))
+def carve(x0, x1, z0, z1, room, fy):
+    i0, j0 = _ij(x0, z0); i1, j1 = _ij(x1, z1); zi = [z['name'] for z in M['zones']].index(room)
+    ZID[i0:i1, j0:j1] = zi; WALL0[i0:i1, j0:j1] = False; FY0[i0:i1, j0:j1] = fy
+def setfy(x0, x1, z0, z1, fy):
+    i0, j0 = _ij(x0, z0); i1, j1 = _ij(x1, z1); m = ZID[i0:i1, j0:j1] >= 0; FY0[i0:i1, j0:j1][m] = fy
+ST = M['stairs']
+# #4 Dark-trappen: foden løb ind i en mur – muren åbnes ind til Dark-kammeret
+carve(-50.9, -45.4, -18.4, -17.0, 'Dark-kammeret', 1.5)
+# #7 Kryptnedgangen: var lukket i begge ender – nu fra Tunnels hjørne (vest, 1,5) ned mod øst (−1,5) med repos og udgang til Lower B
+i0_, j0_ = _ij(-39.6, 1.6); i1_, j1_ = _ij(-33.5, 6.4)
+ST[7] = dict(ST[7], r=[j0_, i0_, j1_, i1_], axis='x', ya=1.5, yb=-1.5)
+setfy(-33.5, -30.5, 1.6, 6.4, -1.5)
+carve(-41.2, -39.2, 1.8, 6.2, 'Tunnels hjørne', 1.5)
+carve(-33.5, -30.6, 6.2, 7.0, 'Lower B', -1.5)
+# #10 Kryptgangen: starter nu med en repos ved foden af trappe #9 (ikke midt på dens side)
+x0_, y0_, x1_, y1_ = ST[10]['r']; i_rep = _ij(0, 21.4)[0]
+ST[10] = dict(ST[10], r=[x0_, i_rep, x1_, y1_])
+setfy((x0_ - CX) * S, (x1_ - CX) * S, (y0_ - CY) * S, 21.4, -1.5)
 ZN = [z['name'] for z in M['zones']]; ZY = np.array([z['y'] for z in M['zones']], np.float32)
 WALK = ZID >= 0
 cx = lambda j: (j - CX) * S
@@ -28,7 +50,7 @@ cz = lambda i: (i - CY) * S
 for n in ZN: assert n in ROOMS, 'rum mangler i rooms.py: ' + n
 
 # ---------------------------------------------------------------- højdefelter
-F = np.where(WALK, R['fy'], np.nan).astype(np.float64)            # gulv (synligt: trapper i trin)
+F = np.where(WALK, FY0, np.nan).astype(np.float64)            # gulv (synligt: trapper i trin)
 FC = F.copy()                                                     # gulv til kollision (trapper glatte)
 SLOPE = np.full((H, W), -1, np.int32)                             # skrå flade (rampe, eller trappe i kollisionen)
 STEPS = np.zeros((H, W), bool)
@@ -58,6 +80,13 @@ for zi, n in enumerate(ZN):
     if r['h'] == 'atrium': C[m] = ZY[zi] + ATRIUM_H; ATR |= m; continue
     C[m] = np.maximum(ZY[zi] + r['h'], np.ceil((F[m] + 2.7) * 4) / 4)
 INDOOR = WALK & ~OUT
+# v26: et loft må aldrig ligge lavere end nabogulvene inden for 1 m + 2,4 m frihøjde (ellers bliver loftspladen en afsats man kan hoppe op på,
+#   fx en repos ved siden af en trappe der fortsætter opad)
+_Fn = np.where(WALK, np.nan_to_num(F, nan=-99), -99.0); _mx = _Fn.copy()
+for _ in range(8):
+    n_ = _mx.copy(); n_[1:] = np.maximum(n_[1:], _mx[:-1]); n_[:-1] = np.maximum(n_[:-1], _mx[1:]); n_[:, 1:] = np.maximum(n_[:, 1:], _mx[:, :-1]); n_[:, :-1] = np.maximum(n_[:, :-1], _mx[:, 1:]); _mx = np.where(WALK, n_, -99.0)   # kun gennem gulv, ikke gennem mure
+_low = np.isfinite(C) & (C < _mx + 2.4)
+C[_low] = np.ceil((_mx[_low] + 2.4) * 4) / 4
 # trappeskakter: ét gennemgående loft over hele trappen/rampen (i højde med det øverste trin + 2,7 m) – ingen trappede lofter
 for k, t in enumerate(TR):
     m = (SLOPE == k) & np.isfinite(C)

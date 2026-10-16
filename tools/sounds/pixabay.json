@@ -38,5 +38,10 @@
  "thunder_close": "https://cdn.pixabay.com/download/audio/2022/03/14/audio_a0c07713bb.mp3",
  "heli_approach": "https://cdn.pixabay.com/download/audio/2022/03/10/audio_d6eb9df253.mp3",
  "heli_blades": "https://cdn.pixabay.com/download/audio/2022/03/14/audio_8d19bc8782.mp3",
- "heli_flyby": "https://cdn.pixabay.com/download/audio/2026/06/04/audio_d3f27a1f2f.mp3"
+ "heli_flyby": "https://cdn.pixabay.com/download/audio/2026/06/04/audio_d3f27a1f2f.mp3",
+ "sil_shot": "https://cdn.pixabay.com/download/audio/2022/03/15/audio_afe30d26db.mp3",
+ "sil_shot2": "https://cdn.pixabay.com/download/audio/2022/03/10/audio_0f1e2ebeee.mp3",
+ "sil_smg": "https://cdn.pixabay.com/download/audio/2022/03/15/audio_61ad92f997.mp3",
+ "sil_57": "https://cdn.pixabay.com/download/audio/2022/03/24/audio_7e747a31f8.mp3",
+ "usp_sfx": "https://cdn.pixabay.com/download/audio/2022/03/15/audio_0154a72093.mp3"
 }

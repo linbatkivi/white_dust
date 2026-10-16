@@ -197,6 +197,8 @@ async function main() {
     hij.u = 0; hij.sendIn();
     const snapB = await hij.waitSnap(s => s.b[0] === 2, 2000);
     ok(!!snapB, 'Snapshot viser planteret bombe');
+    const doom = hij.log.find(m => m.t === 'ev' && m.k === 'doom') || await hij.wait(m => m.t === 'ev' && m.k === 'doom', 3000);
+    ok(doom && doom.ms > 0 && doom.ms <= 9000 && Math.hypot(doom.x - PA[0], doom.z - PA[1]) < 0.5, 'Bombe-filmen (doom): serveren ved at SWAT ikke kan nå bomben – alle får besked (' + (doom && doom.ms) + ' ms)');
     hij.clear();   // fjern gamle 'end'-events fra forrige runde
     const ex = await hij.wait(m => m.t === 'ev' && m.k === 'explode', 9000);
     ok(!!ex, 'Bomben eksploderer efter timeren');
@@ -206,10 +208,13 @@ async function main() {
     console.log('\n== Runde 3: plant → desarmér ==');
     await hij.wait(m => m.t === 'round' && m.n === 3, 4000); await sleep(100);
     await hij.waitSnap(s => s.ph === 'live', 5000);
-    hij.tp(PB[0], YB, PB[1]); swat.tp(LX, AY, AZ + 5); await sleep(200);
-    hij.pos = { x: PB[0], y: YB, z: PB[1] }; swat.pos = { x: LX, y: AY, z: AZ + 5 };
+    const near = [[1.2, 0], [-1.2, 0], [0, 1.2], [0, -1.2]].map(([dx, dz]) => [PB[0] + dx, PB[1] + dz]).find(([x, z]) => Math.abs(WD.groundAt(TW, x, z, YB + 0.3, 0.5) - YB) < 0.05 && !WD.isBlocked(TW, x, z, YB, WD.PL.H));
+    hij.tp(PB[0], YB, PB[1]); swat.tp(near[0] + 2.5, YB, near[1]); await sleep(200);
+    hij.pos = { x: PB[0], y: YB, z: PB[1] }; swat.pos = { x: near[0] + 2.5, y: YB, z: near[1] }; swat.clear();
     hij.u = 1; hij.sendIn();
     ok(await hij.wait(m => m.t === 'ev' && m.k === 'plant' && m.site === 'B', 3000), 'Bomben plantet på site B');
+    await sleep(300);
+    ok(!swat.log.find(m => m.t === 'ev' && m.k === 'doom'), 'Ingen bombe-film mens SWAT stadig kan nå at desarmere');
     hij.u = 0; hij.sendIn();
     const dfx = [[1.2, 0], [-1.2, 0], [0, 1.2], [0, -1.2]].map(([dx, dz]) => [PB[0] + dx, PB[1] + dz]).find(([x, z]) => Math.abs(WD.groundAt(TW, x, z, YB + 0.3, 0.5) - YB) < 0.05 && !WD.isBlocked(TW, x, z, YB, WD.PL.H));
     swat.tp(dfx[0], YB, dfx[1]); await sleep(150); swat.pos = { x: dfx[0], y: YB, z: dfx[1] };

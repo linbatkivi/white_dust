@@ -990,6 +990,23 @@ function updateActions(room, p, dt) {
     else if (p.side === 'swat' && b.state === 2 && !b.defuser && Math.hypot(p.x - b.x, p.z - b.z) < 2.4 && Math.abs(p.y - b.y) < 1.6) { b.defuser = p.id; b.defT = 0; startAct(room, p, 'defuse'); }
   }
 }
+/* v26: BOMBE-FILMEN. Serveren melder 'doom' til alle, når det er HELT sikkert at ingen SWAT kan nå at desarmere:
+   – den der er i gang: resten af desarmeringen skal være længere end tiden der er tilbage
+   – alle andre: fugleflugt (nedre grænse for vejen) ved højeste mulige fart + en hel desarmering skal være længere end tiden der er tilbage
+   Så spoles timeren frem til filmens længde (ingen venten), og alle ser eksplosionen i en instrueret sekvens. */
+const DOOM_CINE = 9.0, DOOM_VMAX = 8.5;                                   // filmens længde (s) · højeste VANDRETTE fart en spiller kan nå (løb 6,6 m/s + air-strafe – med margin)
+function checkDoom(room) {
+  const b = room.bomb, left = b.timer;
+  for (const q of room.players.values()) {
+    if (!q.alive || q.side !== 'swat') continue;
+    if (b.defuser === q.id && TIMES.defuse - b.defT < left - 0.05) return;           // kan nå at gøre den færdig
+    const d = Math.max(0, Math.hypot(q.x - b.x, q.z - b.z) - 2.4);                   // vandret: et fald kan være hurtigere end løb
+    if (d / DOOM_VMAX + TIMES.defuse < left - 0.05) return;                         // kan måske nå hen og desarmere
+  }
+  b.doom = true;
+  if (b.timer > DOOM_CINE) b.timer = DOOM_CINE;
+  room.bcast({ t: 'ev', k: 'doom', x: r2(b.x), y: r2(b.y), z: r2(b.z), ms: Math.round(b.timer * 1000), site: WD.siteAt(room.W, b.x, b.y, b.z) || '' });
+}
 function explodeBomb(room) {
   const b = room.bomb;
   b.state = 4;
@@ -1128,7 +1145,7 @@ function checkEnd(room, t) {
   const cnt = { swat: 0, hij: 0 }, tot = { swat: 0, hij: 0 };
   for (const p of room.players.values()) { if (!p.side) continue; tot[p.side]++; if (p.alive) cnt[p.side]++; }
   const b = room.bomb;
-  if (b.state === 2) { if (tot.swat > 0 && cnt.swat === 0) endRound(room, 'hij', 'elim'); return; }
+  if (b.state === 2) return;                                             // v26: plantet bombe – runden slutter når den springer eller desarmeres (doom-filmen)
   if (tot.hij > 0 && cnt.hij === 0) return endRound(room, 'swat', 'elim');
   if (tot.swat > 0 && cnt.swat === 0) return endRound(room, 'hij', 'elim');
   if (t >= room.phaseEnd) endRound(room, 'swat', 'time');
@@ -1160,7 +1177,7 @@ function tickRoom(room, t, dt) {
         }
       }
     }
-    if (b.state === 2 && room.phase === 'live') { b.timer -= dt; if (b.timer <= 0) explodeBomb(room); }
+    if (b.state === 2 && room.phase === 'live') { b.timer -= dt; if (!b.doom) checkDoom(room); if (b.timer <= 0) explodeBomb(room); }
     if (room.phase === 'live') updateProjectiles(room, t, dt);
     if (room.phase === 'live') checkEnd(room, t);
   } else if (room.phase === 'end') {

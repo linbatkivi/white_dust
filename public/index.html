@@ -204,21 +204,19 @@
       <div id="sideTag" class="side-indicator">SWAT</div>
       <div id="bombCarry" class="bomb-carry hidden">☢ BÆRER C4</div>
     </div>
-    <div class="weapon-block">
-      <div id="weaponName" class="weapon-name">USP-S</div>
-      <div id="skinName" class="skin-name"></div>
-      <div class="ammo-row">
-        <span id="ammoMag">12</span><span class="ammo-sep">/</span><span id="ammoRes">36</span>
-      </div>
-      <div id="reloadBar" class="reload-bar hidden">
-        <div id="reloadFill" class="reload-fill"></div>
-        <span class="reload-label">GENLADER</span>
+    <!-- v26: udrustning nede i højre hjørne – penge, aktivt våben (ikon, ammo, magasin, genladning) og alle slots -->
+    <div id="loadout" class="loadout">
+      <div class="money-block lo-money"><div class="money-label">$</div><div id="moneyNum" class="money-num">800</div></div>
+      <div id="loCard" class="lo-card">
+        <div class="lo-ic"><img id="loIcon" alt=""></div>
+        <div class="lo-main">
+          <div class="lo-name"><span id="weaponName" class="weapon-name">USP-S</span><span id="skinName" class="skin-name"></span></div>
+          <div class="ammo-row"><span id="ammoMag">12</span><span class="ammo-sep">/</span><span id="ammoRes">36</span></div>
+          <div id="loPips" class="lo-pips"></div>
+          <div id="reloadBar" class="reload-bar hidden"><div id="reloadFill" class="reload-fill"></div><span class="reload-label">GENLADER</span></div>
+        </div>
       </div>
       <div id="slotRow" class="slot-row"></div>
-    </div>
-    <div class="money-block">
-      <div class="money-label">$</div>
-      <div id="moneyNum" class="money-num">800</div>
     </div>
   </div>
   <!-- v12: indtjening (kill-belønning, plant/desarmering, runde-bonus) -->
@@ -291,18 +289,25 @@
 <!-- v22: intro-cutscene – biograf-bjælker + titelkort -->
 <div id="introBars" class="intro-bars hidden"><i></i><i></i></div>
 <div id="introCard" class="intro-card hidden"></div>
+<div id="bcFlash" class="bc-flash"></div>
 
 <!-- klik-for-at-spille (pointer lock genstart) — ligger UDENFOR #hud, som har pointer-events:none på alle børn -->
-<div id="clickToPlay" class="click-to-play hidden">
-  <div class="ctp-box">
-    <div class="ctp-title"><span class="only-mouse">KLIK FOR AT SIGTE</span><span class="only-touch">PAUSE</span></div>
-    <div class="ctp-sub"><span class="only-mouse">musen er frigivet — klik på skærmen for at fortsætte</span><span class="only-touch">tryk på skærmen for at fortsætte</span></div>
-    <div class="ctp-actions">
-      <button id="btnSettingsGame" class="btn btn-ghost">⚙ INDSTILLINGER</button>
-      <button id="btnInventoryGame" class="btn btn-ghost">◆ INVENTAR</button>
-      <button id="btnRestart" class="btn btn-primary hidden">NYT SPIL (GENSTART)</button>
-      <button id="btnEndGame" class="btn btn-ghost hidden">AFSLUT TIL VENTEVÆRELSET</button>
-      <button id="btnLeaveGame" class="btn btn-ghost">FORLAD SPIL</button>
+<div id="clickToPlay" class="click-to-play pm hidden">
+  <div class="pm-scan"></div>
+  <div class="pm-wrap">
+    <div class="pm-left">
+      <div class="pm-kicker"><i></i>OPERATION <span id="pmMap">DE_BUREAU</span></div>
+      <div class="pm-title">PAUSE</div>
+      <div class="pm-sub"><span class="only-mouse">Klik hvor som helst – eller tryk <kbd>ESC</kbd> – for at fortsætte</span><span class="only-touch">Tryk på skærmen for at fortsætte</span></div>
+      <div id="pmMeta" class="pm-meta"></div>
+    </div>
+    <div class="pm-menu">
+      <button id="btnResume" class="pm-btn pm-primary"><i>▶</i><span><b>FORTSÆT</b><small>tilbage i kampen</small></span></button>
+      <button id="btnSettingsGame" class="pm-btn"><i>⚙</i><span><b>INDSTILLINGER</b><small>sigtekorn · mus · lyd · grafik</small></span></button>
+      <button id="btnInventoryGame" class="pm-btn"><i>◆</i><span><b>INVENTAR</b><small>agenter og våben-skins</small></span></button>
+      <button id="btnRestart" class="pm-btn hidden"><i>↻</i><span><b>NYT SPIL</b><small>genstart kampen for alle</small></span></button>
+      <button id="btnEndGame" class="pm-btn hidden"><i>⌂</i><span><b>TIL VENTEVÆRELSET</b><small>afslut kampen for alle</small></span></button>
+      <button id="btnLeaveGame" class="pm-btn pm-danger"><i>⏻</i><span><b>FORLAD SPIL</b><small>du forlader partyet</small></span></button>
     </div>
   </div>
 </div>

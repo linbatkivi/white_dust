@@ -23,7 +23,10 @@ t2 = top.copy()
 for _ in range(14):                                                    # murens højde = højeste nabo-loft (inden for murtykkelsen)
     n = t2.copy(); n[1:] = np.maximum(n[1:], t2[:-1]); n[:-1] = np.maximum(n[:-1], t2[1:]); n[:, 1:] = np.maximum(n[:, 1:], t2[:, :-1]); n[:, :-1] = np.maximum(n[:, :-1], t2[:, 1:])
     t2 = np.where(WALK, t2, n)
-mass = ~WALK & near & (t2 > -50) & ~G.EXT                                     # v26: kun bygningens egne mure – ikke tomrummet udenfor
+_wd = WALK.copy()                                                               # ydermurens tykkelse: op til 0,6 m uden for gulvet (lukker sprækker i facaden)
+for _ in range(5):
+    n_ = _wd.copy(); n_[1:] |= _wd[:-1]; n_[:-1] |= _wd[1:]; n_[:, 1:] |= _wd[:, :-1]; n_[:, :-1] |= _wd[:, 1:]; _wd = n_
+mass = ~WALK & near & (t2 > -50) & (~G.EXT | _wd)                              # v26: bygningens egne mure – ikke tomrummet langt udenfor
 key = np.where(mass, np.round(t2 * 4).astype(np.int64), -1)
 for (a0, b0, a1, b1, k) in rects(mass, key): box(cx(b0), cz(a0), cx(b1), cz(a1), BASE, k / 4.0, 'wall')
 # lofter (inde): plade fra loftet og 0,3 m op – stopper granater og hop
@@ -85,6 +88,27 @@ X0, X1 = math.floor(cx(j0)), math.ceil(cx(j1)); Z0, Z1 = math.floor(cz(i0)), mat
 D = {'version': '1', 'grid': {'GX0': X0, 'GZ0': Z0, 'GW': int((X1 - X0) / 2) + 1, 'GH': int((Z1 - Z0) / 2) + 1},
      'boxes': boxes, 'ramps': ramps, 'stairs': stairs, 'rails': rails, 'cyls': [], 'doors': [], 'ladders': [], 'labels': labels, 'sites': sites,
      'spawns': {'hij': pts(M['spawns']['hij'], 0.0), 'swat': pts(M['spawns']['swat'], math.pi)}, 'levels': {'T': 0.0, 'CT': 6.0}, 'water': [], 'intro': intro}
+# v26: lamperne til spillets lys-prober (alt der bevæger sig: våben i hånden, spillere, C4, tabte våben) – samme lamper som bagningen
+PK = {'down': (0.75, 7.0, 0xffcf94, True), 'panel': (1.1, 8.0, 0xfff2e0, True), 'linear': (1.0, 8.0, 0xeaf2ff, True), 'highbay': (2.2, 13.0, 0xffeccc, True),
+      'server': (1.6, 9.0, 0x8cc0ff, True), 'atrium': (2.4, 14.0, 0xffe0bc, True), 'street': (1.6, 12.0, 0xffb873, False), 'emergency': (0.9, 6.0, 0xff2010, False)}
+pl = []
+for l in G.LIGHTS:
+    k = PK.get(l['kind'])
+    if not k: continue
+    i_, r_, c_, down = k
+    if l.get('dark'): i_ *= 0.45
+    e = {'x': l['x'], 'y': l['y'], 'z': l['z'], 'i': round(i_, 3), 'range': r_, 'color': c_}
+    if down: e['dir'] = [0, -1, 0]; e['cone'] = 1.2
+    pl.append(e)
+json.dump({'lamps': pl}, open(os.path.join(ROOT, 'public', 'assets', 'bureau', 'probes.json'), 'w'), separators=(',', ':'))
+print('probes.json: %d lamper' % len(pl))
+# v26: gulvceller (0,5 m) til rækkevidde-testen (test/reach.js)
+wc = []
+for i in range(0, H, 4):
+    for j in range(0, W, 4):
+        if WALK[i, j] and SLOPE[i, j] < 0 and not OUT[i, j] or (WALK[i, j] and OUT[i, j] and SLOPE[i, j] < 0):
+            wc.append([round(cx(j + 0.5), 2), round(cz(i + 0.5), 2), round(float(F[i, j]), 2), G.ZN[ZID[i, j]]])
+json.dump({'cells': wc}, open(os.path.join(HERE, 'out', 'bureau_walk.json'), 'w'))
 txt = ('/* AUTOGENERERET af tools/bureau/export_collision.py – redigér ikke i hånden.\n   de_bureau: luksus-bureauet øverst i et højhus om natten. */\n'
        '(function (root) {\n  const D = ' + json.dumps(D, ensure_ascii=False, separators=(',', ':')) + ';\n'
        "  if (typeof module === 'object' && module.exports) module.exports = D; else root.WD_BUREAU = D;\n})(typeof self !== 'undefined' ? self : this);\n")

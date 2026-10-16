@@ -1128,7 +1128,7 @@ export function createWeapons(THREE, WD, opts) {
   function c4View() {
     const M = mats('c4', 'view', 'hij'), g = new THREE.Group(), c4 = buildC4(M); c4.position.set(-0.02, -0.02, -0.08); c4.rotation.set(0.5, 0.2, 0); g.add(c4);
     const mkArm = armsFor('hij', M), r = mkArm(), l = mkArm(); r.arm.position.set(0.11, -0.04, -0.02); r.point([0.3, -0.45, 0.84]); l.arm.position.set(-0.13, -0.04, -0.02); l.point([-0.3, -0.45, 0.84]); g.add(r.arm, l.arm);
-    g.userData = { id: 'c4', c4, rightArm: r.arm, mats: [] }; g.traverse(n => { if (n.isMesh && !g.userData.mats.includes(n.material)) g.userData.mats.push(n.material); });
+    g.userData = { id: 'c4', c4, rightArm: r.arm, mats: [] }; g.traverse(n => { if (!n.isMesh) return; for (const m of (Array.isArray(n.material) ? n.material : [n.material])) if (m && !g.userData.mats.includes(m)) g.userData.mats.push(m); });   // v26: materiale-arrays foldes ud (ellers sort skærm under plantning)
     return g;
   }
   return { viewmodel, worldModel, c4Model, c4View, SKIN_NAME, skinName, MODELS: Object.keys(B), SKINS: (o.skinList || []), reloadStyle: id => RELOAD[id] || null };

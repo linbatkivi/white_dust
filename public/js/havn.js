@@ -18,8 +18,9 @@ function ktx(THREE, renderer) {
 
 export async function loadHavn(THREE, renderer, base = '/assets/havn/', maxAniso = 8) {
   const meta = await fetch(base + 'world.json', { cache: 'no-cache' }).then(r => r.json()), V = '?v=' + (meta.build || 1);   // cache-busting pr. bagning
-  const [bin, lms, sky] = await Promise.all([fetch(base + 'world.bin' + V).then(r => r.arrayBuffer()),
-    fetch(base + 'lightmaps.json' + V).then(r => r.json()), fetch(base + 'sky.json' + V, { cache: 'no-cache' }).then(r => r.json())]);
+  const [bin, lms, sky, probeLamps] = await Promise.all([fetch(base + 'world.bin' + V).then(r => r.arrayBuffer()),
+    fetch(base + 'lightmaps.json' + V).then(r => r.json()), fetch(base + 'sky.json' + V, { cache: 'no-cache' }).then(r => r.json()),
+    fetch(base + 'probes.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null).catch(() => null)]);   // v26: banens lamper til lys-proberne (våben, spillere, C4)
   const K = ktx(THREE, renderer), texCache = new Map(), pngLoader = new THREE.TextureLoader();
   const tex = (id, kind) => {
     const key = id + '_' + kind; if (texCache.has(key)) return texCache.get(key);
@@ -97,7 +98,7 @@ export async function loadHavn(THREE, renderer, base = '/assets/havn/', maxAniso
     group.add(mesh);
   }
   group.updateMatrixWorld(true);
-  return { group, sky, meta, lms, count: meshes.length, tris: meshes.reduce((s, x) => s + x.m.ni / 3, 0) };
+  return { group, sky, meta, lms, probeLamps: probeLamps && probeLamps.lamps, count: meshes.length, tris: meshes.reduce((s, x) => s + x.m.ni / 3, 0) };
 }
 
 // ---------------------------------------------------------------- shader: lysmap / vertex-lys som indirekte lys

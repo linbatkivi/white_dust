@@ -358,15 +358,16 @@ export function createIntro(o) {
   let rotorTex = null;
   function rotorTexture() {                                                  // bevægelsesuskarphed: svage, roterende bladspor (mørke og lyse striber)
     if (rotorTex) return rotorTex;
-    const N = 256, c = document.createElement('canvas'); c.width = c.height = N; const g = c.getContext('2d'), m = N / 2;
-    for (let k = 0; k < 3; k++) {
+    const N = 512, c = document.createElement('canvas'); c.width = c.height = N; const g = c.getContext('2d'), m = N / 2;
+    for (let k = 0; k < 3; k++) {                                              // tre blade, hver med et langt sløret spor bagud
       const a0 = k * Math.PI * 2 / 3;
-      for (let j = 0; j < 26; j++) {
-        const a = a0 - j * 0.035, al = 0.22 * Math.pow(1 - j / 26, 2.2);
-        g.strokeStyle = `rgba(22,23,26,${al})`; g.lineWidth = 3.2; g.beginPath(); g.moveTo(m + Math.cos(a) * m * 0.08, m + Math.sin(a) * m * 0.08); g.lineTo(m + Math.cos(a) * m * 0.99, m + Math.sin(a) * m * 0.99); g.stroke();
+      for (let j = 0; j < 60; j++) {
+        const a = a0 - j * 0.026, al = 0.55 * Math.pow(1 - j / 60, 2.6);
+        g.strokeStyle = `rgba(30,32,36,${al})`; g.lineWidth = j < 2 ? 5 : 3.4; g.beginPath(); g.moveTo(m + Math.cos(a) * m * 0.07, m + Math.sin(a) * m * 0.07); g.lineTo(m + Math.cos(a) * m * 0.985, m + Math.sin(a) * m * 0.985); g.stroke();
+        if (j < 40) { g.strokeStyle = `rgba(225,222,210,${al * 0.9})`; g.lineWidth = 3; g.beginPath(); g.moveTo(m + Math.cos(a) * m * 0.935, m + Math.sin(a) * m * 0.935); g.lineTo(m + Math.cos(a) * m * 0.985, m + Math.sin(a) * m * 0.985); g.stroke(); }   // hvide tip-markeringer
       }
     }
-    const gr = g.createRadialGradient(m, m, m * 0.05, m, m, m); gr.addColorStop(0, 'rgba(60,62,66,0.06)'); gr.addColorStop(0.9, 'rgba(60,62,66,0.10)'); gr.addColorStop(1, 'rgba(60,62,66,0)');
+    const gr = g.createRadialGradient(m, m, m * 0.05, m, m, m); gr.addColorStop(0, 'rgba(50,52,56,0.10)'); gr.addColorStop(0.92, 'rgba(50,52,56,0.16)'); gr.addColorStop(0.95, 'rgba(210,206,196,0.18)'); gr.addColorStop(1, 'rgba(50,52,56,0)');
     g.fillStyle = gr; g.fillRect(0, 0, N, N);
     rotorTex = new THREE.CanvasTexture(c); rotorTex.colorSpace = THREE.SRGBColorSpace; return rotorTex;
   }
@@ -483,8 +484,10 @@ export function createIntro(o) {
     heliPose(t, HP);
     v.g.position.set(HP.x, HP.y, HP.z); v.g.rotation.set(HP.pitch, HP.yaw, HP.roll);
     const spin = t > Hh.tD + 6 ? 30 : 44;
-    if (v.rotor) v.rotor.rotation.y += spin * dt; if (v.tailRotor) v.tailRotor.rotation.x += 170 * dt;
-    if (v.disc) { v.disc.rotation.z -= 9 * dt; v.disc.material.opacity = 1; }
+    // fuldt omdrejningstal: de faste blade ville strobe (vognhjulseffekt – nogle ser ud til at stå stille) → vis kun den slørede rotorskive,
+    // der drejer roligt; bladene ses kun når rotoren går langsomt (aldrig i introen)
+    if (v.rotor) { v.rotor.rotation.y += spin * dt; v.rotor.visible = false; } if (v.tailRotor) { v.tailRotor.rotation.x += 170 * dt; v.tailRotor.visible = false; }
+    if (v.disc) { v.disc.rotation.z -= 11 * dt; v.disc.material.opacity = 1; } if (v.tdisc) v.tdisc.rotateZ(14 * dt);
     const dk = easeInOut((t - 4.55) / 0.6);                                     // skydedørene glider bagud på skinnen
     for (const [d, s] of [[v.doorR, 1], [v.doorL, -1]]) if (d && d.userData.p0) { d.position.copy(d.userData.p0); d.position.z -= dk * sp.door.slide; d.position.x += s * 0.05 * Math.min(1, dk * 4); }
     v.g.updateMatrixWorld(true);

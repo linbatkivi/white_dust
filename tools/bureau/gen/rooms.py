@@ -42,13 +42,13 @@ ROOMS = {
     # teknikkælderen
     'Trappehallen':  dict(floor='concrete_old', wall='block_wall', h=4.6, ceil='arch_concrete', light='linear'),
     'Kryptgangen':   dict(floor='concrete_old', wall='concrete_wall', h=3.0, ceil='arch_concrete', light='linear'),
-    'Lower B':       dict(floor='concrete_old', wall='concrete_wall', h=3.2, ceil='arch_concrete', light='linear', dark=True),
+    'Lower B':       dict(floor='concrete_old', wall='concrete_wall', h=3.2, ceil='arch_concrete', light='linear'),            # v26: dunkelt men spilbart
     'Kryptnedgangen': dict(floor='concrete_old', wall='block_wall', h=3.0, ceil='arch_concrete', light='linear'),
     'Tunnels':       dict(floor='concrete_old', wall='concrete_wall', h=2.8, ceil='arch_concrete', light='linear', dark=True),
     'Tunnels vest':  dict(floor='concrete_old', wall='concrete_wall', h=2.8, ceil='arch_concrete', light='linear', dark=True),
     'Tunnels hjørne': dict(floor='concrete_old', wall='concrete_wall', h=2.8, ceil='arch_concrete', light='linear', dark=True),
-    'Dark':          dict(floor='concrete_old', wall='concrete_wall', h=3.2, ceil='arch_concrete', light='none', dark=True),
-    'Dark-kammeret': dict(floor='concrete_old', wall='concrete_wall', h=3.2, ceil='arch_concrete', light='none', dark=True),
+    'Dark':          dict(floor='concrete_old', wall='concrete_wall', h=3.2, ceil='arch_concrete', light='linear', dark=True),   # v26: enkelte lysrør
+    'Dark-kammeret': dict(floor='concrete_old', wall='concrete_wall', h=3.2, ceil='arch_concrete', light='linear', dark=True),
     # B: våbenkammeret og lageret
     'Main B':        dict(floor='concrete_floor', wall='block_wall', h=3.4, ceil='arch_concrete', light='linear'),
     'Catwalk':       dict(floor='steel_plate', wall='block_wall', h=4.0, ceil='arch_concrete', light='linear'),

@@ -40,7 +40,7 @@ export function createAudio() {
   /* ---------------- v20: LYDFILER (public/assets/sounds, tools/sounds/prep.py) ----------------
      Hentes straks ved sideindlæsning (fetch med genforsøg), afkodes i en suspenderet AudioContext før første klik,
      så de altid er klar. Mangler en fil, bruges den syntetiske lyd som reserve. Musik streames via <audio>-elementer. */
-  const SND = ['gun_shot', 'reload_magout', 'reload_magin', 'reload_rack', 'knife_swing', 'knife_hit1', 'knife_hit2', 'amb_birds', 'amb_traffic'];
+  const SND = ['gun_shot', 'sup_pistol', 'sup_pistol2', 'sup_pistol3', 'sup_smg', 'ann_swat_win', 'ann_hij_win', 'ann_planted', 'ann_defused', 'ann_switch', 'reload_magout', 'reload_magin', 'reload_rack', 'knife_swing', 'knife_hit1', 'knife_hit2', 'amb_birds', 'amb_traffic'];
   const SND_V = 'v20';
   const raw = {}, buf = {};
   let loadedRes = null; const loaded = new Promise(r => { loadedRes = r; });
@@ -198,6 +198,9 @@ export function createAudio() {
   function pistolShot(id, pos, local) {
     const P = PISTOL[id], t = ctx.currentTime + 0.002, d = out(local ? null : pos, 7, 170, true);
     d.gain.value = local ? 0.72 : 1.05;
+    if (P.sup && sample(['sup_pistol', 'sup_pistol2', 'sup_pistol3'][Math.floor(Math.random() * 3)], d, { t, rate: 1, jit: 0.05, vol: local ? 0.85 : 1.0 })) {   // v26: optagede lyddæmpede skud (Pixabay) + slædens klik
+      noise(d, t + 0.03, 0.02, 4200, 4, 'bandpass', P.mech * 1.2, 0.015); return;
+    }
     if (P.sup) {                                         // lyddæmpet USP: skarpt 'thwip' + slædens metalklik
       noise(d, t, 0.05, 3200, 1.2, 'bandpass', 0.55, 0.045); noise(d, t, 0.02, 7000, 0.7, 'highpass', 0.35, 0.018);
       noise(d, t, 0.09, P.body, P.q, 'bandpass', P.punch, 0.08);
@@ -231,6 +234,7 @@ export function createAudio() {
     if (PISTOL[id]) return pistolShot(id, pos, local);
     const P = GUN[id] || GUN.ak47, t = ctx.currentTime + 0.002, d = out(local ? null : pos, 6, 160, true);
     d.gain.value = local ? 0.7 : 1;
+    if (P.sup && sample('sup_smg', d, { t, rate: 1, jit: 0.06, vol: local ? 0.8 : 1.0 })) { noise(d, t + 0.028, 0.02, 4000, 4, 'bandpass', 0.14, 0.015); return; }   // v26: optaget lyddæmpet SMG-skud
     if (P.sup) {                                         // v13: lyddæmpet MP5-SD – dæmpet 'thup' + bolt-klik, næsten ingen hale
       noise(d, t, 0.06, 2600, 1.1, 'bandpass', 0.5, 0.05); noise(d, t, 0.03, 6500, 0.7, 'highpass', 0.22, 0.02);
       tone(d, t, 0.05, 220, 120, 'sine', 0.35); noise(d, t + 0.028, 0.02, 4000, 4, 'bandpass', 0.18, 0.015);
@@ -416,6 +420,9 @@ export function createAudio() {
       const t = ctx.currentTime; noise(voiceBus, t, 0.06, 2600, 3, 'bandpass', 0.18, 0.05); tone(voiceBus, t + 0.03, 0.08, o.hi ? 1320 : 990, null, 'square', 0.035); tone(voiceBus, t + 0.12, 0.1, o.hi ? 1760 : 1320, null, 'square', 0.03);
     }
     const v = VOL.master * VOL.voice;
+    // v26: optaget speaker (Piper-stemme 'norman' + efterbehandling, tools/sounds/announcer.py) – browserens tale kun som nødløsning
+    const CLIP = { 'SWAT win': 'ann_swat_win', 'SWAT wins': 'ann_swat_win', 'Hijackers win': 'ann_hij_win', 'Bomb has been planted': 'ann_planted', 'Bomb has been defused': 'ann_defused', 'Switching sides': 'ann_switch' }[text];
+    if (CLIP && ok() && buf[CLIP]) { sample(CLIP, voiceBus, { t: ctx.currentTime + 0.17, vol: 1.15 }); return; }
     if (!window.speechSynthesis || v <= 0.01 || !text) return;
     try {
       speechSynthesis.cancel();

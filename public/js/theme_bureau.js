@@ -28,6 +28,7 @@ export function bureauTheme(L) {
   const doorStyle = d => ({ matOpts: { color: 0xffffff, map: (M.metal || M.wood).map }, build: (w, h, m) => doorLeaf(w, h, m, 'metal') });
   const none = () => {};
   return { id: 'bureau', siteMark: 'assist', authored: !!HV, night: true, lightsUrl: '/assets/bureau/lights.json', rain: { rate: 1.2, wind: [1.2, 0.0, 0.5], lightning: true }, light, weather: {}, post, ambient,
-    bevel: 0, bevelKinds: {}, lamps: [], mats: M, surfKinds, surf, trim: null, splitY: [],
+    bevel: 0, bevelKinds: {}, lamps: (HV && HV.probeLamps) || [], mats: M,   // v26: banens lamper → lys-proberne (våben i hånden, spillere, C4)
+    surfKinds, surf, trim: null, splitY: [],
     dressProp: none, dressCyl: none, dressLadder: none, dressRail: none, dressLamp: none, doorStyle, decor: none, detailDist: 60 };
 }
