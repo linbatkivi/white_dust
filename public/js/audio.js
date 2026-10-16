@@ -41,7 +41,7 @@ export function createAudio() {
      Hentes straks ved sideindlæsning (fetch med genforsøg), afkodes i en suspenderet AudioContext før første klik,
      så de altid er klar. Mangler en fil, bruges den syntetiske lyd som reserve. Musik streames via <audio>-elementer. */
   const SND = ['gun_shot', 'sup_pistol', 'ann_swat_win', 'ann_hij_win', 'ann_planted', 'ann_defused', 'ann_switch', 'reload_magout', 'reload_magin', 'reload_rack', 'knife_swing', 'knife_hit1', 'knife_hit2', 'amb_birds', 'amb_traffic'];
-  const SND_V = 'v265';
+  const SND_V = 'v266';
   const raw = {}, buf = {};
   let loadedRes = null; const loaded = new Promise(r => { loadedRes = r; });
   async function fetchRetry(url, tries) {
