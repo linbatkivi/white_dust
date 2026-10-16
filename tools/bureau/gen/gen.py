@@ -8,6 +8,45 @@
 # ==========================================================================
 import json, math, os, sys
 import numpy as np
+from collections import deque
+class ndi:
+    """de få morfologi-funktioner fra scipy.ndimage, i ren numpy (Blenders Python har ikke scipy)"""
+    @staticmethod
+    def binary_dilation(m, iterations=1):
+        m = m.copy()
+        for _ in range(iterations):
+            n = m.copy(); n[1:] |= m[:-1]; n[:-1] |= m[1:]; n[:, 1:] |= m[:, :-1]; n[:, :-1] |= m[:, 1:]; m = n
+        return m
+    @staticmethod
+    def binary_erosion(m, iterations=1):
+        m = m.copy()
+        for _ in range(iterations):
+            n = m.copy(); n[1:] &= m[:-1]; n[:-1] &= m[1:]; n[:, 1:] &= m[:, :-1]; n[:, :-1] &= m[:, 1:]
+            n[0, :] = n[-1, :] = False; n[:, 0] = n[:, -1] = False; m = n
+        return m
+    @staticmethod
+    def binary_opening(m, structure):
+        from numpy.lib.stride_tricks import sliding_window_view as swv
+        k = structure.shape[0]; a = k // 2; b = k - 1 - a
+        er = np.zeros_like(m); er_ = swv(np.pad(m, ((a, b), (a, b))), (k, k)).all(axis=(2, 3)); er[:] = er_
+        di = swv(np.pad(er, ((b, a), (b, a))), (k, k)).any(axis=(2, 3))
+        return di & m
+    @staticmethod
+    def label(m, structure=None):
+        diag = structure is not None and structure.shape == (3, 3) and structure.all()
+        Hh, Ww = m.shape; lab = np.zeros((Hh, Ww), np.int32); n = 0; flat = m.ravel(); L = lab.ravel()
+        nb = [(-1, 0), (1, 0), (0, -1), (0, 1)] + ([(-1, -1), (-1, 1), (1, -1), (1, 1)] if diag else [])
+        for start in np.flatnonzero(flat):
+            if L[start]: continue
+            n += 1; L[start] = n; q = deque([start])
+            while q:
+                c = q.popleft(); i, j = divmod(c, Ww)
+                for di, dj in nb:
+                    ii, jj = i + di, j + dj
+                    if 0 <= ii < Hh and 0 <= jj < Ww:
+                        k = ii * Ww + jj
+                        if flat[k] and not L[k]: L[k] = n; q.append(k)
+        return lab, n
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.abspath(os.path.join(HERE, '..', '..', '..'))
 sys.path.insert(0, HERE)
 from rooms import ROOMS, FACADE_TOP, ATRIUM_H, PARAPET
@@ -43,6 +82,12 @@ carve(-33.5, -30.6, 6.2, 7.0, 'Lower B', -1.5)
 x0_, y0_, x1_, y1_ = ST[10]['r']; i_rep = _ij(0, 21.4)[0]
 ST[10] = dict(ST[10], r=[x0_, i_rep, x1_, y1_])
 setfy((x0_ - CX) * S, (x1_ - CX) * S, (y0_ - CY) * S, 21.4, -1.5)
+# v26.3: Trappehallen – hullet mellem trappe #8 og #9 (en grube på −1,5 med trappede lofter) fyldes ud til en massiv kerne,
+#   og reposen syd for #9 (op til Kryptgangen) får sin egen åbning mod vest ind i hallen
+def fill(x0, x1, z0, z1):
+    i0, j0 = _ij(x0, z0); i1, j1 = _ij(x1, z1); ZID[i0:i1, j0:j1] = -1; WALL0[i0:i1, j0:j1] = True
+fill(-12.8, -5.4, 11.0, 14.6)
+carve(-15.6, -12.4, 19.5, 21.4, 'Trappehallen', -1.5)
 ZN = [z['name'] for z in M['zones']]; ZY = np.array([z['y'] for z in M['zones']], np.float32)
 WALK = ZID >= 0
 cx = lambda j: (j - CX) * S
@@ -55,6 +100,7 @@ FC = F.copy()                                                     # gulv til kol
 SLOPE = np.full((H, W), -1, np.int32)                             # skrå flade (rampe, eller trappe i kollisionen)
 STEPS = np.zeros((H, W), bool)
 TR = [dict(t, kind='stairs') for t in M['stairs']] + [dict(t, kind='ramp') for t in M['ramps']]
+RAMP_K = np.array([t['kind'] == 'ramp' for t in TR] + [True])          # indeks −1 (ingen skrå flade) → True
 for k, t in enumerate(TR):
     x0, y0, x1, y1 = t['r']; blk = WALK[y0:y1, x0:x1]
     ii, jj = np.nonzero(blk)
@@ -69,6 +115,25 @@ for k, t in enumerate(TR):
         n = max(2, int(round(abs(t['yb'] - t['ya']) / 0.17)))
         kk = np.clip(np.floor(tt * (n + 1)), 0, n)
         F[y0 + ii, x0 + jj] = t['ya'] + (t['yb'] - t['ya']) * kk / n; STEPS[y0 + ii, x0 + jj] = True
+# v26.3: en trappe har altid vægge på siderne, hvor naboen ligger mere end 0,6 m højere/lavere (før: åbne trappesider ned i en grube,
+#   så loftet ved siden af trappen fulgte trinene og blev trappet). Kanten (2 celler) bliver mur; smalle gulvrester (< 0,7 m) fjernes.
+_Fz = np.nan_to_num(F, nan=-99.0); _side = np.zeros((H, W), bool)
+for _ax in (0, 1):
+    for _s in (1, -1):
+        _Fb = np.roll(_Fz, _s, _ax); _Wb = np.roll(WALK, _s, _ax); _Sb = np.roll(SLOPE, _s, _ax)
+        _side |= WALK & _Wb & (SLOPE >= 0) & ~RAMP_K[SLOPE] & (_Sb != SLOPE) & (np.abs(_Fz - _Fb) > 0.6)
+_side = ndi.binary_dilation(_side, iterations=1) & (SLOPE >= 0)
+_keep = ndi.binary_opening(WALK & ~_side, structure=np.ones((6, 6), bool))
+_gone = _side | (WALK & ~_keep & ndi.binary_dilation(_side, iterations=10))          # kun gulvrester ved de nye trappevægge
+ZID[_gone] = -1; WALL0[_gone] = True; WALK[_gone] = False
+F[_gone] = np.nan; FC[_gone] = np.nan; SLOPE[_gone] = -1; STEPS[_gone] = False
+print('[gen] trappesider lukket: %d celler, gulvrester fjernet: %d celler' % (int(_side.sum()), int((_gone & ~_side).sum())))
+# lukkede lommer: gulv der kun hænger sammen med resten af banen gennem en sprække < 0,5 m (fx strimlen bag A Rampes skrå mur) bliver mur
+_E = ndi.binary_erosion(WALK, iterations=2); _lab, _n = ndi.label(_E); _sz = np.bincount(_lab.ravel()); _sz[0] = 0
+_R = WALK & ~ndi.binary_dilation(_lab == _sz.argmax(), iterations=3); _l2, _n2 = ndi.label(_R, structure=np.ones((3, 3), bool)); _s2 = np.bincount(_l2.ravel())
+_pk = np.isin(_l2, [k for k in range(1, _n2 + 1) if _s2[k] >= 60])
+ZID[_pk] = -1; WALL0[_pk] = True; WALK[_pk] = False; F[_pk] = np.nan; FC[_pk] = np.nan; SLOPE[_pk] = -1; STEPS[_pk] = False
+print('[gen] lukkede lommer fyldt: %d celler' % int(_pk.sum()))
 RAMP = (SLOPE >= 0) & ~STEPS
 
 # loft: rummets loft, men altid mindst 2,7 m over gulvet (loftet følger trapper der går op over rummets niveau)
@@ -313,6 +378,76 @@ def face(mesh, pts, mi, axis):
     else:
         mesh.quad(pts, 'wall', [(0, 0)] * 4)
 vfaces(VIS, F, RAMP); vfaces(COL, FC, SLOPE >= 0)
+
+# ---------------------------------------------------------------- v26.3: skrå mure – glat beklædning hen over savtakkerne
+#   En skrå mur i cellegitteret bliver en savtak af 12 cm-trin (så ud som lodrette ribber). Langs hver skrå strækning (≥ 1 m) lægges
+#   en lodret flade fra gulv til loft lige foran takkerne (+ fodliste). Kollisionen er uændret (takkerne er kun 4 cm dybe).
+def _chains():
+    """randkanter mellem gangbar celle og mur som polylinjer i hjørnekoordinater (i, j); hver kant husker sin gangbare celle"""
+    E = {}
+    def add(a, b, cell):
+        E.setdefault(a, []).append((b, cell)); E.setdefault(b, []).append((a, cell))
+    EB = np.zeros((H, W), bool)
+    for _a in ('x', 'z'):
+        for _s in (1, -1): EB |= ext_behind(_a, _s) & OPEN[(_a, _s)]
+    Wk = WALK & INDOOR & ~(WIN & EB)                                     # ikke hen over panoramavinduer
+    ii, jj = np.nonzero(Wk[:, :-1] & ~WALK[:, 1:] & ~EXT[:, 1:]);  [add((i, j + 1), (i + 1, j + 1), (i, j)) for i, j in zip(ii, jj)]
+    ii, jj = np.nonzero(Wk[:, 1:] & ~WALK[:, :-1] & ~EXT[:, :-1]);  [add((i, j + 1), (i + 1, j + 1), (i, j + 1)) for i, j in zip(ii, jj)]
+    ii, jj = np.nonzero(Wk[:-1, :] & ~WALK[1:, :] & ~EXT[1:, :]);  [add((i + 1, j), (i + 1, j + 1), (i, j)) for i, j in zip(ii, jj)]
+    ii, jj = np.nonzero(Wk[1:, :] & ~WALK[:-1, :] & ~EXT[:-1, :]);  [add((i + 1, j), (i + 1, j + 1), (i + 1, j)) for i, j in zip(ii, jj)]
+    used = set(); out = []
+    for a0 in list(E.keys()):
+        for (b0, c0) in E[a0]:
+            if (a0, b0) in used: continue
+            pts, cells = [a0], []; a, b, c = a0, b0, c0
+            while True:
+                used.add((a, b)); used.add((b, a)); pts.append(b); cells.append(c)
+                nxt = [(n, cc) for (n, cc) in E.get(b, []) if (b, n) not in used]
+                if len(E.get(b, [])) != 2 or not nxt: break
+                a, (b, c) = b, nxt[0]
+            out.append((pts, cells))
+    return out
+def _dp(P, eps):
+    """Douglas–Peucker: indekser der bevares"""
+    keep = {0, len(P) - 1}; st = [(0, len(P) - 1)]
+    if np.hypot(*(P[-1] - P[0])) < 1e-6 and len(P) > 3:                 # lukket løkke: del først ved det fjerneste punkt
+        m = int(np.argmax(np.hypot(*(P - P[0]).T))); keep.add(m); st = [(0, m), (m, len(P) - 1)]
+    while st:
+        a, b = st.pop()
+        if b <= a + 1: continue
+        d = P[b] - P[a]; L = np.hypot(*d) or 1e-9; n = np.array([-d[1], d[0]]) / L
+        dist = np.abs((P[a + 1:b] - P[a]) @ n); k = int(np.argmax(dist))
+        if dist[k] > eps: m = a + 1 + k; keep.add(m); st += [(a, m), (m, b)]
+    return sorted(keep)
+nclad = 0
+for pts, cells in _chains():
+    if len(pts) < 10: continue
+    P = np.array([(cx(j), cz(i)) for (i, j) in pts], float)           # (x, z)
+    ks = _dp(P, 0.32)
+    for a, b in zip(ks[:-1], ks[1:]):
+        d = P[b] - P[a]; L = float(np.hypot(*d))
+        ang = abs(math.degrees(math.atan2(d[1], d[0]))) % 90.0
+        if L < 1.0 or ang < 8.0 or ang > 82.0: continue                 # kun skrå strækninger (lige mure er fine)
+        seg = cells[a:b]; fl = np.array([F[c] for c in seg]); cl = np.array([C[c] for c in seg])
+        flat = np.nanmax(fl) - np.nanmin(fl) < 0.05                       # langs en trappe: fladen går fra laveste gulv til højeste loft (resten skjules)
+        u = d / L; nrm = np.array([-u[1], u[0]])
+        ci = np.array([(cx(c[1] + 0.5), cz(c[0] + 0.5)) for c in seg])
+        if np.mean((ci - P[a]) @ nrm) < 0: nrm = -nrm                     # normalen peger ind i rummet
+        off = max(0.0, float(np.max((P[a:b + 1] - P[a]) @ nrm))) + 0.035   # foran de yderste takker + fodlisterne
+        p0, p1 = P[a] + nrm * off, P[b] + nrm * off
+        y0, y1 = float(np.nanmin(fl)), float(np.nanmax(cl))
+        mi = int(wmat[seg[len(seg) // 2]]); mname = MATS[mi]
+        if mname == 'lux_wall': mname = 'walnut' if L > 3.0 else 'plaster_warm'
+        q = [(p0[0], y0, p0[1]), (p1[0], y0, p1[1]), (p1[0], y1, p1[1]), (p0[0], y1, p0[1])]
+        e1 = np.subtract(q[1], q[0]); e2 = np.subtract(q[3], q[0]); nn = np.cross(e1, e2)
+        if nn[0] * nrm[0] + nn[2] * nrm[1] < 0: q = q[::-1]
+        t0 = float(p0 @ u); VIS.quad(q, mname, [(float(np.array([v[0], v[2]]) @ u), v[1]) for v in q])
+        bq = [(p0[0] + nrm[0] * 0.015, y0, p0[1] + nrm[1] * 0.015), (p1[0] + nrm[0] * 0.015, y0, p1[1] + nrm[1] * 0.015),
+              (p1[0] + nrm[0] * 0.015, y0 + 0.1, p1[1] + nrm[1] * 0.015), (p0[0] + nrm[0] * 0.015, y0 + 0.1, p0[1] + nrm[1] * 0.015)]
+        if q[0] != (p0[0], y0, p0[1]): bq = bq[::-1]
+        if flat: VIS.quad(bq, 'baseboard', [(0, 0), (1, 0), (1, 1), (0, 1)])
+        nclad += 1
+print('[gen] skrå mure beklædt: %d strækninger' % nclad)
 
 # ---------------------------------------------------------------- armaturer (lyspaneler i loftet) + lysliste
 LIGHTS = []

@@ -18,8 +18,8 @@ const WD = require('./shared/wd.js');
 const PORT = parseInt(process.env.PORT, 10) || 3000;
 const FAST = !!process.env.WD_FAST;   // kun til automatiske tests
 const TIMES = FAST
-  ? { buy: 2, grace: 3, round: 14, end: 1.2, plant: 0.6, defuse: 1.0, bomb: 6, over: 2, load: 5, intro: 0, mvp: 0 }
-  : { buy: 12, grace: 10, round: 100, end: 5, plant: 3.2, defuse: 6, bomb: 40, over: 42, load: 90, intro: 13, mvp: 5 };   // v22: intro = cutscenen ved kampstart · mvp = ekstra tid til MVP-filmen   // grace: købe i spawn de første 10 s · over: sejrs-sekvensen (musikken) · load: maks. ventetid på at alle har indlæst banen
+  ? { buy: 2, grace: 3, round: 14, end: 1.2, plant: 0.6, defuse: 1.0, bomb: 6, over: 2, load: 5, intro: 0, mvp: 0, rcine: 0, bpost: 0 }
+  : { buy: 12, grace: 10, round: 100, end: 5, plant: 3.2, defuse: 6, bomb: 40, over: 42, load: 90, intro: 13, mvp: 5, rcine: 4.8, bpost: 6.5 };   // v22: intro = cutscenen ved kampstart · mvp = ekstra tid til MVP-filmen   // grace: købe i spawn de første 10 s · over: sejrs-sekvensen (musikken) · load: maks. ventetid på at alle har indlæst banen
 const MAX_PLAYERS = 10, WIN_ROUNDS = 7, HALF = 6, START_MONEY = WD.ECON.start, MAX_MONEY = WD.ECON.max;
 const GRACE_GAME = 25000, GRACE_LOBBY = 8000;
 const SNAP_MS = 50;
@@ -519,7 +519,9 @@ function endRound(room, win, reason) {
   else if (reason === 'bomb' && room.players.get(room.planter)) { mvp = room.players.get(room.planter); mvpWhy = 'plant'; }
   else for (const p of room.players.values()) if (p.side === win && (!mvp || p.rk > mvp.rk || (p.rk === mvp.rk && p.rdmg > mvp.rdmg))) mvp = p;
   if (mvp) mvp.mvps = (mvp.mvps || 0) + 1;
-  const endMs = (TIMES.end + (mvp ? TIMES.mvp : 0)) * 1000; room.phaseEnd = now() + endMs;   // v22: MVP-filmen (~9,6 s) skal kunne ses færdig
+  // v22: MVP-filmen (~9,6 s) skal kunne ses færdig · v26.3: + rundeslut-filmen (4,8 s) eller bombe-filmens efterspil (eksplosionen, 6,5 s)
+  const cine = reason === 'bomb' ? (room.bomb.doom ? TIMES.bpost : 0) : TIMES.rcine;
+  const endMs = (TIMES.end + (mvp ? TIMES.mvp : 0) + cine) * 1000; room.phaseEnd = now() + endMs;
   room.bcast({ t: 'ev', k: 'end', win, reason, score: [room.score.swat, room.score.hij], ms: endMs,
     mvp: mvp ? { id: mvp.id, name: mvp.name, k: mvp.rk, dmg: Math.round(mvp.rdmg), why: mvpWhy } : null,
     by: reason === 'defuse' ? room.defuser : reason === 'bomb' ? room.planter : 0 });

@@ -25,6 +25,7 @@ import { createMenuFx } from '/js/menufx.js';
 import { createIntro } from '/js/intro.js';
 import { createBombCine } from '/js/bombcine.js';
 import { createMvpCine } from '/js/mvpcine.js';
+import { createRoundCine } from '/js/roundcine.js';
 import { createNight } from '/js/night.js';
 import * as SK from '/js/skins.js';
 import { createInventory } from '/js/inventory.js';
@@ -723,8 +724,8 @@ Net.on('ev', m => {
     case 'shot': Renderer.onShotFx(m); break;
     case 'hit': HUD.hitmarker(m.kill, m.hs); Renderer.flinchAim(); Audio.click(m.knife ? 'flesh' : m.hs ? 'hs' : 'hit'); if (m.kill) Audio.click('kill'); break;
     case 'hurt': HUD.damageIndicator(m.dx, m.dz, m.dmg); Renderer.shake(m.hs ? 0.3 : 0.18); break;
-    case 'kill': HUD.killfeed(m); if (m.v === Game.meId) { HUD.showDead(); Game.nade = null; Game.firing = false; } break;
-    case 'end': if (!Renderer.deferEnd(m)) HUD.roundEnd(m); break;           // v26: under bombe-filmen vises rundeslut bagefter
+    case 'kill': HUD.killfeed(m); noteKill(m); if (m.v === Game.meId) { HUD.showDead(); Game.nade = null; Game.firing = false; } break;
+    case 'end': m._rx = performance.now(); if (!Renderer.deferEnd(m, roundCineInfo(m))) HUD.roundEnd(m); break;   // v26: bombe-filmen · v26.3: rundeslut-filmen – rundeslut/MVP bagefter
     case 'pay': HUD.pay(m); break;
     case 'over': startVictory(m); break;
     case 'half': UI.toast('HALVLEG — I skifter side'); Audio.announce('Switching sides'); break;
@@ -873,6 +874,33 @@ function fireStart() {
   if (!w || (w.kind !== 'gun' && w.kind !== 'knife')) return;
   if (Game.reloading && w.kind === 'gun') return;
   Game.firing = true;
+}
+/* v26.3: rundeslut-filmen – hvem afgjorde runden, og hvor */
+function posOfPlayer(id) {
+  if (id === Game.meId) return Game.body ? { x: Game.body.x, y: Game.body.y, z: Game.body.z, yaw: Game.yaw, self: true, alive: !!Game.self.alive } : null;
+  const r = Game.remotes.get(id); return r ? { x: r.rx, y: r.ry, z: r.rz, yaw: r.yaw, self: false, alive: !!r.alive } : null;
+}
+function noteKill(m) { const vp = posOfPlayer(m.v); Game.lastKill = { a: m.a, v: m.v, w: m.w, hs: !!m.hs, t: performance.now(), vpos: vp ? { x: vp.x, y: vp.y, z: vp.z, yaw: vp.yaw } : null }; }
+function roundCineInfo(m) {
+  if (m.reason === 'bomb' || !Game.side) return null;
+  const pl = id => Game.players.get(id) || {}, agentOf = id => { const p = pl(id); return p.cos && p.cos.agent ? p.cos.agent[p.side] : null; };
+  const ok = id => { const q = id && posOfPlayer(id); return !!(q && q.alive && pl(id).side === m.win); };
+  let fid = 0; const lk = Game.lastKill && performance.now() - Game.lastKill.t < 9000 ? Game.lastKill : null;
+  if (m.reason === 'defuse' && ok(m.by)) fid = m.by;
+  else if (m.reason === 'elim' && lk && ok(lk.a)) fid = lk.a;
+  if (!fid) fid = [m.mvp && m.mvp.id, ...Game.players.keys()].find(ok) || 0;
+  if (!fid) return null;
+  const F = Object.assign(posOfPlayer(fid), { side: pl(fid).side, agent: agentOf(fid), name: pl(fid).name || '', wcode: fid === Game.meId && WEAPONS[Game.self.cur] ? WEAPONS[Game.self.cur].code || 0 : 0 });
+  let victim = null;
+  if (m.reason === 'elim' && lk && lk.vpos) victim = Object.assign({}, lk.vpos, { self: lk.v === Game.meId, side: pl(lk.v).side, agent: agentOf(lk.v), name: pl(lk.v).name || '' });
+  const bomb = m.reason === 'defuse' && Game.bomb ? { x: Game.bomb.x, y: Game.bomb.y, z: Game.bomb.z } : null;
+  let site = null;
+  if (m.reason === 'time' && W.sites) for (const [, s] of Object.entries(W.sites)) { const c = { x: (s.x0 + s.x1) / 2, y: s.y, z: (s.z0 + s.z1) / 2 }; if (!site || Math.hypot(c.x - F.x, c.z - F.z) < Math.hypot(site.x - F.x, site.z - F.z)) site = c; }
+  const swat = m.win === 'swat', esc = escapeHtml, wn = lk && WEAPONS[lk.w] ? WEAPONS[lk.w].name : '';
+  const title = m.reason === 'defuse' ? 'BOMBEN DESARMERET' : m.reason === 'time' ? 'TIDEN ER UDLØBET' : swat ? 'HIJACKERS ELIMINERET' : 'SWAT ELIMINERET';
+  const sub = m.reason === 'elim' && victim ? `<b>${esc(F.name)}</b> <em>▸</em> ${esc(victim.name)}${wn ? ' · ' + esc(wn.toUpperCase()) : ''}${lk.hs ? ' · <u>HEADSHOT</u>' : ''}`
+    : m.reason === 'defuse' ? `<b>${esc(F.name)}</b> klippede ledningen` : m.reason === 'time' ? 'Målet er sikret · SWAT holdt stand' : '';
+  return { reason: m.reason, win: m.win, focus: F, victim, bomb, site, title, sub, team: (swat ? 'SWAT' : 'HIJACKERS') + ' VINDER RUNDEN', kicker: `RUNDE ${Game.round} <span>${m.score[0]}–${m.score[1]}</span>` };
 }
 const endFrozen = () => Game.phase === 'end' && performance.now() - Game.endT < 600;   // v12: kort frys når runden slutter (dramatisk), derefter fri – man kan skyde i pausen
 function fireEnd() { Game.firing = false; }
@@ -1521,11 +1549,11 @@ const HUD = {
       if (film) { Game.cineFull = true; document.body.classList.add('mvpcine'); el.innerHTML = ''; el.className = 'hidden'; }
     }
     if (!film) el.classList.remove('hidden');
-    Game.endInfo = { t0: performance.now(), ms: m.ms || 5000 };
+    Game.endInfo = { t0: performance.now(), ms: Math.max(1500, (m.ms || 5000) - (m._rx ? performance.now() - m._rx : 0)) };   // v26.3: efter en film er der mindre tid tilbage
     Game.endT = performance.now(); Game.firing = false;
     hideActBar(); this.fillEndPay(); $('deadOverlay').classList.add('hidden');
     Audio.music(Game.side === m.win ? 'win' : 'lose');
-    Audio.announce(swat ? 'SWAT win' : 'Hijackers win');
+    if (!m._cine) Audio.announce(swat ? 'SWAT win' : 'Hijackers win');                 // (rundeslut-filmen har allerede sagt det)
     if (m.mvp && m.mvp.id === Game.meId) Audio.music('mvp');
   },
   fillEndPay() {
@@ -1628,7 +1656,7 @@ $('nameInput').focus();
    ========================================================================== */
 const Renderer = (() => {
   let renderer, scene, camera, clock, pmrem = null, post = null, fxs = null;
-  let V = null, Chars = null, Weap = null, Intro = null, introLoaded = false, BombCine = null, pendingEnd = null, bcHold = false;
+  let V = null, Chars = null, Weap = null, Intro = null, introLoaded = false, BombCine = null, RoundCine = null, pendingEnd = null, bcHold = false, rcHold = false;
   let sky = null, hemi, amb, sun, sunFar, worldGroup, decorGroup, doors = null, fxObj = null, mapObjs = [], envTex = null, night = null;
   const remoteModels = new Map();  // id -> render-state
   const tracers = [], flashes = [], tracerPool = [];
@@ -1880,13 +1908,21 @@ const Renderer = (() => {
       myPos: () => Game.corrIdAt ? { x: Game.body.x, y: Game.body.y, z: Game.body.z, yaw: Game.spawnYaw !== undefined ? Game.spawnYaw : Game.yaw } : null,
       keepMs: () => Game.phase === 'buy' ? Game.phaseEnd - performance.now() : 0,
       matePos: id => { const r = Game.remotes.get(id); return r ? { x: r.rx, y: r.ry, z: r.rz, yaw: r.yaw } : null; },
-      onStart: () => { document.body.classList.add('intro'); Game.intro = true; BuyMenu.hide(); IntroCard.show(); },
-      onEnd: () => { document.body.classList.remove('intro'); Game.intro = false; IntroCard.hide(); if (Game.spawnYaw !== undefined) { Game.yaw = Game.spawnYaw; Game.pitch = 0; } MouseIn.x = MouseIn.y = 0; } });
+      onStart: () => { document.body.classList.add('intro'); Game.intro = true; BuyMenu.hide(); IntroCard.show();
+        // v26.3: introens musik (Race to Arms, Pixabay) – slutningen (2 s fade) lander præcis når introen slutter
+        const left = Math.max(0, (Game.introUntil || 0) - performance.now()) / 1000;
+        Audio.playMusic('music_intro', { vol: 1, from: Math.max(0, Math.min(10, 13.55 - left)) }); },
+      onEnd: () => { document.body.classList.remove('intro'); Game.intro = false; IntroCard.hide(); if (Audio.musicPlaying('music_intro')) Audio.stopMusic(0.8); if (Game.spawnYaw !== undefined) { Game.yaw = Game.spawnYaw; Game.pitch = 0; } MouseIn.x = MouseIn.y = 0; } });
     Intro.preload().then(() => { introLoaded = true; tryLoadAck(); });
     // v26: bombe-filmen (alle ser den, når serveren ved at bomben ikke kan nås at desarmere)
     BombCine = createBombCine({ THREE, WD, scene: () => scene, camera: () => camera, W: () => W, V: () => V, Audio, $,
       onStart: () => { document.body.classList.add('intro'); $('introBars').classList.remove('hidden'); BuyMenu.hide(); },
       onEnd: () => { document.body.classList.remove('intro'); $('introBars').classList.add('hidden'); if (pendingEnd) { const m = pendingEnd; pendingEnd = null; HUD.roundEnd(m); } } });
+    // v26.3: rundeslut-filmen (elimination, desarmering, udløbet tid) – derefter MVP-filmen
+    RoundCine = createRoundCine({ THREE, WD, scene: () => scene, camera: () => camera, W: () => W, chars: () => (ensureChars(), Chars), Audio, $,
+      onStart: () => { document.body.classList.add('intro'); $('introBars').classList.remove('hidden'); BuyMenu.hide(); Game.intro = true; Game.firing = false; },
+      onEnd: () => { document.body.classList.remove('intro'); $('introBars').classList.add('hidden'); Game.intro = false; MouseIn.x = MouseIn.y = 0;
+        if (pendingEnd) { const m = pendingEnd; pendingEnd = null; HUD.roundEnd(m); } } });
     Weap = createWeapons(THREE, WD, { canvasTexture, derivePBR, dynMat: mkDyn, withBake: (m, d) => V ? V.withBake(m, d) : m,
       gunTemplate: (id, team) => { const f = SK.GUN_FILE[id], n = f && typeof f === 'object' ? f[team === 'hij' ? 'hij' : 'swat'] : f; return n ? COS.guns[n] || null : null; },
       skinGun: (g, skinId, team, mk) => SK.skinGun(THREE, g, skinId, team, mk), knifeTemplate: m => COS.knives[m] || null });
@@ -1927,6 +1963,8 @@ const Renderer = (() => {
     for (const [, f] of fireSys) f.remove(); fireSys.clear();
     for (const [, s] of smokeSys) s.remove(); smokeSys.clear();
     vm.drawT = 0;
+    if (RoundCine && RoundCine.active) { pendingEnd = null; RoundCine.stop(); }      // v26.3: ny runde – filmen må aldrig hænge
+    if (BombCine && BombCine.active) { pendingEnd = null; BombCine.cancel(); }
   }
   function shake(mag) { shakeMag = Math.max(shakeMag, mag); shakeT = 0.28; }
   function pulseLight(x, y, z, i, color, dur) { flashLight.position.set(x, y, z); flashLight.color.set(color || 0xffc880); flashLight.intensity = i; flashLight.distance = i > 20 ? 22 : 9; flashLightT = dur || 0.06; }
@@ -2730,6 +2768,7 @@ const Renderer = (() => {
       }
       if (Intro && Intro.active && Intro.update(dt)) vmOn = false;                 // v22: intro-cutscenen styrer kameraet
       if (BombCine && BombCine.active && !bcHold && BombCine.update(dt)) vmOn = false;   // v26: bombe-filmen styrer kameraet
+      if (RoundCine && RoundCine.active && (rcHold || RoundCine.update(dt))) vmOn = false;   // v26.3: rundeslut-filmen styrer kameraet (rcHold: kontaktarket styrer tiden)
       if (BombCine && BombCine.active && bcHold && BombCine.fov) { camera.fov = BombCine.fov; camera.updateProjectionMatrix(); vmOn = false; }
       if (devCam) { camera.position.set(devCam[0], devCam[1], devCam[2]); camera.rotation.set(devCam[4] || 0, devCam[3] || 0, 0); vmOn = false; }
       sky.position.copy(camera.position);
@@ -2782,7 +2821,9 @@ const Renderer = (() => {
     } catch (e) { console.warn('[ikon]', e); iconQ = []; }
     if (iconQ.length) setTimeout(drainIcons, 16); else { iconBusy = false; if (BuyMenu.open) { BuyMenu._iconTick = (BuyMenu._iconTick || 0) + 1; BuyMenu.render(); } }
   }
-  const api = { intro: () => (ensureChars(), Intro), bombCine: () => BombCine, deferEnd: m => { if (BombCine && BombCine.active) { pendingEnd = m; return true; } return false; }, introReady: () => introLoaded, setQuality, gunIcon, get gfx() { return gfxName; }, get pr() { return prCur; }, get perf() { return perf; }, chars: () => (ensureChars(), Chars), weap: () => (ensureChars(), Weap), onCosmetics, mapReady: () => !loading && mapId === W.id, cosReady: () => COS.ready, setCine, init, loadMap, flinchAim, onRoundStart, onShotFx, inspect, onRemoteMelee, onMeleeWall, onPlant, onExplode, onBoom, onSmokePop, onFlashPop, onFirePop, onFireOut, onRemoteThrow, onThrowLocal, onPinPull, onWeaponChange, mouseDelta, shake, skinName, get mapId() { return mapId; } };
+  const api = { intro: () => (ensureChars(), Intro), bombCine: () => BombCine, deferEnd: (m, info) => { if (BombCine && BombCine.active) { pendingEnd = m; return true; }
+      if (info && RoundCine && !Game.cineFull) { try { if (RoundCine.start(info)) { pendingEnd = m; m._cine = true; return true; } } catch (e) { console.warn('rundefilm', e); } } return false; },
+    roundCine: () => RoundCine, introReady: () => introLoaded, setQuality, gunIcon, get gfx() { return gfxName; }, get pr() { return prCur; }, get perf() { return perf; }, chars: () => (ensureChars(), Chars), weap: () => (ensureChars(), Weap), onCosmetics, mapReady: () => !loading && mapId === W.id, cosReady: () => COS.ready, setCine, init, loadMap, flinchAim, onRoundStart, onShotFx, inspect, onRemoteMelee, onMeleeWall, onPlant, onExplode, onBoom, onSmokePop, onFlashPop, onFirePop, onFireOut, onRemoteThrow, onThrowLocal, onPinPull, onWeaponChange, mouseDelta, shake, skinName, get mapId() { return mapId; } };
   if (DEV) {   // v14: kontaktark over førstepersonsvåben (kun dev) – hvert våben renderes alene på neutral baggrund
     const sideCam = new THREE.PerspectiveCamera(30, 1.6, 0.01, 10);
     api.vmSheet = (ids, cols, tw, th, side) => {
@@ -2861,6 +2902,37 @@ const Renderer = (() => {
       camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
       return out;
     };
+  }
+  if (DEV) {   // v26.3: rundeslut-filmens kontaktark – info som fra roundCineInfo (fokus/offer som egne kroppe), faste skridt (1/30 s)
+    api.roundSheet = async (info, times, cols, tw, th) => {
+      ensureChars(); RoundCine.start(info); rcHold = true; cols = cols || 4; tw = tw || 480; th = th || 270;
+      if (info.bomb) { var c4 = Weap.c4Model(); c4.position.set(info.bomb.x, info.bomb.y + 0.01, info.bomb.z); scene.add(c4); }
+      const out = document.createElement('canvas'), rows = Math.ceil(times.length / cols); out.width = cols * tw; out.height = rows * th; const c2 = out.getContext('2d');
+      const RW = tw * 2, RH = th * 2; renderer.setPixelRatio(1); renderer.setSize(RW, RH, false); if (post && post.setSize) post.setSize(RW, RH);
+      camera.aspect = RW / RH; camera.updateProjectionMatrix();
+      const eu = new THREE.Euler(0, 0, 0, 'YXZ'); let tl = 0;
+      for (let i = 0; i < times.length; i++) {
+        while (RoundCine.active && tl < times[i] - 1e-3) { RoundCine.update(1 / 30); tl += 1 / 30; }
+        if (!RoundCine.active) break;
+        eu.setFromQuaternion(camera.quaternion, 'YXZ'); devCam = [camera.position.x, camera.position.y, camera.position.z, eu.y, eu.x];
+        for (let k = 0; k < 2; k++) { shadowTick = 99; frame(k ? 1 / 60 : 0.3); }
+        const X = (i % cols) * tw, Y = Math.floor(i / cols) * th;
+        c2.drawImage(renderer.domElement, 0, 0, RW, RH, X, Y, tw, th);
+        c2.fillStyle = 'rgba(0,0,0,.55)'; c2.fillRect(X, Y, 70, 22); c2.fillStyle = '#fff'; c2.font = '700 14px monospace'; c2.fillText(tl.toFixed(2) + ' s', X + 6, Y + 16);
+      }
+      devCam = null; rcHold = false; if (RoundCine.active) RoundCine.stop(); if (c4) scene.remove(c4);
+      renderer.setPixelRatio(prCur); renderer.setSize(innerWidth, innerHeight); if (post && post.setSize) { const v = renderer.getDrawingBufferSize(new THREE.Vector2()); post.setSize(v.x, v.y); }
+      camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+      return out;
+    };
+  }
+  if (DEV) {   // v26.3: ét billede af rundeslut-filmen i fuld størrelse med titel-laget (playwright tager skærmbilledet)
+    api.roundShot = (info, t) => {
+      ensureChars(); RoundCine.start(info); rcHold = true; let tl = 0; while (RoundCine.active && tl < t) { RoundCine.update(1 / 30); tl += 1 / 30; }
+      const eu = new THREE.Euler(0, 0, 0, 'YXZ'); eu.setFromQuaternion(camera.quaternion, 'YXZ'); devCam = [camera.position.x, camera.position.y, camera.position.z, eu.y, eu.x];
+      for (let k = 0; k < 2; k++) { shadowTick = 99; frame(k ? 1 / 60 : 0.3); } return tl;
+    };
+    api.roundStop = () => { devCam = null; rcHold = false; if (RoundCine.active) RoundCine.stop(); };
   }
   if (DEV) {   // v26: intro-kontaktark – afspiller introen i faste skridt (1/30 s) og tager et billede ved hvert tidspunkt
     api.introSheet = async (side, times, nMates, cols, tw, th) => {
@@ -2987,6 +3059,12 @@ async function runTour(id, only) {
       if (Renderer.mapId !== id) await runTour(id, [{ n: 'load', x: 0, y: 2, z: 0, yaw: 0 }]);
       const cv = await Renderer.bombSheet(site, times); if (!cv) return null;
       const blob = await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.88)); const f = (name || 'bomb_' + id + '_' + site) + '.jpg';
+      const r = await fetch('/dev/save?f=' + encodeURIComponent(f), { method: 'POST', body: blob }); return r.ok ? f : null;
+    },
+    roundSheet: async (id, info, times, name) => {                               // v26.3: node pw/round.js – kontaktark af rundeslut-filmen
+      if (Renderer.mapId !== id) await runTour(id, [{ n: 'load', x: 0, y: 2, z: 0, yaw: 0 }]);
+      const cv = await Renderer.roundSheet(info, times); if (!cv) return null;
+      const blob = await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.88)); const f = (name || 'round_' + info.reason) + '.jpg';
       const r = await fetch('/dev/save?f=' + encodeURIComponent(f), { method: 'POST', body: blob }); return r.ok ? f : null;
     },
     introSheet: async (id, side, times, name) => {                               // v26: node pw/intro.js – kontaktark af introen → docs/qa/<name>.jpg

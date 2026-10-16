@@ -29,7 +29,9 @@ let miss = [];
 for (const [x, z, y, room] of WK.cells) {
   const ix = Math.round(x / G), iz = Math.round(z / G);
   if (WD.isBlocked(W, x, z, y, PL.HC)) continue;                                   // under inventar/rækværk: ok
-  if (!reached.has(ix + ',' + iz)) miss.push([x, z, y, room]);
+  let ok = false;                                                                     // flood-gitteret er 0,5 m: en celle tæt på en væg kan runde
+  for (let a = -1; a <= 1 && !ok; a++) for (let b = -1; b <= 1 && !ok; b++) ok = reached.has((ix + a) + ',' + (iz + b));   // til et blokeret punkt
+  if (!ok) miss.push([x, z, y, room]);
 }
 const byRoom = {}; for (const m of miss) (byRoom[m[3]] = byRoom[m[3]] || []).push(m);
 console.log(`=== RÆKKEVIDDE: ${WK.cells.length} gulvceller · ${reached.size} nået · ${miss.length} kan ikke nås ===`);

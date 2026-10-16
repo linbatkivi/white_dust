@@ -32,8 +32,8 @@ def define():
     defmat('lux_wall', tex='plaster_warm', size=3.0, files={'d': os.path.join(TEX, 'plaster_warm_albedo.jpg'), 'n': os.path.join(TEX, 'plaster_warm_normal.jpg'), 'a': os.path.join(TEX, 'plaster_warm_orm.jpg')})
     defmat('glass', kind='glass'); defmat('window', kind='glass'); defmat('glass_door', kind='glass')
     defmat('trim_metal', color=(0.16, 0.17, 0.18), rough=0.35, metal=0.9); defmat('mullion', color=(0.06, 0.065, 0.07), rough=0.32, metal=0.85)
-    defmat('baseboard', color=(0.08, 0.08, 0.085), rough=0.45); defmat('door_leaf', color=(0.19, 0.2, 0.21), rough=0.38, metal=0.55)
-    defmat('light_off', color=(0.5, 0.52, 0.55), rough=0.3)
+    defmat('baseboard', color=(0.08, 0.08, 0.085), rough=0.45); defmat('door_leaf', color=(0.34, 0.36, 0.38), rough=0.42, metal=0.2)
+    defmat('light_off', color=(0.5, 0.52, 0.55), rough=0.3, emit=(0.55, 0.57, 0.62, 0.35))      # slukket armatur: mat opal, ikke et sort hul
     defmat('ceiling_paint', color=(0.74, 0.73, 0.70), rough=0.92)                   # v26: glat, malet gipsloft (kontorer) – lysmappet giver skyggerne
     defmat('light_panel', color=(0.95, 0.96, 1.0), emit=(0.95, 0.97, 1.0, 14.0)); defmat('light_strip', color=(0.95, 0.96, 1.0), emit=(0.9, 0.95, 1.0, 16.0))
     defmat('light_down', color=(1.0, 0.9, 0.75), emit=(1.0, 0.84, 0.64, 22.0)); defmat('exit_sign', color=(0.1, 0.8, 0.35), emit=(0.15, 1.0, 0.4, 10.0))
@@ -63,7 +63,7 @@ TARGET = {'covered_car': 6000, 'pachira_aquatica_01': 2600, 'sofa_02': 2400, 'so
           'classic_laptop': 500, 'desk_lamp_arm_01': 500, 'calathea_orbifolia_01': 1600, 'potted_plant_01': 1400, 'potted_plant_04': 1400,
           'korean_fire_extinguisher_01': 400, 'bookshelf': 1400, 'keyboard_mouse': 260, 'pallet': 500, 'office_chair': 700, 'server_rack': 500,
           'desk_pair': 700, 'reception_desk': 400, 'elevator_doors': 600, 'coffee_bar': 700, 'cable_tray': 280, 'security_camera_01': 400, 'wall_clock': 300, 'bar_chair_round_01': 700, 'metal_trash_can': 500,
-          'flight_case': 3600, 'flight_case_s': 3400}
+          'flight_case': 3600, 'flight_case_s': 3400, 'mid_century_lounge_chair': 1800, 'side_table_01': 600, 'weapon_locker': 3000}
 _lib = {}
 def model_obj(path):
     if path in _lib: return _lib[path]

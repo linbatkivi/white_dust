@@ -361,9 +361,13 @@ def run(B, ROOMS, MATS, MI):
         elif room == 'B Site':
             n = max(1, int(L / 1.02))
             for k in range(n):
-                t = (k + 0.5) / n - 0.5
+                t = ((k + 0.5) / n - 0.5) * (n * 1.02 / L)                       # tæt række (2 cm mellemrum), ikke spredt ud over feltet
                 px, pz = (xc + t * L, zc) if along_x else (xc, zc + t * L)
-                put(CUSTOM % 'weapon_locker', px, y, pz, 0.0 if along_x else 90.0)
+                # v26.3: skabene står ryg mod ryg med gitterdørene udad (før drejet 90° – man så kun de glatte sider)
+                base = 0.0 if along_x else 90.0                                    # modellens bredde (x) langs rækken, forside (+z) på tværs
+                for off in ((-0.26, 0.26) if Wd >= 0.95 else (0.0,)):
+                    ox, oz = (0.0, off) if along_x else (off, 0.0)
+                    put(CUSTOM % 'weapon_locker', px + ox, y, pz + oz, base + (180.0 if off < 0 else 0.0))
             hh = 1.9
         elif room in ('Storage', 'Pillars B'):
             n = max(1, int(L / 1.6))
@@ -389,6 +393,11 @@ def run(B, ROOMS, MATS, MI):
             put(ph(rnd.choice(('metal_tool_chest', 'industrial_pastic_container', 'portable_generator', 'tool_cart'))), xc, y, zc, yaw_long)
 
     # ------------------------------------------------------------ småting langs væggene
+    def straight(m, axis, r=5):
+        """v26.3: kun lige vægstykker (± 0,6 m langs væggen) – ikke savtakken på en skrå mur (kunst/TV hang skævt dér)"""
+        ax = 0 if axis == 'x' else 1; out = m.copy()
+        for k in range(1, r + 1): out &= np.roll(m, k, ax) & np.roll(m, -k, ax)
+        return out
     def wall_spots(room_mask, spacing, slope=False):
         """punkter lige foran vægge i rummet: (x, z, yaw mod rummet)"""
         out = []
@@ -399,6 +408,7 @@ def run(B, ROOMS, MATS, MI):
                 else:
                     A = (slice(0, H - 1), slice(None)) if sgn > 0 else (slice(1, H), slice(None)); Bn = (slice(1, H), slice(None)) if sgn > 0 else (slice(0, H - 1), slice(None))
                 m = room_mask[A] & ~WALK[Bn] & ((SLOPE[A] < 0) | slope)
+                m = straight(m, axis)
                 ii, jj = np.nonzero(m); oi, oj = A[0].start or 0, A[1].start or 0
                 step = int(spacing / S)
                 for i, j in zip(ii, jj):
@@ -515,7 +525,7 @@ def run(B, ROOMS, MATS, MI):
                     A = (slice(None), slice(0, W - 1)) if sgn > 0 else (slice(None), slice(1, W)); Bn = (slice(None), slice(1, W)) if sgn > 0 else (slice(None), slice(0, W - 1))
                 else:
                     A = (slice(0, H - 1), slice(None)) if sgn > 0 else (slice(1, H), slice(None)); Bn = (slice(1, H), slice(None)) if sgn > 0 else (slice(0, H - 1), slice(None))
-                m = (ZID[A] == zi) & ~WALK[Bn] & (SLOPE[A] < 0)
+                m = straight((ZID[A] == zi) & ~WALK[Bn] & (SLOPE[A] < 0), axis)
                 ii, jj = np.nonzero(m); oi, oj = A[0].start or 0, A[1].start or 0
                 st = max(1, int(spacing / S))
                 for i, j in zip(ii, jj):
@@ -587,6 +597,11 @@ def run(B, ROOMS, MATS, MI):
             against(zi, ph('drawer_cabinet'), 0.6, 0.6, 1.1, 3, spacing=1.0)
             against(zi, ph('potted_plant_04'), 0.7, 0.7, 1.6, 2, spacing=3.0)
             against(zi, ph('metal_trash_can'), 0.35, 0.35, 0.6, 2, spacing=2.0)
+            if n == 'Long A top':                                              # v26.3: venteplads øverst på Long A (var helt tom)
+                against(zi, ph('mid_century_lounge_chair'), 0.8, 0.8, 0.9, 3, spacing=1.4)
+                against(zi, ph('side_table_01'), 0.5, 0.5, 0.6, 2, spacing=2.0)
+                against(zi, ph('potted_plant_01'), 0.7, 0.7, 1.4, 3, spacing=2.5)
+                hang(zi, CUSTOM % 'wall_tv', 0.0, 2, 4.0)
         elif n in LUXR:
             big = n in ('Mid', 'Arch', 'Top Mid', 'T Base', 'Mid T', 'Balkonen')
             def lounge(cxp, fl, czp, yaw, fx, fz):
