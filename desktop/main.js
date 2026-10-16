@@ -121,7 +121,7 @@ function createWindow() {
     webPreferences: { contextIsolation: true, nodeIntegration: false, backgroundThrottling: false }
   });
   win.removeMenu();
-  win.once('ready-to-show', () => win.show());
+  win.once('ready-to-show', () => { win.show(); win.setFullScreen(true); });          // v26.6: rigtig fuldskærm fra start
 
   // Links ud af spillet åbnes i den rigtige browser
   win.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });

@@ -206,6 +206,14 @@ function enterFullscreen() {
   if (document.fullscreenElement) { lockKeys(); return Promise.resolve(); }
   try { const r = document.documentElement.requestFullscreen({ navigationUI: 'hide' }); return (r && r.then) ? r.then(lockKeys, () => {}) : Promise.resolve(); } catch (e) { return Promise.resolve(); }
 }
+// v26.6: spillet åbner i rigtig fuldskærm (ikke et maksimeret vindue) – ved første klik/tast hvis browseren kræver en brugerhandling
+(function autoFullscreen() {
+  if (TOUCH) return;
+  const go = () => { if (!document.fullscreenElement && Settings.get().fullscreen !== false) enterFullscreen(); };
+  try { go(); } catch (e) {}
+  const once = () => { go(); removeEventListener('pointerdown', once, true); removeEventListener('keydown', once, true); };
+  addEventListener('pointerdown', once, true); addEventListener('keydown', once, true);
+})();
 function lockPointer() {
   if (!document.fullscreenElement && !TOUCH && Settings.get().fullscreen !== false) { enterFullscreen().then(() => lockPointerNow()); return; }
   lockPointerNow();
@@ -787,7 +795,10 @@ const KEY = {};
 // v12: 3 = kniv, 4 = bladr gennem granater (CS), 5 = HE, 6 = smoke, 7 = molotov/brandgranat, 8 = flashbang, Q = forrige våben
 const NADE_KEYS = { Digit5: ['he'], Digit6: ['smoke'], Digit7: ['molotov', 'incgren'], Digit8: ['flash'] };
 const Input = {
-  requestLockSoon() { if (TOUCH) { Touch.show(); return; } $('clickToPlay').classList.remove('hidden'); fillPause(); },
+  requestLockSoon() {                                                     // v26.6: kampstart – ingen pausemenu; låsen tages med det samme (eller ved første klik på banen)
+    if (TOUCH) { Touch.show(); return; }
+    $('clickToPlay').classList.add('hidden'); Game.noPauseUntilLock = true; lockPointer();
+  },
   init() {
     window.addEventListener('keydown', e => this._key(e, true));
     window.addEventListener('keyup', e => this._key(e, false));
@@ -797,7 +808,8 @@ const Input = {
     $('clickToPlay').addEventListener('click', () => { if (uiOpen()) return; if (TOUCH) Touch.resume(); else lockPointer(); });
     document.addEventListener('pointerlockchange', () => {
       const locked = document.pointerLockElement === gl;
-      $('clickToPlay').classList.toggle('hidden', locked); if (!locked) fillPause();
+      if (locked) Game.noPauseUntilLock = false;
+      $('clickToPlay').classList.toggle('hidden', locked || !!Game.noPauseUntilLock); if (!locked) fillPause();
       if (!locked) { Game.scoped = false; Game.firing = false; if (!BuyMenu.open) { KEY.KeyW = KEY.KeyA = KEY.KeyS = KEY.KeyD = false; } if (Game.nade) nadeRelease(Game.nade.under); }
       if (!locked && BuyMenu.open) $('clickToPlay').classList.add('hidden');   // købshjulet bruger musemarkøren – ingen 'klik for at sigte'
     });
