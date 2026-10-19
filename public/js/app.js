@@ -32,6 +32,7 @@ import { createShop } from '/js/shop.js';
 import { createTrophies } from '/js/trophies.js';
 import { createMastery } from '/js/mastery.js';
 import { createFactions } from '/js/factions.js';
+import { createHideout } from '/js/hideout.js';
 import { createNight } from '/js/night.js';
 import * as SK from '/js/skins.js';
 import { createInventory } from '/js/inventory.js';
@@ -93,6 +94,7 @@ const Factions = createFactions({ Profile, esc: escapeHtml, name: () => loadName
 // v26.6: offentlige profildata til de andre i rummet (fraktions-regnskab; vennekort kommer med i Friends)
 function sendPub(first) { try { Net.send({ t: 'pub', first: !!first, d: Object.assign({ fx: Factions.pubPart() }, window.__pubExtra ? window.__pubExtra() : {}) }); } catch (e) { console.warn('[pub]', e); } }
 const Shop = createShop({ Profile, esc: escapeHtml, name: () => ($('nameInput') && $('nameInput').value.trim()) || loadName() || 'Spiller', onEquip: () => { if (Net.connected) Net.send({ t: 'prof', p: Profile.summary() }); } });
+const Hideout = createHideout({ THREE, Profile, Trophies, Mastery, Shop, Factions, esc: escapeHtml, name: () => loadName() || 'Spiller' });   // v26.6: hideout med 3D-trofævæg
 function drawStrip() { const el = $('pfStrip'); if (el) el.innerHTML = Profile.strip(); }
 Profile.onChange(drawStrip);
 
@@ -3219,7 +3221,7 @@ async function runTour(id, only) {
   const params = new URLSearchParams(location.search);
   const joinCode = params.get('join');
   if (joinCode && /^\d{4}$/.test(joinCode)) { $('codeInput').value = joinCode; $('joinRow').classList.remove('hidden'); }
-  if (DEV) window.__wd = { Bounty, EventHud, Factions, Profile, Missions, Trophies, Mastery, mvp: i => MvpCine.play(i), victory: m => startVictory(m), hudRE: m => HUD.roundEnd(m), introPlay: (ms) => { const I = Renderer.intro(); return I.preload().then(() => I.play({ side: Game.side, mates: [...Game.players.entries()].filter(([, p]) => p.side === Game.side).map(([id, p]) => ({ id, cos: p.cos, me: id === Game.meId })) }, ms || 13000)); }, Game, Renderer, Net, BuyMenu, get W() { return W; }, WD, THREE, KEY, Settings, act: { nadeStart, nadeRelease, fireStart, fireEnd, switchWeapon, startFlash, startReloadLocal }, tour: runTour,
+  if (DEV) window.__wd = { Bounty, EventHud, Factions, Hideout, Profile, Missions, Trophies, Mastery, mvp: i => MvpCine.play(i), victory: m => startVictory(m), hudRE: m => HUD.roundEnd(m), introPlay: (ms) => { const I = Renderer.intro(); return I.preload().then(() => I.play({ side: Game.side, mates: [...Game.players.entries()].filter(([, p]) => p.side === Game.side).map(([id, p]) => ({ id, cos: p.cos, me: id === Game.meId })) }, ms || 13000)); }, Game, Renderer, Net, BuyMenu, get W() { return W; }, WD, THREE, KEY, Settings, act: { nadeStart, nadeRelease, fireStart, fireEnd, switchWeapon, startFlash, startReloadLocal }, tour: runTour,
     bombSheet: async (id, site, times, name) => {                              // v26: node pw/bomb.js – kontaktark af bombe-filmen → docs/qa/<name>.jpg
       if (Renderer.mapId !== id) await runTour(id, [{ n: 'load', x: 0, y: 2, z: 0, yaw: 0 }]);
       const cv = await Renderer.bombSheet(site, times); if (!cv) return null;

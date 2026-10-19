@@ -17,5 +17,5 @@ Venner og fraktioner udveksler data direkte mellem spillerne via PeerJS (ingen n
 | 8  | Dynamiske events (30 % fra runde 3, aldrig to i træk): tæt tåge (~15 m), skybrud (lyn + regn), strømafbrydelse (rødt pulserende nødlys, lommelygter afslører spillere) · banner + chip | ✅ færdig     |
 | 9  | Interaktive kortmekanikker (porte, projektører, damp)          | ✖ skrottet    |
 | 10 | Fraktioner: Kaffekartellet / Serverklanen / Krypterne kæmper om 10 bydele på de_bureau; sæsonkort, ugeopgørelse (XP, mønter, titel/badge), regnskab deles mellem alle man spiller med | ✅ færdig     |
-| 11 | Hideout / trofærum                                             | ⏳ næste      |
-| 12 | Vennesystem: sammenlign statistik og trofæer                   | ⬜            |
+| 11 | Hideout (KARRIERE → HIDEOUT): 3D-rum med trofævæg (pokal pr. trofæ i bronze/sølv/guld, mus over = navn), mastery-plader, rank-banner, fraktionsflag og 12 dekorationer fra BUTIKKEN | ✅ færdig     |
+| 12 | Vennesystem: sammenlign statistik og trofæer                   | ⏳ næste      |
