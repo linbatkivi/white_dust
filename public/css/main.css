@@ -1634,3 +1634,16 @@ body.mvpcine #hud, body.mvpcine #nameTags, body.mvpcine #clickToPlay, body.mvpci
 .mx-i small { font: 700 9.5px 'JetBrains Mono', monospace; color: #6b7280; }
 .mx-t { display: flex; gap: 4px; margin-top: 5px; } .mx-t i { font: 700 9px 'JetBrains Mono', monospace; font-style: normal; padding: 0 5px; border: 1px solid var(--tc); color: #6b7280; } .mx-t i.on { background: var(--tc); color: #0a0a0a; }
 .mx-wrap h3 small { margin-left: 10px; letter-spacing: .04em; font-weight: 400; color: #8a8f98; }
+/* v26.6: bounty */
+.bty-chip { position: fixed; top: 74px; left: 50%; transform: translateX(-50%); z-index: 12; display: flex; align-items: center; gap: 8px; background: #0a0a0a; color: #f4f4f2; padding: 4px 12px 4px 6px; box-shadow: 3px 3px 0 var(--red); font: 700 11px 'JetBrains Mono', monospace; letter-spacing: .12em; pointer-events: none; }
+.bty-chip i { font-style: normal; background: var(--red); color: #0a0a0a; width: 20px; height: 20px; display: grid; place-items: center; font-size: 14px; animation: btyP 1s infinite; }
+.bty-chip b { font: 900 13px 'Archivo Black', sans-serif; letter-spacing: 0; } .bty-chip.swat b { color: #6ea2ff; } .bty-chip.hij b { color: #ff6b5e; }
+.bty-chip em { font-style: normal; color: #ffd23a; } .bty-chip.hidden { display: none; }
+@keyframes btyP { 50% { transform: scale(1.18); } }
+.bty-ban { position: fixed; top: 19vh; left: 50%; z-index: 33; transform: translateX(-50%); text-align: center; pointer-events: none; color: #f4f4f2; opacity: 0; }
+.bty-ban.go { animation: btyB 3.8s cubic-bezier(.2,1.2,.35,1) forwards; } .bty-ban.hidden { display: none; }
+.bty-ban small { display: inline-block; font: 700 12px 'JetBrains Mono', monospace; letter-spacing: .35em; background: var(--red); color: #0a0a0a; padding: 4px 12px; }
+.bty-ban.me small { background: #ffd23a; }
+.bty-ban b { display: block; margin-top: 6px; font: 900 30px 'Archivo Black', sans-serif; text-shadow: 4px 4px 0 #0a0a0a; }
+.bty-ban em { display: block; font: 900 38px 'Archivo Black', sans-serif; font-style: normal; color: #ffd23a; text-shadow: 4px 4px 0 #0a0a0a; }
+@keyframes btyB { 0% { opacity: 0; transform: translateX(-50%) scale(1.6); } 10% { opacity: 1; transform: translateX(-50%) scale(1); } 85% { opacity: 1; } 100% { opacity: 0; transform: translateX(-50%) translateY(-20px); } }

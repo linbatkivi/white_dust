@@ -73,6 +73,7 @@
     const kn = ks.filter(k => k.w === 'knife').length; if (kn) L.push(['Knivdrab', kn * XP.knife]);
     const hi = ks.filter(k => k.dy >= 1.4).length; if (hi) L.push(['Drab fra etagen over', hi * XP.high]);
     if (ks.length >= 2) L.push([['', '', 'Dobbeltdrab', 'Tredobbelt drab', '4 drab i én runde', 'ACE'][Math.min(5, ks.length)], XP.multi[Math.min(5, ks.length)]]);
+    const by = ks.filter(k => k.bty).length; if (by) L.push(['Bounty indkasseret', by * 250]);
     if (rf.plant) L.push(['Bomben plantet', XP.plant]);
     if (rf.defuse) L.push(['Bomben desarmeret', XP.defuse]);
     if (rf.mvp) L.push(['Rundens MVP', XP.mvp]);

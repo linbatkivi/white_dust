@@ -750,6 +750,8 @@ Net.on('ev', m => {
     case 'shot': Renderer.onShotFx(m); break;
     case 'hit': HUD.hitmarker(m.kill, m.hs); Renderer.flinchAim(); Audio.click(m.knife ? 'flesh' : m.hs ? 'hs' : 'hit'); if (m.kill) Audio.click('kill'); break;
     case 'hurt': HUD.damageIndicator(m.dx, m.dz, m.dmg); Renderer.shake(m.hs ? 0.3 : 0.18); break;
+    case 'bounty': Bounty.on(m); break;                                          // v26.6: dusør på en spiller i stime
+    case 'bclaim': Bounty.claim(m); break;
     case 'rf': Profile.onRound(m); break;                                        // v26.6: rundens fakta → XP
     case 'mf': Profile.onMatch(m); break;
     case 'kill': HUD.killfeed(m); noteKill(m); if (m.v === Game.meId) { HUD.showDead(); Game.nade = null; Game.firing = false; } break;
@@ -799,7 +801,7 @@ Net.on('s', m => {
    ========================================================================== */
 var inited3d = false;   // var: læses af applySettings() før denne linje køres
 function enterGame() {
-  Game.state = 'game';
+  Game.state = 'game'; Bounty.reset();   // v26.6
   UI.showScreen('game');
   Audio.ambience(W.id);
   if (!inited3d) { Renderer.init(); inited3d = true; }
@@ -937,6 +939,32 @@ function roundCineInfo(m) {
     : m.reason === 'defuse' ? `<b>${esc(F.name)}</b> klippede ledningen` : m.reason === 'time' ? 'Målet er sikret · SWAT holdt stand' : '';
   return { reason: m.reason, win: m.win, focus: F, victim, bomb, site, title, sub, team: (swat ? 'SWAT' : 'HIJACKERS') + ' VINDER RUNDEN', kicker: `RUNDE ${Game.round} <span>${m.score[0]}–${m.score[1]}</span>` };
 }
+/* v26.6: BOUNTY – spilleren i stime er markeret (chip + banner + rødt dødningehoved over hovedet, skjult bag vægge) */
+const Bounty = {
+  on(m) {
+    const p = Game.players.get(m.id) || {}, me = m.id === Game.meId, first = !Game.bounty || Game.bounty.id !== m.id; Game.bounty = { id: m.id, v: m.v, s: m.s, side: p.side };
+    this.chip();
+    if (first || m.s % 2 === 1) this.banner(me ? 'DU ER EFTERSØGT' : 'BOUNTY TARGET', `${escapeHtml(p.name || '?')} · ${m.s} drab i træk`, '$' + m.v, p.side, me);
+    try { Audio.cine && Audio.cine('braam', { vol: me ? 0.7 : 0.45 }); } catch (e) {}
+  },
+  claim(m) {
+    const t = Game.players.get(m.id) || {}, b = m.by ? (Game.players.get(m.by) || {}) : null;
+    if (Game.bounty && Game.bounty.id === m.id) Game.bounty = null; this.chip();
+    this.banner('BOUNTY INDKASSERET', b ? `${escapeHtml(b.name || '?')} stoppede ${escapeHtml(t.name || '?')}` : `${escapeHtml(t.name || '?')} er ude`, b ? '+$' + m.v : '', b ? b.side : t.side, m.by === Game.meId);
+  },
+  chip() {
+    const el = $('bountyChip'), B = Game.bounty; if (!el) return;
+    if (!B) { el.classList.add('hidden'); return; }
+    const p = Game.players.get(B.id) || {}; el.className = 'bty-chip ' + (p.side || '');
+    el.innerHTML = `<i>☠</i><span>BOUNTY</span><b>${escapeHtml(p.name || '?')}</b><em>$${B.v}</em>`;
+  },
+  banner(k, line, val, side, me) {
+    const el = $('bountyBanner'); if (!el) return;
+    el.className = 'bty-ban ' + (side || '') + (me ? ' me' : ''); el.innerHTML = `<small>${k}</small><b>${line}</b>${val ? `<em>${val}</em>` : ''}`;
+    void el.offsetWidth; el.classList.add('go'); clearTimeout(this._t); this._t = setTimeout(() => el.classList.add('hidden'), 3800);
+  },
+  reset() { Game.bounty = null; this.chip(); }
+};
 const endFrozen = () => Game.phase === 'end' && performance.now() - Game.endT < 600;   // v12: kort frys når runden slutter (dramatisk), derefter fri – man kan skyde i pausen
 function fireEnd() { Game.firing = false; }
 /* ---- granater: hold-og-slip. Trykket trækker splitten (lyd + animation) og opbygger kraft; kastet sker i det øjeblik knappen slippes ---- */
@@ -1530,7 +1558,7 @@ const HUD = {
   // v12: penge-feed ved pengeblokken (+$300 kill · AK-47 osv.)
   pay(m) {
     if (!m.amt) return;
-    const why = { kill: 'KILL' + (m.w && WEAPONS[m.w] ? ' · ' + WEAPONS[m.w].name : ''), plant: 'BOMBE PLANTET', defuse: 'BOMBE DESARMERET', win: 'RUNDE VUNDET', loss: 'TABSBONUS (serie ' + (m.streak || 1) + ')', lossplant: 'TABSBONUS + PLANT-BONUS', saved: 'OVERLEVET – INGEN BONUS' }[m.why] || '';
+    const why = { bounty: 'BOUNTY INDKASSERET', bountyteam: 'HOLDETS ANDEL AF BOUNTY', kill: 'KILL' + (m.w && WEAPONS[m.w] ? ' · ' + WEAPONS[m.w].name : ''), plant: 'BOMBE PLANTET', defuse: 'BOMBE DESARMERET', win: 'RUNDE VUNDET', loss: 'TABSBONUS (serie ' + (m.streak || 1) + ')', lossplant: 'TABSBONUS + PLANT-BONUS', saved: 'OVERLEVET – INGEN BONUS' }[m.why] || '';
     const el = document.createElement('div'); el.className = 'pay-row' + (m.amt < 0 ? ' neg' : ''); el.innerHTML = `<b>${m.amt > 0 ? '+' : ''}$${m.amt}</b><span>${why}</span>`;
     $('payFeed').prepend(el); while ($('payFeed').children.length > 4) $('payFeed').lastChild.remove();
     setTimeout(() => el.classList.add('out'), 2600); setTimeout(() => el.remove(), 3200);
@@ -1820,6 +1848,13 @@ const Renderer = (() => {
   }
 
   /* ---------------- spillere ---------------- */
+  let _bTex = null;
+  function bountyTex() {                                         // v26.6: rødt dødningehoved i en ring
+    if (_bTex) return _bTex; const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+    g.fillStyle = '#ff2b1f'; g.beginPath(); g.arc(64, 64, 58, 0, Math.PI * 2); g.fill(); g.lineWidth = 8; g.strokeStyle = '#0a0a0a'; g.stroke();
+    g.fillStyle = '#0a0a0a'; g.font = '900 78px Arial'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('☠', 64, 70);
+    _bTex = new THREE.CanvasTexture(c); _bTex.colorSpace = THREE.SRGBColorSpace; return _bTex;
+  }
   function makeRemote(side, cos) {
     const h = Chars.buildHuman(side, cos && cos.agent ? cos.agent[side] : null);
     h.skins = (cos && cos.skins) || {};
@@ -2191,6 +2226,9 @@ const Renderer = (() => {
       if (r && (r.side !== side || (r.wantKey !== null && r.wantKey !== want) || r.wantKey === null)) { dropRemote(r); remoteModels.delete(id); r = null; }   // sideskift / nyt agent-valg / modeller indlæst
       if (!r) { r = makeRemote(side, pcos); r.wantKey = want; remoteModels.set(id, r); }
       { const pm = ((Game.players.get(id) || {}).prof || {}).m || ''; if (r.mKey !== pm) { r.mKey = pm; r.mastery = Mastery.parse(pm); } }   // v26.6: andres mastery-charms
+      { const isB = !!(Game.bounty && Game.bounty.id === id);                    // v26.6: bounty-mærke over hovedet (dybdetestet – ses ikke gennem vægge)
+        if (isB && !r.bIcon) { r.bIcon = new THREE.Sprite(new THREE.SpriteMaterial({ map: bountyTex(), depthTest: true, transparent: true, toneMapped: false })); r.bIcon.scale.set(0.42, 0.42, 1); r.bIcon.position.y = 2.42; r.group.add(r.bIcon); }
+        if (r.bIcon) { r.bIcon.visible = isB; if (isB) r.bIcon.material.opacity = 0.75 + 0.25 * Math.sin(performance.now() / 160); } }
       const rx = lerp(prevRow[1], x, f), ry = lerp(prevRow[2], y, f), rz = lerp(prevRow[3], z, f);
       const ryaw = lerpAngle(prevRow[4], yaw, f), rpitch = lerp(prevRow[5] || 0, row[5] || 0, f);
       const alive = !!(flags & 1);
@@ -3104,7 +3142,7 @@ async function runTour(id, only) {
   const params = new URLSearchParams(location.search);
   const joinCode = params.get('join');
   if (joinCode && /^\d{4}$/.test(joinCode)) { $('codeInput').value = joinCode; $('joinRow').classList.remove('hidden'); }
-  if (DEV) window.__wd = { Profile, Missions, Trophies, Mastery, mvp: i => MvpCine.play(i), victory: m => startVictory(m), hudRE: m => HUD.roundEnd(m), introPlay: (ms) => { const I = Renderer.intro(); return I.preload().then(() => I.play({ side: Game.side, mates: [...Game.players.entries()].filter(([, p]) => p.side === Game.side).map(([id, p]) => ({ id, cos: p.cos, me: id === Game.meId })) }, ms || 13000)); }, Game, Renderer, Net, BuyMenu, get W() { return W; }, WD, THREE, KEY, Settings, act: { nadeStart, nadeRelease, fireStart, fireEnd, switchWeapon, startFlash, startReloadLocal }, tour: runTour,
+  if (DEV) window.__wd = { Bounty, Profile, Missions, Trophies, Mastery, mvp: i => MvpCine.play(i), victory: m => startVictory(m), hudRE: m => HUD.roundEnd(m), introPlay: (ms) => { const I = Renderer.intro(); return I.preload().then(() => I.play({ side: Game.side, mates: [...Game.players.entries()].filter(([, p]) => p.side === Game.side).map(([id, p]) => ({ id, cos: p.cos, me: id === Game.meId })) }, ms || 13000)); }, Game, Renderer, Net, BuyMenu, get W() { return W; }, WD, THREE, KEY, Settings, act: { nadeStart, nadeRelease, fireStart, fireEnd, switchWeapon, startFlash, startReloadLocal }, tour: runTour,
     bombSheet: async (id, site, times, name) => {                              // v26: node pw/bomb.js – kontaktark af bombe-filmen → docs/qa/<name>.jpg
       if (Renderer.mapId !== id) await runTour(id, [{ n: 'load', x: 0, y: 2, z: 0, yaw: 0 }]);
       const cv = await Renderer.bombSheet(site, times); if (!cv) return null;

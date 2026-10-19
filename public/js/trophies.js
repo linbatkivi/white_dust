@@ -30,6 +30,8 @@ export function createTrophies(o) {
     { id: 'mvp', name: 'MVP-samler', desc: 'Rundens MVP', tiers: [5, 30, 100], round: r => r.mvp ? 1 : 0, icon: '★' },
     { id: 'matches', name: 'Veteran', desc: 'Spillede kampe', tiers: [10, 50, 200], match: () => 1, icon: '⚑' },
     { id: 'wins', name: 'Sejrherre', desc: 'Vundne kampe', tiers: [5, 25, 100], match: m => m.won ? 1 : 0, icon: '♛' },
+    { id: 'bounty', name: 'Dusørjæger', desc: 'Stop en spiller med bounty på hovedet', tiers: [1, 10, 30], kill: k => k.bty > 0, icon: '☠' },
+    { id: 'wanted', name: 'Eftersøgt', desc: 'Bliv selv Bounty Target (3 drab i træk)', tiers: [1], round: r => r.bounty ? 1 : 0, secret: true, icon: '⚠' },
     { id: 'vertigo', name: 'Vertigo', desc: 'Tre drab fra etagen over i én runde', tiers: [1], round: r => (r.kills || []).filter(k => k.dy >= 1.4).length >= 3 ? 1 : 0, secret: true, icon: '⇊' },
     { id: 'route', name: 'Gennem labyrinten', desc: 'Kryptgangen, Trappehallen, Kedelrummet og Dark i samme runde', tiers: [1], roundVisit: ['Kryptgangen', 'Trappehallen', 'Kedelrummet', 'Dark'], secret: true, icon: '⌬' },
     { id: 'pistolace', name: 'Revolverhelt', desc: 'Tre pistoldrab i én runde', tiers: [1], round: r => (r.kills || []).filter(k => { const d = window.WD.WEAPONS[k.w]; return d && d.slot === 2; }).length >= 3 ? 1 : 0, secret: true, icon: '⌐' },

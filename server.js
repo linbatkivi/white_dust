@@ -399,7 +399,7 @@ function startGame(room, teams) {
   T.hij.forEach(p => { p.side = 'hij'; }); T.swat.forEach(p => { p.side = 'swat'; });
   const ps = [...room.players.values()];
   ps.forEach(p => {
-    p.kills = 0; p.deaths = 0; p.dmgTot = 0; p.hsK = 0; p.mvps = 0; p.money = START_MONEY; p.alive = false; p.act = null; resetLoadout(p);
+    p.kills = 0; p.deaths = 0; p.dmgTot = 0; p.hsK = 0; p.mvps = 0; p.streak = 0; p.bounty = 0; p.wasBounty = 0; p.money = START_MONEY; p.alive = false; p.act = null; resetLoadout(p);
   });
   room.score = { swat: 0, hij: 0 }; room.round = 0; room.lossStreak = { swat: 0, hij: 0 }; room.swapped = false;
   // v20: kampen starter først når ALLE har indlæst banen (eller efter TIMES.load sekunder, så én hængende klient ikke blokerer)
@@ -487,7 +487,7 @@ function newRound(room) {
     p.alive = true; p.hp = 100;
     const list = room.W.spawns[p.side], sp = list[idx[p.side]++ % list.length];
     p.x = sp.x; p.y = sp.y; p.z = sp.z; p.yaw = sp.yaw; p.pitch = 0; p.crouch = false; p.ground = true; p.speed = 0;
-    p.bought = []; p.rk = 0; p.rdmg = 0; p.rf = newRF();
+    p.bought = []; p.rk = 0; p.rdmg = 0; p.rf = newRF(); p.wasBounty = p.bounty ? 1 : 0;
     p.hist = []; p.act = null; p.use = false; p.pin = false; p.fireAcc = 0; p.lastIn = t; p.budget = 4; p.corrId++;
     if (p.side === 'hij') hijs.push(p);
   }
@@ -538,7 +538,7 @@ function endRound(room, win, reason) {
   for (const p of room.players.values()) {
     if (!p.side) continue; const rf = p.rf || newRF();
     sendP(p, { t: 'ev', k: 'rf', n: room.round, won: p.side === win ? 1 : 0, mvp: mvp === p ? 1 : 0, alive: p.alive ? 1 : 0, side: p.side, reason,
-      kills: rf.kills, plant: rf.plant, defuse: rf.defuse, dmg: Math.round(p.rdmg || 0), clutch: p.side === win && p.alive && [...room.players.values()].filter(q => q.side === win && q.alive).length === 1 ? 1 : 0 });
+      kills: rf.kills, plant: rf.plant, defuse: rf.defuse, dmg: Math.round(p.rdmg || 0), bounty: p.wasBounty ? 1 : 0, clutch: p.side === win && p.alive && [...room.players.values()].filter(q => q.side === win && q.alive).length === 1 ? 1 : 0 });
   }
 }
 // v12: holdets økonomi (kun ens egne holdkammerater, som i CS) + tabsserie → købsmenuens økonomi-panel
@@ -884,12 +884,21 @@ function damage(room, victim, dmg, attacker, weapon, hs) {
   victim.hp -= dmg;
   if (victim.hp > 0) { sendSelf(victim); return false; }
   victim.hp = 0; victim.alive = false; victim.deaths++;
+  // v26.6: BOUNTY – serien brydes ved død; dusøren på offeret udbetales til drabsmanden (+300 til hans holdkammerater)
+  const bty = victim.bounty || 0; victim.streak = 0; victim.bounty = 0;
+  if (bty) {
+    const claim = attacker && attacker !== victim && attacker.side !== victim.side;
+    if (claim) { addMoney(attacker, bty); sendP(attacker, { t: 'ev', k: 'pay', amt: bty, why: 'bounty' }); for (const q of room.players.values()) if (q !== attacker && q.side === attacker.side) { addMoney(q, 300); sendP(q, { t: 'ev', k: 'pay', amt: 300, why: 'bountyteam' }); } }
+    room.bcast({ t: 'ev', k: 'bclaim', id: victim.id, by: claim ? attacker.id : 0, v: bty });
+  }
   if (attacker && attacker !== victim) {
     if (attacker.side !== victim.side) { attacker.kills++; attacker.rk++; if (hs) attacker.hsK = (attacker.hsK || 0) + 1;
       // v26.6: fakta til progressionen (XP, missioner, trofæer, mastery) – våben, headshot, afstand, højdeforskel, rum
       (attacker.rf = attacker.rf || newRF()).kills.push({ w: weapon, hs: !!hs, d: Math.round(Math.hypot(attacker.x - victim.x, attacker.z - victim.z) * 10) / 10,
         dy: Math.round((attacker.y - victim.y) * 10) / 10, at: WD.calloutAt(room.W, attacker.x, attacker.y, attacker.z), vt: WD.calloutAt(room.W, victim.x, victim.y, victim.z),
-        site: WD.siteAt(room.W, victim.x, victim.y, victim.z) || '', air: !attacker.ground, lo: attacker.hp <= 25, smoke: 0 }); const rw = WD.killReward(weapon); addMoney(attacker, rw); if (rw) sendP(attacker, { t: 'ev', k: 'pay', amt: rw, why: 'kill', w: weapon }); }
+        site: WD.siteAt(room.W, victim.x, victim.y, victim.z) || '', air: !attacker.ground, lo: attacker.hp <= 25, smoke: 0, bty });
+      attacker.streak = (attacker.streak || 0) + 1;
+      if (attacker.streak >= 3) { attacker.bounty = 1000 + 250 * (attacker.streak - 3); attacker.wasBounty = 1; room.bcast({ t: 'ev', k: 'bounty', id: attacker.id, v: attacker.bounty, s: attacker.streak }); } const rw = WD.killReward(weapon); addMoney(attacker, rw); if (rw) sendP(attacker, { t: 'ev', k: 'pay', amt: rw, why: 'kill', w: weapon }); }
     else { attacker.kills--; addMoney(attacker, -300); }                     // holdkammerat-drab (fx egen HE/ild): straf som i CS
     sendSelf(attacker);
   }

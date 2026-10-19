@@ -312,7 +312,7 @@ async function main() {
     let guard = 0, gameOver = null, halfSeen = false;
     A.log = []; 
     swat.log.length = 0;
-    let mfSeen = null; const listen = b => b.ws.on('message', d => { const m = JSON.parse(d); if (m.t === 'ev' && m.k === 'half') halfSeen = true; if (m.t === 'ev' && m.k === 'over') gameOver = m; if (m.t === 'ev' && m.k === 'mf') mfSeen = m; });
+    let mfSeen = null, bountySeen = null; const listen = b => b.ws.on('message', d => { const m = JSON.parse(d); if (m.t === 'ev' && m.k === 'half') halfSeen = true; if (m.t === 'ev' && m.k === 'over') gameOver = m; if (m.t === 'ev' && m.k === 'mf') mfSeen = m; if (m.t === 'ev' && m.k === 'bounty' && !bountySeen) bountySeen = m; });
     listen(A);
     while (!gameOver && guard++ < 30) {
       // afvent næste live-fase
@@ -332,6 +332,7 @@ async function main() {
       await A.wait(m => m.t === 'ev' && m.k === 'end', 2500);
     }
     ok(!!gameOver, 'Spillet slutter når et hold har 7 runder');
+    ok(bountySeen && bountySeen.id === A.id && bountySeen.v === 1000 && bountySeen.s === 3, 'Bounty: 3 drab i træk gør spilleren til Bounty Target ($1000)');
     await sleep(200); if (!mfSeen) console.log('    (debug) A.log:', A.log.filter(m => m.t === 'ev').map(m => m.k).slice(-12).join(','), 'side', A.self && A.self.side); ok(mfSeen && typeof mfSeen.won === 'number' && mfSeen.rounds > 0, 'Kampens fakta (sejr, drab, runder) til progressionen');
     ok(halfSeen, 'Sidevalg skiftes ved halvleg');
     ok(gameOver && Math.max(...gameOver.score) === 7, 'Slutstilling: ' + (gameOver && gameOver.score.join('-')));
