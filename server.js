@@ -210,7 +210,7 @@ function cleanCos(c) {
 function cleanProf(c) {
   if (!c || typeof c !== 'object') return null;
   const id = v => typeof v === 'string' && /^[a-z0-9_]{0,24}$/.test(v) ? v : '';
-  return { lvl: Math.max(1, Math.min(100, Math.floor(+c.lvl) || 1)), t: id(c.t), c: id(c.c), b: id(c.b), n: id(c.n) };
+  return { lvl: Math.max(1, Math.min(100, Math.floor(+c.lvl) || 1)), t: id(c.t), c: id(c.c), b: id(c.b), n: id(c.n), m: typeof c.m === 'string' && /^[a-z0-9:,]{0,300}$/.test(c.m) ? c.m : '' };
 }
 function lobbyMsg(room) {
   return { t: 'lobby', ph: room.phase, map: room.map, maps: WD.MAP_LIST, veto: room.vetoMode !== 'host', code: room.code, host: room.hostId, max: MAX_PLAYERS, cap: MAX_PLAYERS / 2, players: [...room.players.values()].map(p => ({ id: p.id, name: p.name, team: p.pref, cos: p.cos || null, prof: p.prof || null })) };

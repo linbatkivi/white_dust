@@ -264,11 +264,11 @@ export function createCharacters(THREE, WD, opts) {
     return hh;
   }
   function setWeapon(h, id) {
-    const skin = h.skins ? h.skins[id] : undefined;
-    if (h.wid === id && h.wskin === skin) return;
-    h.wid = id; h.wskin = skin;
+    const skin = h.skins ? h.skins[id] : undefined, tier = h.mastery ? h.mastery[id] || 0 : 0;
+    if (h.wid === id && h.wskin === skin && h.wtier === tier) return;
+    h.wid = id; h.wskin = skin; h.wtier = tier;
     if (h.weapon) { h.gun.remove(h.weapon); h.weapon = null; }
-    if (o.weaponModel && id) { const wm = o.weaponModel(id, h.mat, h.side, skin); if (wm) { h.weapon = wm; h.gun.add(wm); } }   // spillerens valgte skin
+    if (o.weaponModel && id) { const wm = o.weaponModel(id, h.mat, h.side, skin, tier); if (wm) { h.weapon = wm; h.gun.add(wm); } }   // spillerens valgte skin · v26.6: mastery-charm
     const mz = h.weapon && h.weapon.userData.muzzle; if (mz) h.flash.position.set(mz.x, mz.y, mz.z - 0.11); else h.flash.position.set(0, 0.03, -0.4);
   }
   function setBake(h, b) { if (h.mat.userData.uBake) h.mat.userData.uBake.value.set(b[0], b[1], b[2], Math.max(0.12, b[3])); }

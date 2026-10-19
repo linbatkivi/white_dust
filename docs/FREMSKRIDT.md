@@ -12,8 +12,8 @@ Venner og fraktioner udveksler data direkte mellem spillerne via PeerJS (ingen n
 | 3  | Missioner: 3 daglige + 3 ugentlige (samme for alle venner), Sæson 1 · Penthouse (10), udforskning og ruter, mønter | ✅ færdig     |
 | 4  | Mønter (kampe + missioner) og BUTIK: titler, profilkort, badges, navnefarver, dagens tilbud – kun kosmetik | ✅ færdig     |
 | 5  | Trofæer: 24 (bronze/sølv/guld, 3 hemmelige) – Master of Heights, Kartograf, Kældermennesket, Kaffepause …; guld = badge | ✅ færdig     |
-| 6  | Våben- og udstyrsmastery                                       | ⏳ næste      |
-| 7  | Bounty-system midt i kampen                                    | ⬜            |
+| 6  | Mastery pr. våben/udstyr (level 1–10): bronze/sølv/guld-charm på våbnet (ses af alle), guld = snurre-inspect (F) | ✅ færdig     |
+| 7  | Bounty-system midt i kampen                                    | ⏳ næste      |
 | 8  | Dynamiske events: tåge, skybrud, strømafbrydelse               | ⬜            |
 | 9  | Interaktive kortmekanikker (porte, projektører, damp)          | ⬜            |
 | 10 | Fraktioner og kontrol over bydele (sæsonkort)                  | ⬜            |

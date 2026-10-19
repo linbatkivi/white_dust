@@ -135,6 +135,6 @@ export function createProfile(o) {
     return `<div class="pf-strip" style="--rc:${r.col}">${emblem(l.level, 34)}<div><b>LEVEL ${l.level}</b><small>${r.label} · ${esc(titleName(D.title))}</small><i><em style="width:${(l.frac * 100).toFixed(1)}%"></em></i></div></div>`;
   }
   // kort sammendrag til de andre spillere (lobby/scoreboard)
-  const summary = () => ({ lvl: lv().level, t: D.title, c: D.card, b: D.badge, n: D.nc || '' });
+  const summary = () => ({ lvl: lv().level, t: D.title, c: D.card, b: D.badge, n: D.nc || '', m: o.mastery ? o.mastery() : '' });
   return { get data() { return D; }, registerExtra, toast, save, onRound, onMatch, summary, open, close, isOpen, addTab, emblem, strip, card, hooks, has, titleName, cardCss, onChange: f => listeners.push(f), addXP, render: () => hub && isOpen() && render() };
 }

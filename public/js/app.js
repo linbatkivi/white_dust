@@ -30,6 +30,7 @@ import { createProfile } from '/js/profile.js';
 import { createMissions } from '/js/missions.js';
 import { createShop } from '/js/shop.js';
 import { createTrophies } from '/js/trophies.js';
+import { createMastery } from '/js/mastery.js';
 import { createNight } from '/js/night.js';
 import * as SK from '/js/skins.js';
 import { createInventory } from '/js/inventory.js';
@@ -82,9 +83,11 @@ const lerpAngle = (a, b, t) => { let d = ((b - a + Math.PI) % (Math.PI * 2)) - M
 const fmtTime = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
 const smooth = t => t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
 // v26.6: profil & karriere (XP, levels, ranks, titler, profilkort – senere missioner, trofæer, mastery …)
-const Profile = createProfile({ $, Audio, esc: escapeHtml, onLevel: () => { if (Net.connected) Net.send({ t: 'prof', p: Profile.summary() }); }, name: () => ($('nameInput') && $('nameInput').value.trim()) || loadName() || 'Spiller' });
+const Profile = createProfile({ $, Audio, esc: escapeHtml, mastery: () => Mastery.packed(), onLevel: () => { if (Net.connected) Net.send({ t: 'prof', p: Profile.summary() }); }, name: () => ($('nameInput') && $('nameInput').value.trim()) || loadName() || 'Spiller' });
 const Missions = createMissions({ Profile, esc: escapeHtml, toast: (a, b, c) => Profile.toast(a, b, c) });   // v26.6: daglige/ugentlige/sæson
 const Trophies = createTrophies({ Profile, esc: escapeHtml });   // v26.6: trofæer
+const Mastery = createMastery({ Profile, esc: escapeHtml, icon: id => { try { return Renderer.gunIcon(id, Game.side || 'swat'); } catch (e) { return null; } },
+  onTier: () => { Renderer.onCosmetics(); if (Net.connected) Net.send({ t: 'prof', p: Profile.summary() }); } });   // v26.6: våben-mastery (charms ses af alle)
 const Shop = createShop({ Profile, esc: escapeHtml, name: () => ($('nameInput') && $('nameInput').value.trim()) || loadName() || 'Spiller', onEquip: () => { if (Net.connected) Net.send({ t: 'prof', p: Profile.summary() }); } });
 function drawStrip() { const el = $('pfStrip'); if (el) el.innerHTML = Profile.strip(); }
 Profile.onChange(drawStrip);
@@ -870,7 +873,7 @@ const Input = {
     if (Game.state !== 'game') return;
     if (!Game.self.alive && Game.phase !== 'buy') { if (k === 'Space' || k === 'ArrowRight') cycleSpec(1); else if (k === 'ArrowLeft') cycleSpec(-1); return; }
     if (k === 'KeyR') startReloadLocal();
-    if (k === 'KeyF') { if (Game.self.cur === 'knife') Renderer.inspect(); else toggleScope(); }   // F: scope (AWP) / inspicér kniven
+    if (k === 'KeyF') { if (Game.self.cur === 'awp') toggleScope(); else Renderer.inspect(); }   // F: scope (AWP) / inspicér (kniv og våben – mastery 10: snurres rundt)
     if (k === 'KeyE') tryPickup();
     if (k === 'KeyB') { BuyMenu.toggle(); return; }
     if (BuyMenu.hotkey(k)) return;
@@ -1939,7 +1942,7 @@ const Renderer = (() => {
     if (Chars) return;
     // dynMat før banen er bygget (fx forhåndsvisning i inventaret i hovedmenuen): almindeligt PBR-materiale
     const mkDyn = p => V ? V.dynMat(p) : new THREE.MeshStandardMaterial(Object.fromEntries(Object.entries(p).filter(([, v]) => v !== undefined)));
-    Chars = createCharacters(THREE, WD, { canvasTexture, derivePBR, dynMat: mkDyn, weaponModel: (id, m, team, skin) => Weap.worldModel(id, m, team, skin),
+    Chars = createCharacters(THREE, WD, { canvasTexture, derivePBR, dynMat: mkDyn, weaponModel: (id, m, team, skin, tier) => Weap.worldModel(id, m, team, skin, tier),
       agentTemplate: (side, key) => { const a = SK.agentOf(key || SK.defaultAgent(side), side), tpl = COS.chars[a.agent.model]; return tpl ? { tpl, variant: a.variant, key: a.key } : COS.ready ? null : { pending: true }; },
       cloneSkinned: r => cloneSkinned(THREE, r), recolor: (root, v) => SK.recolorAgent(THREE, root, v, mkDyn) });
     // v22: intro-cutscenen (køretøj + holdet ankommer) – kører i selve banen med rendererens kamera
@@ -2187,6 +2190,7 @@ const Renderer = (() => {
       const pcos = (Game.players.get(id) || {}).cos, want = (COS.ready ? 'm' : 'p') + SK.agentOf(pcos && pcos.agent ? pcos.agent[side] : null, side).key + JSON.stringify((pcos && pcos.skins) || {});
       if (r && (r.side !== side || (r.wantKey !== null && r.wantKey !== want) || r.wantKey === null)) { dropRemote(r); remoteModels.delete(id); r = null; }   // sideskift / nyt agent-valg / modeller indlæst
       if (!r) { r = makeRemote(side, pcos); r.wantKey = want; remoteModels.set(id, r); }
+      { const pm = ((Game.players.get(id) || {}).prof || {}).m || ''; if (r.mKey !== pm) { r.mKey = pm; r.mastery = Mastery.parse(pm); } }   // v26.6: andres mastery-charms
       const rx = lerp(prevRow[1], x, f), ry = lerp(prevRow[2], y, f), rz = lerp(prevRow[3], z, f);
       const ryaw = lerpAngle(prevRow[4], yaw, f), rpitch = lerp(prevRow[5] || 0, row[5] || 0, f);
       const alive = !!(flags & 1);
@@ -2487,7 +2491,7 @@ const Renderer = (() => {
     if (id === 'knife' && vm.models.knife && vm.knifeKey !== kSkin) { vmScene.remove(vm.models.knife); delete vm.models.knife; }   // ny kniv valgt i inventaret
     if (id === 'knife') vm.knifeKey = kSkin;
     if (!vm.models[id]) {
-      const g = Weap.viewmodel(id, team, id === 'knife' ? kSkin : Inv.skin(id, team)); if (!g) return null;   // dit valgte skin (inventar)
+      const g = Weap.viewmodel(id, team, id === 'knife' ? kSkin : Inv.skin(id, team), Mastery.tierOf(id)); if (!g) return null;   // dit valgte skin (inventar) · v26.6: mastery-charm
       g.traverse(n => { for (const m of (Array.isArray(n.material) ? n.material : [n.material])) if (m && m.isMeshStandardMaterial) { m.envMap = vmEnvTex() || envTex; m.needsUpdate = true; } });   // v26: eget studiemiljø til våbnene
       g.visible = false; vmScene.add(g); vm.models[id] = g;
     }
@@ -2673,6 +2677,13 @@ const Renderer = (() => {
         meta.handles[0].rotation.x = -fl * Math.PI * 1.02; meta.handles[1].rotation.x = fl * Math.PI * 0.98;
       }
     }
+    if (kind !== 'knife' && kind !== 'nade' && !showC4 && vm.inspT < 1) {   // v26.6: inspicér våbnet (F) – mastery 10 (guld): våbnet snurres en hel omgang
+      vm.inspT = Math.min(1, vm.inspT + dt / 2.4);
+      const q = vm.inspT, up = smooth(q / 0.15) * (1 - smooth((q - 0.85) / 0.15)), gold = w && Mastery.tierOf(w.id) === 3;
+      kx -= up * 0.06; ky += up * 0.035; kz += up * 0.07; kry += up * (0.75 * Math.sin(q * Math.PI)); krz += up * 0.55 - up * 0.9 * smooth((q - 0.45) / 0.3);
+      if (gold) krx += Math.PI * 2 * smooth((q - 0.3) / 0.35);
+    }
+    if (meta.charm) { meta.charm.rotation.z = Math.sin(t * 2.3) * 0.25 - S.x * 3; meta.charm.rotation.x = Math.sin(t * 1.7) * 0.15 + (K.r || 0) * 0.3; }   // charm svinger med bevægelsen
     const ax = Math.min(1, vmCam.aspect / 1.6);                // smalle skærme (4:3): træk våbnet ind mod midten
     g.position.set(base[0] * ax + bobX - S.x * 0.6 + RA.x + nx + kx, base[1] - bobY + S.y * 0.6 - draw * 0.28 + RA.y - K.r * 0.004 + ny + ky, base[2] + K.z * 0.03 + RA.z + nz + kz);
     const BR = vm.ROT[kind] || vm.ROT.rifle;
@@ -3093,7 +3104,7 @@ async function runTour(id, only) {
   const params = new URLSearchParams(location.search);
   const joinCode = params.get('join');
   if (joinCode && /^\d{4}$/.test(joinCode)) { $('codeInput').value = joinCode; $('joinRow').classList.remove('hidden'); }
-  if (DEV) window.__wd = { Profile, Missions, Trophies, mvp: i => MvpCine.play(i), victory: m => startVictory(m), hudRE: m => HUD.roundEnd(m), introPlay: (ms) => { const I = Renderer.intro(); return I.preload().then(() => I.play({ side: Game.side, mates: [...Game.players.entries()].filter(([, p]) => p.side === Game.side).map(([id, p]) => ({ id, cos: p.cos, me: id === Game.meId })) }, ms || 13000)); }, Game, Renderer, Net, BuyMenu, get W() { return W; }, WD, THREE, KEY, Settings, act: { nadeStart, nadeRelease, fireStart, fireEnd, switchWeapon, startFlash, startReloadLocal }, tour: runTour,
+  if (DEV) window.__wd = { Profile, Missions, Trophies, Mastery, mvp: i => MvpCine.play(i), victory: m => startVictory(m), hudRE: m => HUD.roundEnd(m), introPlay: (ms) => { const I = Renderer.intro(); return I.preload().then(() => I.play({ side: Game.side, mates: [...Game.players.entries()].filter(([, p]) => p.side === Game.side).map(([id, p]) => ({ id, cos: p.cos, me: id === Game.meId })) }, ms || 13000)); }, Game, Renderer, Net, BuyMenu, get W() { return W; }, WD, THREE, KEY, Settings, act: { nadeStart, nadeRelease, fireStart, fireEnd, switchWeapon, startFlash, startReloadLocal }, tour: runTour,
     bombSheet: async (id, site, times, name) => {                              // v26: node pw/bomb.js – kontaktark af bombe-filmen → docs/qa/<name>.jpg
       if (Renderer.mapId !== id) await runTour(id, [{ n: 'load', x: 0, y: 2, z: 0, yaw: 0 }]);
       const cv = await Renderer.bombSheet(site, times); if (!cv) return null;

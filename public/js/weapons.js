@@ -1029,7 +1029,19 @@ export function createWeapons(THREE, WD, opts) {
   };
   // venstre hånd under genladning (som ARM: d = håndens akse mod håndleddet, g = grebsakse, f = underarmen): om et lodret magasin / hen over receiveren
   const LPOSE = { mag: { d: [-0.45, -0.7, 0.55], g: [0, 1, 0.1], f: [-0.35, -0.75, 0.55] }, rack: { d: [-0.8, 0.1, 0.55], g: [0, 0, 1], f: [-0.38, -0.86, 0.34] } };   // rack: håndryggen op (venstre hånd er spejlet => grebsaksen bagud)
-  function viewmodel(id, team, skinId) {
+  // v26.6: mastery-charm – lille vedhæng (kæde + skilt med emblem) i bronze/sølv/guld ved ejektionsporten; ses i 1. og 3. person
+  const CHARM = [null, [0xc07a45, 0x5a3014], [0xd9dee4, 0x4a5058], [0xf2c14a, 0x6a4a08]];
+  function addCharm(parent, meta, tier, mats) {
+    if (!tier || !CHARM[tier] || !meta || !meta.eject || meta.knife || meta.nade) return null;
+    const [c, d] = CHARM[tier], mk = p => { const m = mats && mats.mk ? mats.mk(p) : new THREE.MeshStandardMaterial(p); return m; };
+    const mt = mk({ color: c, metalness: 0.85, roughness: 0.28, emissive: c, emissiveIntensity: tier === 3 ? 0.35 : 0.12 }), mk2 = mk({ color: d, metalness: 0.4, roughness: 0.5 });
+    const piv = new THREE.Group(); piv.position.set(-(meta.pistol ? 0.03 : 0.045), meta.eject.y - (meta.pistol ? 0.03 : 0.04), meta.eject.z + (meta.pistol ? 0.06 : 0.02));   // venstre side (synlig i 1. person, som i CS) piv.scale.setScalar(meta.pistol ? 1.2 : 1.7);
+    for (let i = 0; i < 2; i++) { const l = new THREE.Mesh(new THREE.TorusGeometry(0.0042, 0.0011, 6, 12), mt); l.position.y = -0.006 - i * 0.008; l.rotation.y = i * Math.PI / 2; piv.add(l); }
+    const tag = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.0035, 6), mt); tag.rotation.z = Math.PI / 2; tag.position.y = -0.03; piv.add(tag);
+    const em = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.0045, tier === 3 ? 5 : 3), mk2); em.rotation.z = Math.PI / 2; em.position.y = -0.03; piv.add(em);
+    parent.add(piv); return piv;
+  }
+  function viewmodel(id, team, skinId, tier) {
     const M = mats(id, 'view', team), g = new THREE.Group(), body = new THREE.Group(); g.add(body);
     const build = B[id]; if (!build) return null;
     const meta = build(body, M, skinId) || {};
@@ -1083,6 +1095,7 @@ export function createWeapons(THREE, WD, opts) {
       flash.position.copy(meta.muzzle).add(new THREE.Vector3(0, 0, -0.04)); flash.visible = false; body.add(flash);
       const side = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.09), flash.material); side.rotation.y = Math.PI / 2; side.position.z = -0.08; flash.add(side);
     }
+    meta.charm = addCharm(body, meta, tier, M);                                         // v26.6: mastery-charm
     g.userData = { id, meta, body, flash, parts: body.children.filter(c => c !== right.arm && c !== left.arm && c !== flash && c !== meta.wickFlame), mats: allMats, leftArm: left.arm, leftBase: left.arm.position.clone(), leftQuat: left.arm.quaternion.clone(), leftWrist: left.wrist, leftPose, rightArm: right.arm, rightBase: right.arm.position.clone(), skin: glb ? glb.userData.skin : skinName(id, team), glb: !!glb };
     return g;
   }
@@ -1122,7 +1135,7 @@ export function createWeapons(THREE, WD, opts) {
   }
   // 3.-persons-model (deler spillerens bagte lys via sharedMat.userData.uBake); geometrien bygges én gang pr. våben og deles
   const worldGeo = {};
-  function worldModel(id, sharedMat, team, skinId) {
+  function worldModel(id, sharedMat, team, skinId, tier) {
     const build = B[id]; if (!build) return null;
     const M = mats(id, 'world', team);
     if (sharedMat && sharedMat.userData.uBake) for (const k in M) if (M[k].userData && M[k].userData.uBake) M[k].userData.uBake = sharedMat.userData.uBake;
@@ -1136,6 +1149,7 @@ export function createWeapons(THREE, WD, opts) {
     }
     const mkW = p => { const m = o.dynMat ? o.dynMat(p) : new THREE.MeshLambertMaterial({ color: p.color, map: p.map || null }); if (sharedMat && sharedMat.userData.uBake && m.userData.uBake) m.userData.uBake = sharedMat.userData.uBake; return m; };
     const glb = fitTemplate(tmp, id, team, skinId, mkW, meta);
+    if (tier) addCharm(tmp, meta, tier, { mk: p => mkW(p) });                         // v26.6: mastery-charm hos de andre
     if (glb) {                                                                       // GLB-model: behold som den er (allerede få dele), uden skygger fra våbnet
       glb.traverse(n => { if (n.isMesh) { n.castShadow = false; n.receiveShadow = true; } });
       tmp.userData = Object.assign({}, meta, { mag: null, bolt: null, slide: null, ring: null, wickFlame: null, skin: glb.userData.skin });

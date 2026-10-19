@@ -1624,3 +1624,13 @@ body.mvpcine #hud, body.mvpcine #nameTags, body.mvpcine #clickToPlay, body.mvpci
 .tr-i small { font: 700 10px 'JetBrains Mono', monospace; color: #6b7280; } .tr-i small.ok { color: #2bb24c; }
 @media (max-width: 900px) { .tr-grid { grid-template-columns: 1fr 1fr; } }
 .tr-wrap h3 small { margin-left: 10px; letter-spacing: .04em; font-weight: 400; color: #8a8f98; }
+/* v26.6: mastery */
+.mx-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.mx-item { display: flex; gap: 10px; background: rgba(10,10,10,.04); border: 1px solid rgba(10,10,10,.1); padding: 10px; }
+.mx-item.t1 { border-color: #c07a45; } .mx-item.t2 { border-color: #9aa3ad; } .mx-item.t3 { border-color: #e4ae39; box-shadow: inset 0 0 0 1px #e4ae39; }
+.mx-ic { width: 96px; height: 44px; flex: none; display: grid; place-items: center; background: #0a0a0a; } .mx-ic img { max-width: 92px; max-height: 40px; } .mx-ic b { color: #f4f4f2; font: 900 10px 'Archivo Black', sans-serif; text-align: center; }
+.mx-i { flex: 1; min-width: 0; } .mx-i > b { font: 900 13px 'Archivo Black', sans-serif; } .mx-i > span { margin-left: 6px; font: 700 10px 'JetBrains Mono', monospace; color: #b07c00; }
+.mx-bar { height: 5px; background: rgba(10,10,10,.12); margin: 6px 0 4px; } .mx-bar em { display: block; height: 100%; background: var(--red); }
+.mx-i small { font: 700 9.5px 'JetBrains Mono', monospace; color: #6b7280; }
+.mx-t { display: flex; gap: 4px; margin-top: 5px; } .mx-t i { font: 700 9px 'JetBrains Mono', monospace; font-style: normal; padding: 0 5px; border: 1px solid var(--tc); color: #6b7280; } .mx-t i.on { background: var(--tc); color: #0a0a0a; }
+.mx-wrap h3 small { margin-left: 10px; letter-spacing: .04em; font-weight: 400; color: #8a8f98; }
