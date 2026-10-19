@@ -694,6 +694,12 @@
     return part ? { t: best, part } : null;
   }
 
+  // v26.6: nærmeste callout (rumnavn) ved en position – samme regel som HUD'en (højdeforskel ≤ 2,6 m)
+  function calloutAt(W, x, y, z) {
+    let best = null, bd = 16;
+    for (const l of (W.labels || [])) { if (l.kind === 'site') continue; const ly = l.y === undefined ? 0 : l.y; if (Math.abs(y - ly) > 2.6) continue; const d = Math.hypot(l.x - x, l.z - z); if (d < bd) { bd = d; best = l; } }
+    return best ? best.text : '';
+  }
   function siteAt(W, x, y, z) {
     for (const k in W.sites) {
       const s = W.sites[k];
@@ -805,7 +811,7 @@
     FIRE, fireZone, fireRadiusAt, inFire, floorBelow, FLASH, flashAmount, segHitsSphere,
     get MAP_LIST() { return MAP_LIST(); },
     buildWorld, newBody, stepBody, groundAt, isBlocked, canStand, ladderAt, query,
-    raycastWorld, losClear, rayAABB, rayPlayer, siteAt, rampHeight, topAt
+    raycastWorld, losClear, rayAABB, rayPlayer, siteAt, calloutAt, rampHeight, topAt
   };
 
   /* ---------------------------------------------------------------- kort-definitioner (funktionserklæringer => hoisted) */
