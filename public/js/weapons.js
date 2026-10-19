@@ -651,7 +651,7 @@ export function createWeapons(THREE, WD, opts) {
   };
   // v26.5: brugerens knivmodeller med egne teksturer (tools/knives/import.py) – samme ramme som før: grebet ved origo, klingen mod −Z
   const KNEW = { karambitgold: [0, -0.002, -0.099], karambitscand: [0, -0.002, -0.099], karambit: [0, -0.001, -0.099], gut: [0, -0.007, -0.097],
-    m9: [0, 0.01, -0.182], kabar: [0, -0.017, -0.177], classic: [0, -0.008, -0.18] };
+    m9: [0, -0.014, -0.182], kabar: [0, -0.013, -0.177], classic: [0, -0.008, -0.18] };
   const KFALL = { karambitgold: 'karambit', karambitscand: 'karambit', karambit: 'karambit', gut: 'talon', m9: 'bayonet', kabar: 'bayonet', classic: 'bayonet' };
   function knifeFromModel(g, M, model, tpl) {
     const root = tpl.clone(true), cache = new Map();

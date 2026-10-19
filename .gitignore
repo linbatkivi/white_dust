@@ -16,3 +16,5 @@ __pycache__/
 *.exr
 .cache/
 /web/
+!tools/knives/
+tools/knives/src/

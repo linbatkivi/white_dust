@@ -1956,7 +1956,7 @@ const Renderer = (() => {
         COS.chars[f] = { scene, scale: 1.61 / Math.max(0.2, hy) };               // samme hovedhøjde som den procedurale figur (øjne/hitbox)
       } catch (e) { console.warn('[cos] figur ' + f, e); } }),
       ...SK.KNIVES.map(async k => { try {                                         // v19: Blender-modellerede knive
-        const { scene } = await retryLoad(() => loadGLB(THREE, '/assets/weapons/knives/knife_' + k.id + '.glb?v265')); COS.knives[k.id] = scene;
+        const { scene } = await retryLoad(() => loadGLB(THREE, '/assets/weapons/knives/knife_' + k.id + '.glb?v268')); COS.knives[k.id] = scene;
       } catch (e) { console.warn('[cos] kniv ' + k.id, e); } }),
       ...gunFiles.map(async f => { try {
         const { scene } = await loadGLB(THREE, '/assets/weapons/' + f + '.glb');
@@ -2979,8 +2979,8 @@ const Renderer = (() => {
       const prevPR = renderer.getPixelRatio(); renderer.setPixelRatio(1); renderer.setSize(tw * 2, th * 2, false);
       const codes = WD.WEAPONS;
       ids.forEach((id0, i) => {
-        const [id, rS] = id0.split('@');                                         // 'ak47@0.5' = midt i genladningen
-        const h = Chars.buildHuman(side, null); sc.add(h.group);
+        const [idk, rS] = id0.split('@'), [id, kskin] = idk.split(':');          // 'ak47@0.5' = midt i genladningen · 'knife:m9_std' = bestemt kniv
+        const h = Chars.buildHuman(side, null); sc.add(h.group); if (kskin) h.skins = { knife: kskin };
         const st = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, alive: true, crouch: false, grounded: true, wcode: codes[id] ? codes[id].code : undefined };
         for (let f = 0; f < 90; f++) Chars.animateHuman(h, 1 / 60, f / 60, st);
         if (rS !== undefined) { st.reload = true; for (let f = 0; f < 600 && !(h.rlT >= +rS); f++) Chars.animateHuman(h, 1 / 60, (90 + f) / 60, st); }
