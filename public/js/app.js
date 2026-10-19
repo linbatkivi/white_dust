@@ -892,7 +892,10 @@ function posOfPlayer(id) {
   if (id === Game.meId) return Game.body ? { x: Game.body.x, y: Game.body.y, z: Game.body.z, yaw: Game.yaw, self: true, alive: !!Game.self.alive } : null;
   const r = Game.remotes.get(id); return r ? { x: r.rx, y: r.ry, z: r.rz, yaw: r.yaw, self: false, alive: !!r.alive } : null;
 }
-function noteKill(m) { const vp = posOfPlayer(m.v); Game.lastKill = { a: m.a, v: m.v, w: m.w, hs: !!m.hs, t: performance.now(), vpos: vp ? { x: vp.x, y: vp.y, z: vp.z, yaw: vp.yaw } : null }; }
+function noteKill(m) {
+  if (Game.rkRound !== Game.round) { Game.rkRound = Game.round; Game.roundKills = {}; }      // v26.6: rundens drab pr. spiller (til MVP-filmens valg)
+  if (m.a) (Game.roundKills[m.a] = Game.roundKills[m.a] || []).push({ w: m.w, hs: !!m.hs, v: m.v });
+  const vp = posOfPlayer(m.v); Game.lastKill = { a: m.a, v: m.v, w: m.w, hs: !!m.hs, t: performance.now(), vpos: vp ? { x: vp.x, y: vp.y, z: vp.z, yaw: vp.yaw } : null }; }
 function roundCineInfo(m) {
   if (m.reason === 'bomb' || !Game.side) return null;
   const pl = id => Game.players.get(id) || {}, agentOf = id => { const p = pl(id); return p.cos && p.cos.agent ? p.cos.agent[p.side] : null; };
@@ -1556,7 +1559,13 @@ const HUD = {
     if (m.mvp) {
       const ag = mvpP && mvpP.cos ? mvpP.cos.agent : null, stats = [m.mvp.k ? ['DRAB', m.mvp.k] : null, m.mvp.dmg ? ['SKADE', m.mvp.dmg] : null, ['RUNDE', Game.round], ['STILLING', m.score[0] + '–' + m.score[1]]].filter(Boolean);
       const top = `<span class="mt-r">RUNDE ${Game.round}</span><span class="mt-w ${swat ? 's' : 'h'}">${won ? 'RUNDE VUNDET' : 'RUNDE TABT'} · ${team}</span><span class="mt-c">${cond}</span><span class="re-pay mt-p" id="rePay"></span><span class="mt-n">NÆSTE RUNDE <b id="reCount">5</b><i><em id="reBar"></em></i></span>`;
-      film = MvpCine.play({ side: m.win, agent: ag ? ag[m.win] : null, skins: mvpP && mvpP.cos ? mvpP.cos.skins : null, name: m.mvp.name, me: m.mvp.id === Game.meId, top,
+      // v26.6: filmen vælges efter hvordan MVP'en vandt runden (med lidt variation)
+      const rk = (Game.rkRound === Game.round && Game.roundKills && Game.roundKills[m.mvp.id]) || [], last = rk[rk.length - 1];
+      const knifeK = rk.some(q => q.w === 'knife'), nk = Math.max(m.mvp.k || 0, rk.length), R = Math.random();
+      const style = m.mvp.why === 'defuse' ? 'defuse' : m.mvp.why === 'plant' && m.reason === 'bomb' ? 'detonate'
+        : knifeK && R < 0.85 ? 'knife' : nk >= 3 && R < 0.8 ? 'multi' : m.reason === 'time' && R < 0.75 ? 'time' : nk >= 2 && R < 0.35 ? 'multi' : 'bull';
+      const gunW = last && WEAPONS[last.w] && WEAPONS[last.w].kind === 'gun' ? last.w : null;
+      film = MvpCine.play({ side: m.win, style, kills: nk, gun: gunW, agent: ag ? ag[m.win] : null, skins: mvpP && mvpP.cos ? mvpP.cos.skins : null, name: m.mvp.name, me: m.mvp.id === Game.meId, top,
         stats: `<div class="ms-why">${why}</div>` + stats.map(([k, v]) => `<div><em>${k}</em><b>${v}</b></div>`).join('') });
       if (film) { Game.cineFull = true; document.body.classList.add('mvpcine'); el.innerHTML = ''; el.className = 'hidden'; }
     }
@@ -3066,7 +3075,7 @@ async function runTour(id, only) {
   const params = new URLSearchParams(location.search);
   const joinCode = params.get('join');
   if (joinCode && /^\d{4}$/.test(joinCode)) { $('codeInput').value = joinCode; $('joinRow').classList.remove('hidden'); }
-  if (DEV) window.__wd = { victory: m => startVictory(m), hudRE: m => HUD.roundEnd(m), introPlay: (ms) => { const I = Renderer.intro(); return I.preload().then(() => I.play({ side: Game.side, mates: [...Game.players.entries()].filter(([, p]) => p.side === Game.side).map(([id, p]) => ({ id, cos: p.cos, me: id === Game.meId })) }, ms || 13000)); }, Game, Renderer, Net, BuyMenu, get W() { return W; }, WD, THREE, KEY, Settings, act: { nadeStart, nadeRelease, fireStart, fireEnd, switchWeapon, startFlash, startReloadLocal }, tour: runTour,
+  if (DEV) window.__wd = { mvp: i => MvpCine.play(i), victory: m => startVictory(m), hudRE: m => HUD.roundEnd(m), introPlay: (ms) => { const I = Renderer.intro(); return I.preload().then(() => I.play({ side: Game.side, mates: [...Game.players.entries()].filter(([, p]) => p.side === Game.side).map(([id, p]) => ({ id, cos: p.cos, me: id === Game.meId })) }, ms || 13000)); }, Game, Renderer, Net, BuyMenu, get W() { return W; }, WD, THREE, KEY, Settings, act: { nadeStart, nadeRelease, fireStart, fireEnd, switchWeapon, startFlash, startReloadLocal }, tour: runTour,
     bombSheet: async (id, site, times, name) => {                              // v26: node pw/bomb.js – kontaktark af bombe-filmen → docs/qa/<name>.jpg
       if (Renderer.mapId !== id) await runTour(id, [{ n: 'load', x: 0, y: 2, z: 0, yaw: 0 }]);
       const cv = await Renderer.bombSheet(site, times); if (!cv) return null;

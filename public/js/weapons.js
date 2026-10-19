@@ -659,7 +659,7 @@ export function createWeapons(THREE, WD, opts) {
       if (!x.isMesh) return; x.castShadow = true;
       const src = x.material; if (cache.has(src)) { x.material = cache.get(src); return; }
       const p = { color: src.color ? src.color.getHex() : 0xffffff, map: src.map || null, normalMap: src.normalMap || null, roughnessMap: src.roughnessMap || null, metalnessMap: src.metalnessMap || null,
-        aoMap: src.aoMap || null, metalness: src.metalness !== undefined ? src.metalness : 0.8, roughness: src.roughness !== undefined ? src.roughness : 0.35 };
+        aoMap: src.aoMap || null, metalness: Math.min(0.55, src.metalness !== undefined ? src.metalness : 0.8), roughness: Math.max(0.3, src.roughness !== undefined ? src.roughness : 0.35) };   // v26.6: fuldt metal uden miljø = sort kniv
       for (const k of Object.keys(p)) if (p[k] === null) delete p[k];
       const m = M.mk ? M.mk(p) : new THREE.MeshStandardMaterial(p); m.side = THREE.DoubleSide; cache.set(src, m); x.material = m;
     });
@@ -1127,6 +1127,13 @@ export function createWeapons(THREE, WD, opts) {
     const M = mats(id, 'world', team);
     if (sharedMat && sharedMat.userData.uBake) for (const k in M) if (M[k].userData && M[k].userData.uBake) M[k].userData.uBake = sharedMat.userData.uBake;
     const tmp = new THREE.Group(); const meta = build(tmp, M, skinId) || {};
+    if (meta.knife) {                                                                // v26.6: tredjeperson – kniven i rigtigt greb (ikke peget frem som en pistol, så den ses fra alle sider)
+      const piv = new THREE.Group(), kids = tmp.children.slice(); for (const c of kids) { tmp.remove(c); piv.add(c); }
+      const rev = /^karambit/.test(meta.model || '');
+      piv.rotation.x = rev ? -0.85 : 0.55; piv.position.set(0, rev ? -0.015 : 0.02, 0.01);   // hammergreb: klingen op og lidt frem · karambit: omvendt, klingen ned under næven
+      piv.updateMatrix(); tmp.add(piv); piv.updateMatrixWorld(true);
+      for (const c of piv.children.slice()) { c.applyMatrix4(piv.matrix); piv.remove(c); tmp.add(c); } tmp.remove(piv);
+    }
     const mkW = p => { const m = o.dynMat ? o.dynMat(p) : new THREE.MeshLambertMaterial({ color: p.color, map: p.map || null }); if (sharedMat && sharedMat.userData.uBake && m.userData.uBake) m.userData.uBake = sharedMat.userData.uBake; return m; };
     const glb = fitTemplate(tmp, id, team, skinId, mkW, meta);
     if (glb) {                                                                       // GLB-model: behold som den er (allerede få dele), uden skygger fra våbnet

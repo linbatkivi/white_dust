@@ -6,9 +6,9 @@ Venner og fraktioner udveksler data direkte mellem spillerne via PeerJS (ingen n
 
 | #  | Punkt                                                          | Status        |
 |----|----------------------------------------------------------------|---------------|
-| 0  | Knive holdes rigtigt (M9 og KA-BAR vendte på hovedet)          | ✅ færdig     |
-| 1  | Flere slags MVP-cutscenes (ikke kun bullseye) efter sejrsmåde  | ⏳ næste      |
-| 2  | XP, player levels og ranks (Bronze → Elite) + unlocks          | ⬜            |
+| 0  | Knive holdes rigtigt: M9/KA-BAR vendt, kniven synlig i 3. person (holdtes som en pistol, pegede ind i kameraet) | ✅ færdig     |
+| 1  | Flere slags MVP-cutscenes: bullseye, række af skiver (3+ drab), knivkast, desarmering, går fra eksplosionen, nedtælling | ✅ færdig     |
+| 2  | XP, player levels og ranks (Bronze → Elite) + unlocks          | ⏳ næste      |
 | 3  | Missioner: daglige, ugentlige, sæson (inkl. udforskning)       | ⬜            |
 | 4  | Mønter + butik (kun kosmetik, ingen balance-ændring)           | ⬜            |
 | 5  | Achievements / trofæer                                         | ⬜            |
