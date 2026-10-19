@@ -81,6 +81,7 @@ export function createProfile(o) {
     const S = D.stats; S.matches++; if (mf.won) S.wins++;
     D.hist.unshift({ t: Date.now(), won: mf.won, k: mf.kills, d: mf.deaths, mvps: mf.mvps, score: mf.score, side: mf.side, map: mf.map }); D.hist = D.hist.slice(0, 30);
     addXP(mf.won ? 'KAMP VUNDET' : 'KAMP SLUT', P.matchXP(mf));
+    const coins = 30 + (mf.won ? 40 : 0) + 2 * (mf.kills || 0); D.coins = (D.coins || 0) + coins; save(); toast('MØNTER', mf.won ? 'Kamp vundet' : 'Kamp spillet', '+' + coins + ' mønter');
     fire('match', mf);
   }
   const hooks = { round: [], match: [] };
@@ -88,7 +89,7 @@ export function createProfile(o) {
 
   /* ---------------- KARRIERE-hubben ---------------- */
   const tabs = [{ id: 'profil', label: 'PROFIL', render: renderProfile }]; let cur = 'profil', hub = null;
-  function addTab(id, label, render) { if (!tabs.some(t => t.id === id)) tabs.push({ id, label, render }); }
+  function addTab(id, label, render, click) { if (!tabs.some(t => t.id === id)) tabs.push({ id, label, render, click }); }
   function open(tab) {
     if (!hub) { hub = document.createElement('div'); hub.id = 'career'; hub.className = 'settings hidden'; document.body.appendChild(hub);
       hub.addEventListener('mousedown', e => { if (e.target === hub) close(); });
@@ -134,6 +135,6 @@ export function createProfile(o) {
     return `<div class="pf-strip" style="--rc:${r.col}">${emblem(l.level, 34)}<div><b>LEVEL ${l.level}</b><small>${r.label} · ${esc(titleName(D.title))}</small><i><em style="width:${(l.frac * 100).toFixed(1)}%"></em></i></div></div>`;
   }
   // kort sammendrag til de andre spillere (lobby/scoreboard)
-  const summary = () => ({ lvl: lv().level, t: D.title, c: D.card, b: D.badge });
+  const summary = () => ({ lvl: lv().level, t: D.title, c: D.card, b: D.badge, n: D.nc || '' });
   return { get data() { return D; }, registerExtra, toast, save, onRound, onMatch, summary, open, close, isOpen, addTab, emblem, strip, card, hooks, has, titleName, cardCss, onChange: f => listeners.push(f), addXP, render: () => hub && isOpen() && render() };
 }

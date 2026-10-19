@@ -1593,3 +1593,22 @@ body.mvpcine #hud, body.mvpcine #nameTags, body.mvpcine #clickToPlay, body.mvpci
 .ms-f { display: flex; justify-content: space-between; font: 700 10.5px 'JetBrains Mono', monospace; } .ms-f em { font-style: normal; color: #b07c00; }
 .ms-grid .ms-t { min-height: 0; }
 .ms-h { display: flex; align-items: center; } .ms-h .ms-coins { float: none; margin-left: auto; }
+/* v26.6: butik */
+.sh-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; }
+.sh-item { position: relative; background: rgba(10,10,10,.04); border: 1px solid rgba(10,10,10,.1); padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.sh-item.own { border-color: rgba(43,178,76,.5); }
+.sh-item.deal { box-shadow: inset 0 0 0 2px #ffd23a; }
+.sh-deal { position: absolute; right: 6px; top: 6px; z-index: 2; background: #ffd23a; color: #0a0a0a; font: 900 11px 'Archivo Black', sans-serif; padding: 2px 6px; font-style: normal; }
+.sh-item b { font: 700 13px 'Space Grotesk', sans-serif; }
+.sh-prev { height: 64px; display: grid; place-items: center; background: #0a0a0a; color: #f4f4f2; overflow: hidden; }
+.sh-prev.card { background: var(--card); }
+.sh-prev.title { font: 900 17px 'Archivo Black', sans-serif; text-align: center; padding: 0 8px; } .sh-prev.title small { display: block; font: 700 8px 'JetBrains Mono', monospace; letter-spacing: .2em; color: #ff6b5e; }
+.sh-prev.nc { font: 900 22px 'Archivo Black', sans-serif; }
+.sh-prev.badge span { background: #ffd23a; color: #0a0a0a; font: 900 14px 'Archivo Black', sans-serif; padding: 5px 10px; }
+.sh-prev.deco { font-size: 34px; }
+.sh-btn { font: 700 11px 'JetBrains Mono', monospace; letter-spacing: .08em; padding: 7px 8px; border: 1px solid #0a0a0a; background: #f4f4f2; color: #0a0a0a; }
+.sh-btn.buy { background: #0a0a0a; color: #ffd23a; } .sh-btn.buy:disabled { opacity: .35; cursor: not-allowed; }
+.sh-btn.on { background: var(--red); color: #fff; border-color: var(--red); }
+.sh-btn s { opacity: .55; margin-right: 4px; }
+.sh-own { font: 700 10px 'JetBrains Mono', monospace; color: #2bb24c; }
+.sh-wrap h3 small { margin-left: 10px; letter-spacing: .04em; font-weight: 400; color: #8a8f98; }

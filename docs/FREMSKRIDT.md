@@ -10,8 +10,8 @@ Venner og fraktioner udveksler data direkte mellem spillerne via PeerJS (ingen n
 | 1  | Flere slags MVP-cutscenes: bullseye, række af skiver (3+ drab), knivkast, desarmering, går fra eksplosionen, nedtælling | ✅ færdig     |
 | 2  | XP, levels 1–100, ranks Bronze → Elite, titler/profilkort/badges, KARRIERE-hub, level ved navne | ✅ færdig     |
 | 3  | Missioner: 3 daglige + 3 ugentlige (samme for alle venner), Sæson 1 · Penthouse (10), udforskning og ruter, mønter | ✅ færdig     |
-| 4  | Mønter + butik (kun kosmetik, ingen balance-ændring)           | ⏳ næste      |
-| 5  | Achievements / trofæer                                         | ⬜            |
+| 4  | Mønter (kampe + missioner) og BUTIK: titler, profilkort, badges, navnefarver, dagens tilbud – kun kosmetik | ✅ færdig     |
+| 5  | Achievements / trofæer                                         | ⏳ næste      |
 | 6  | Våben- og udstyrsmastery                                       | ⬜            |
 | 7  | Bounty-system midt i kampen                                    | ⬜            |
 | 8  | Dynamiske events: tåge, skybrud, strømafbrydelse               | ⬜            |

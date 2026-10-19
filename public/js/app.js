@@ -28,6 +28,7 @@ import { createMvpCine } from '/js/mvpcine.js';
 import { createRoundCine } from '/js/roundcine.js';
 import { createProfile } from '/js/profile.js';
 import { createMissions } from '/js/missions.js';
+import { createShop } from '/js/shop.js';
 import { createNight } from '/js/night.js';
 import * as SK from '/js/skins.js';
 import { createInventory } from '/js/inventory.js';
@@ -82,6 +83,7 @@ const smooth = t => t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
 // v26.6: profil & karriere (XP, levels, ranks, titler, profilkort – senere missioner, trofæer, mastery …)
 const Profile = createProfile({ $, Audio, esc: escapeHtml, onLevel: () => { if (Net.connected) Net.send({ t: 'prof', p: Profile.summary() }); }, name: () => ($('nameInput') && $('nameInput').value.trim()) || loadName() || 'Spiller' });
 const Missions = createMissions({ Profile, esc: escapeHtml, toast: (a, b, c) => Profile.toast(a, b, c) });   // v26.6: daglige/ugentlige/sæson
+const Shop = createShop({ Profile, esc: escapeHtml, name: () => ($('nameInput') && $('nameInput').value.trim()) || loadName() || 'Spiller', onEquip: () => { if (Net.connected) Net.send({ t: 'prof', p: Profile.summary() }); } });
 function drawStrip() { const el = $('pfStrip'); if (el) el.innerHTML = Profile.strip(); }
 Profile.onChange(drawStrip);
 
@@ -607,7 +609,7 @@ Net.on('lobby', m => {
     if (p.id === Game.meId) Game.myTeam = p.team || null;
     const li = document.createElement('li');
     const key = p.id + ':' + k; nowSeen.add(key); if (!seen.has(key)) li.classList.add('join'); if (p.id === Game.meId) li.classList.add('me');   // v26: ny på holdet → glid ind
-    li.innerHTML = `${lvlTag(p.prof)}<span>${escapeHtml(p.name)}${p.id === Game.meId ? ' <i style="opacity:.55">(dig)</i>' : ''}${p.prof && p.prof.t ? `<small class="lb-title">${escapeHtml(Profile.titleName(p.prof.t))}</small>` : ''}</span>` + (p.id === m.host ? '<span class="host-tag">VÆRT</span>' : '')
+    li.innerHTML = `${lvlTag(p.prof)}<span${p.prof && p.prof.n && Shop.NAMECOL[p.prof.n] ? ` style="color:${Shop.NAMECOL[p.prof.n][1]}"` : ''}>${escapeHtml(p.name)}${p.id === Game.meId ? ' <i style="opacity:.55">(dig)</i>' : ''}${p.prof && p.prof.t ? `<small class="lb-title">${escapeHtml(Profile.titleName(p.prof.t))}</small>` : ''}</span>` + (p.id === m.host ? '<span class="host-tag">VÆRT</span>' : '')
       + (m.host === Game.meId && p.id !== Game.meId ? `<button class="kick-btn" data-kick="${p.id}" title="Smid ${escapeHtml(p.name)} ud af partyet">KICK</button>` : '');   // v20: kun værten kan kicke
     lists[k].appendChild(li);
   }
