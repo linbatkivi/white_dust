@@ -11,8 +11,8 @@ Venner og fraktioner udveksler data direkte mellem spillerne via PeerJS (ingen n
 | 2  | XP, levels 1–100, ranks Bronze → Elite, titler/profilkort/badges, KARRIERE-hub, level ved navne | ✅ færdig     |
 | 3  | Missioner: 3 daglige + 3 ugentlige (samme for alle venner), Sæson 1 · Penthouse (10), udforskning og ruter, mønter | ✅ færdig     |
 | 4  | Mønter (kampe + missioner) og BUTIK: titler, profilkort, badges, navnefarver, dagens tilbud – kun kosmetik | ✅ færdig     |
-| 5  | Achievements / trofæer                                         | ⏳ næste      |
-| 6  | Våben- og udstyrsmastery                                       | ⬜            |
+| 5  | Trofæer: 24 (bronze/sølv/guld, 3 hemmelige) – Master of Heights, Kartograf, Kældermennesket, Kaffepause …; guld = badge | ✅ færdig     |
+| 6  | Våben- og udstyrsmastery                                       | ⏳ næste      |
 | 7  | Bounty-system midt i kampen                                    | ⬜            |
 | 8  | Dynamiske events: tåge, skybrud, strømafbrydelse               | ⬜            |
 | 9  | Interaktive kortmekanikker (porte, projektører, damp)          | ⬜            |

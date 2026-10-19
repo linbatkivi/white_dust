@@ -29,6 +29,7 @@ import { createRoundCine } from '/js/roundcine.js';
 import { createProfile } from '/js/profile.js';
 import { createMissions } from '/js/missions.js';
 import { createShop } from '/js/shop.js';
+import { createTrophies } from '/js/trophies.js';
 import { createNight } from '/js/night.js';
 import * as SK from '/js/skins.js';
 import { createInventory } from '/js/inventory.js';
@@ -83,6 +84,7 @@ const smooth = t => t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
 // v26.6: profil & karriere (XP, levels, ranks, titler, profilkort – senere missioner, trofæer, mastery …)
 const Profile = createProfile({ $, Audio, esc: escapeHtml, onLevel: () => { if (Net.connected) Net.send({ t: 'prof', p: Profile.summary() }); }, name: () => ($('nameInput') && $('nameInput').value.trim()) || loadName() || 'Spiller' });
 const Missions = createMissions({ Profile, esc: escapeHtml, toast: (a, b, c) => Profile.toast(a, b, c) });   // v26.6: daglige/ugentlige/sæson
+const Trophies = createTrophies({ Profile, esc: escapeHtml });   // v26.6: trofæer
 const Shop = createShop({ Profile, esc: escapeHtml, name: () => ($('nameInput') && $('nameInput').value.trim()) || loadName() || 'Spiller', onEquip: () => { if (Net.connected) Net.send({ t: 'prof', p: Profile.summary() }); } });
 function drawStrip() { const el = $('pfStrip'); if (el) el.innerHTML = Profile.strip(); }
 Profile.onChange(drawStrip);
@@ -1678,7 +1680,7 @@ const HUD = {
       const p = Game.self.alive || Game.phase === 'buy' ? Game.body : null; let best = null, bd = 16;
       if (p) for (const l of W.labels) { if (l.kind === 'site') continue; const ly = l.y === undefined ? 0 : l.y; if (Math.abs(p.y - ly) > 2.6) continue; const d = Math.hypot(l.x - p.x, l.z - p.z); if (d < bd) { bd = d; best = l; } }
       setText('locName', best ? best.text : '');
-      if (best && Game.state === 'game' && Game.self.alive) Missions.onVisit(best.text);   // v26.6: udforskning (missioner/trofæer)
+      if (best && Game.state === 'game' && Game.self.alive) { Missions.onVisit(best.text); Trophies.onVisit(best.text); }   // v26.6: udforskning (missioner/trofæer)
       // v14: stort, diskret områdenavn i toppen når man kommer ind i et nyt område (ikke i købsfasen)
       const nm = best ? best.text : '';
       if (nm && nm !== this._area && Game.phase !== 'buy') { const el = $('areaName'); el.textContent = nm; el.classList.remove('show'); void el.offsetWidth; el.classList.add('show'); }
@@ -3091,7 +3093,7 @@ async function runTour(id, only) {
   const params = new URLSearchParams(location.search);
   const joinCode = params.get('join');
   if (joinCode && /^\d{4}$/.test(joinCode)) { $('codeInput').value = joinCode; $('joinRow').classList.remove('hidden'); }
-  if (DEV) window.__wd = { Profile, Missions, mvp: i => MvpCine.play(i), victory: m => startVictory(m), hudRE: m => HUD.roundEnd(m), introPlay: (ms) => { const I = Renderer.intro(); return I.preload().then(() => I.play({ side: Game.side, mates: [...Game.players.entries()].filter(([, p]) => p.side === Game.side).map(([id, p]) => ({ id, cos: p.cos, me: id === Game.meId })) }, ms || 13000)); }, Game, Renderer, Net, BuyMenu, get W() { return W; }, WD, THREE, KEY, Settings, act: { nadeStart, nadeRelease, fireStart, fireEnd, switchWeapon, startFlash, startReloadLocal }, tour: runTour,
+  if (DEV) window.__wd = { Profile, Missions, Trophies, mvp: i => MvpCine.play(i), victory: m => startVictory(m), hudRE: m => HUD.roundEnd(m), introPlay: (ms) => { const I = Renderer.intro(); return I.preload().then(() => I.play({ side: Game.side, mates: [...Game.players.entries()].filter(([, p]) => p.side === Game.side).map(([id, p]) => ({ id, cos: p.cos, me: id === Game.meId })) }, ms || 13000)); }, Game, Renderer, Net, BuyMenu, get W() { return W; }, WD, THREE, KEY, Settings, act: { nadeStart, nadeRelease, fireStart, fireEnd, switchWeapon, startFlash, startReloadLocal }, tour: runTour,
     bombSheet: async (id, site, times, name) => {                              // v26: node pw/bomb.js – kontaktark af bombe-filmen → docs/qa/<name>.jpg
       if (Renderer.mapId !== id) await runTour(id, [{ n: 'load', x: 0, y: 2, z: 0, yaw: 0 }]);
       const cv = await Renderer.bombSheet(site, times); if (!cv) return null;
