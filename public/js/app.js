@@ -31,6 +31,7 @@ import { createMissions } from '/js/missions.js';
 import { createShop } from '/js/shop.js';
 import { createTrophies } from '/js/trophies.js';
 import { createMastery } from '/js/mastery.js';
+import { createFactions } from '/js/factions.js';
 import { createNight } from '/js/night.js';
 import * as SK from '/js/skins.js';
 import { createInventory } from '/js/inventory.js';
@@ -88,6 +89,9 @@ const Missions = createMissions({ Profile, esc: escapeHtml, toast: (a, b, c) => 
 const Trophies = createTrophies({ Profile, esc: escapeHtml });   // v26.6: trofæer
 const Mastery = createMastery({ Profile, esc: escapeHtml, icon: id => { try { return Renderer.gunIcon(id, Game.side || 'swat'); } catch (e) { return null; } },
   onTier: () => { Renderer.onCosmetics(); if (Net.connected) Net.send({ t: 'prof', p: Profile.summary() }); } });   // v26.6: våben-mastery (charms ses af alle)
+const Factions = createFactions({ Profile, esc: escapeHtml, name: () => loadName() || 'Spiller', drawMap: (cv, A, d) => drawFactionMap(cv, A, d), onChange: () => { if (Net.connected) { Net.send({ t: 'prof', p: Profile.summary() }); sendPub(); } } });   // v26.6: fraktioner + sæsonkort
+// v26.6: offentlige profildata til de andre i rummet (fraktions-regnskab; vennekort kommer med i Friends)
+function sendPub(first) { try { Net.send({ t: 'pub', first: !!first, d: Object.assign({ fx: Factions.pubPart() }, window.__pubExtra ? window.__pubExtra() : {}) }); } catch (e) { console.warn('[pub]', e); } }
 const Shop = createShop({ Profile, esc: escapeHtml, name: () => ($('nameInput') && $('nameInput').value.trim()) || loadName() || 'Spiller', onEquip: () => { if (Net.connected) Net.send({ t: 'prof', p: Profile.summary() }); } });
 function drawStrip() { const el = $('pfStrip'); if (el) el.innerHTML = Profile.strip(); }
 Profile.onChange(drawStrip);
@@ -400,9 +404,10 @@ $('chatInput').addEventListener('keydown', e => {
 });
 Net.on('pong', m => { const rtt = performance.now() - m.c; if (rtt >= 0 && rtt < 5000) Game.ping = Game.ping ? Game.ping * 0.6 + rtt * 0.4 : rtt; });
 Net.on('cos', m => { const e = Game.players.get(m.id); if (e) e.cos = SK.sanitize(m.c); });
+Net.on('pub', m => { if (m.id === Game.meId || !m.d) return; Factions.merge(m.d.fx); if (window.__pubIn) window.__pubIn(m.id, m.d); });
 Net.on('prof', m => { const e = Game.players.get(m.id); if (e) e.prof = m.p; });   // v26.6: en anden spillers level/rank
 // v26.6: lille rank-emblem + level ved navne (lobby, scoreboard)
-function lvlTag(pf) { if (!pf || !pf.lvl) return ''; const r = window.WDP.rankOf(pf.lvl); return `<b class="lvl-tag" style="--rc:${r.col}" title="${r.label}">${Profile.emblem(pf.lvl, 16)}${pf.lvl}</b>`; }   // en anden spiller skiftede agent/skins
+function lvlTag(pf) { if (!pf || !pf.lvl) return ''; const r = window.WDP.rankOf(pf.lvl); const fc = pf.f && Factions.fac(pf.f); return `<b class="lvl-tag" style="--rc:${r.col}" title="${r.label}">${Profile.emblem(pf.lvl, 16)}${pf.lvl}</b>${fc ? `<i class="fx-dot" style="background:${fc.col}" title="${fc.name}"></i>` : ''}`; }   // en anden spiller skiftede agent/skins
 
 /* ---- v12.1: radar/minimap for baner bygget af bokse: gulve i lagets højdebånd (lyse), ramper, mure ovenpå (mørke) ---- */
 function drawBoxLayer(c, L, S, ox, oz, top, Wm) {
@@ -413,6 +418,27 @@ function drawBoxLayer(c, L, S, ox, oz, top, Wm) {
   for (const r of Wm.ramps) if (inBand(Math.max(r.ya, r.yb)) || inBand(Math.min(r.ya, r.yb))) { c.fillStyle = 'rgba(205,205,200,.95)'; c.fillRect(r.bx0 * S + ox, r.bz0 * S + oz, (r.bx1 - r.bx0) * S, (r.bz1 - r.bz0) * S); }
   c.fillStyle = 'rgba(40,42,44,.9)';
   for (const b of Wm.boxes) if (b.kind === 'wall' && b.y1 > L.yb + 1 && b.y1 - Math.max(b.y0, L.yb) > 0.8 && (top ? b.y1 > 0.5 : b.y0 > -12 && b.y1 < 0.5 && b.y1 > L.yb + 1)) c.fillRect(b.x0 * S + ox, b.z0 * S + oz, (b.x1 - b.x0) * S + 0.4, (b.z1 - b.z0) * S + 0.4);
+}
+/* ---- v26.6: SÆSONKORTET – radar af de_bureau farvet efter hvilken fraktion der kontrollerer bydelen ---- */
+function drawFactionMap(cv, AREA, dist) {
+  const RI = radarImages('bureau', () => { if (cv.isConnected) drawFactionMap(cv, AREA, dist); });
+  const Wm = WD.buildWorld('bureau'), c = cv.getContext('2d'), b = Wm.bounds, S = Math.min(cv.width / (b.x1 - b.x0), cv.height / (b.z1 - b.z0)) * 0.94;
+  const ox = cv.width / 2 - (b.x0 + b.x1) / 2 * S, oz = cv.height / 2 - (b.z0 + b.z1) / 2 * S;
+  c.fillStyle = '#1b1d1f'; c.fillRect(0, 0, cv.width, cv.height); if (!RI) return;
+  const mk = () => { const x = document.createElement('canvas'); x.width = cv.width; x.height = cv.height; return x; };
+  const m = mk(), mc = m.getContext('2d'); for (let li = 0; li < RI.meta.layers.length; li++) drawRadarImage(mc, RI, S, ox, oz, li);
+  const col = mk(), cc = col.getContext('2d'), labs = Wm.labels.filter(l => AREA[l.text]), dc = {}; for (const d of dist) dc[d.id] = d.col;
+  for (let x = b.x0; x < b.x1; x += 1) for (let z = b.z0; z < b.z1; z += 1) {
+    let best = null, bd = 1e9; for (const l of labs) { const dd = (l.x - x - 0.5) ** 2 + (l.z - z - 0.5) ** 2; if (dd < bd) { bd = dd; best = l; } }
+    const k = best && dc[AREA[best.text]]; cc.fillStyle = k || '#7a7a76'; cc.fillRect(x * S + ox, z * S + oz, S + 0.8, S + 0.8);
+  }
+  cc.globalCompositeOperation = 'destination-in'; cc.drawImage(m, 0, 0);
+  c.drawImage(m, 0, 0); c.globalCompositeOperation = 'multiply'; c.drawImage(col, 0, 0); c.globalCompositeOperation = 'source-over'; c.globalAlpha = 0.28; c.drawImage(col, 0, 0); c.globalAlpha = 1;
+  c.textAlign = 'center'; c.font = '700 15px "JetBrains Mono", monospace';
+  for (const d of dist) { const L = Wm.labels.filter(l => d.areas.includes(l.text)); if (!L.length) continue;
+    const x = L.reduce((a, l) => a + l.x, 0) / L.length * S + ox, z = L.reduce((a, l) => a + l.z, 0) / L.length * S + oz, w = c.measureText(d.name).width + 14;
+    c.fillStyle = '#0a0a0a'; c.fillRect(x - w / 2, z - 12, w, 22); if (d.col) { c.fillStyle = d.col; c.fillRect(x - w / 2, z + 8, w, 4); }
+    c.fillStyle = '#f4f4f2'; c.fillText(d.name, x, z + 4); }
 }
 /* ---- map pool: kort med radar-forhåndsvisning (tegnet fra banens geometri) ---- */
 /* ---- v16: rene radarbilleder (tools/radar/ – nåbare flader, lige kanter, højdeniveauer; Canals bruger den rigtige CS-radar) ---- */
@@ -543,7 +569,7 @@ Net.on('joined', m => {
   Game._lobbyCode = m.code;
   Net.session = { code: m.code, id: m.id, key: m.key, peer: Net.target };
   saveSession(Net.session);
-  UI.menuErr('');
+  UI.menuErr(''); setTimeout(() => sendPub(true), 300);   // v26.6
   // v24: er vi vært, åbner vi for vennerne på party-koden
   if (P2P.on && !Net.target) P2P.host(m.code, Net.localUrl()).catch(() => UI.toast('Dine venner kan ikke joine lige nu – tjek dit internet', 6000));
 });
@@ -754,7 +780,7 @@ Net.on('ev', m => {
     case 'bounty': Bounty.on(m); break;                                          // v26.6: dusør på en spiller i stime
     case 'bclaim': Bounty.claim(m); break;
     case 'rf': Profile.onRound(m); break;                                        // v26.6: rundens fakta → XP
-    case 'mf': Profile.onMatch(m); break;
+    case 'mf': Profile.onMatch(m); setTimeout(sendPub, 500); break;
     case 'kill': HUD.killfeed(m); noteKill(m); if (m.v === Game.meId) { HUD.showDead(); Game.nade = null; Game.firing = false; } break;
     case 'end': m._rx = performance.now(); if (!Renderer.deferEnd(m, roundCineInfo(m))) HUD.roundEnd(m); break;   // v26: bombe-filmen · v26.3: rundeslut-filmen – rundeslut/MVP bagefter
     case 'pay': HUD.pay(m); break;
@@ -3193,7 +3219,7 @@ async function runTour(id, only) {
   const params = new URLSearchParams(location.search);
   const joinCode = params.get('join');
   if (joinCode && /^\d{4}$/.test(joinCode)) { $('codeInput').value = joinCode; $('joinRow').classList.remove('hidden'); }
-  if (DEV) window.__wd = { Bounty, EventHud, Profile, Missions, Trophies, Mastery, mvp: i => MvpCine.play(i), victory: m => startVictory(m), hudRE: m => HUD.roundEnd(m), introPlay: (ms) => { const I = Renderer.intro(); return I.preload().then(() => I.play({ side: Game.side, mates: [...Game.players.entries()].filter(([, p]) => p.side === Game.side).map(([id, p]) => ({ id, cos: p.cos, me: id === Game.meId })) }, ms || 13000)); }, Game, Renderer, Net, BuyMenu, get W() { return W; }, WD, THREE, KEY, Settings, act: { nadeStart, nadeRelease, fireStart, fireEnd, switchWeapon, startFlash, startReloadLocal }, tour: runTour,
+  if (DEV) window.__wd = { Bounty, EventHud, Factions, Profile, Missions, Trophies, Mastery, mvp: i => MvpCine.play(i), victory: m => startVictory(m), hudRE: m => HUD.roundEnd(m), introPlay: (ms) => { const I = Renderer.intro(); return I.preload().then(() => I.play({ side: Game.side, mates: [...Game.players.entries()].filter(([, p]) => p.side === Game.side).map(([id, p]) => ({ id, cos: p.cos, me: id === Game.meId })) }, ms || 13000)); }, Game, Renderer, Net, BuyMenu, get W() { return W; }, WD, THREE, KEY, Settings, act: { nadeStart, nadeRelease, fireStart, fireEnd, switchWeapon, startFlash, startReloadLocal }, tour: runTour,
     bombSheet: async (id, site, times, name) => {                              // v26: node pw/bomb.js – kontaktark af bombe-filmen → docs/qa/<name>.jpg
       if (Renderer.mapId !== id) await runTour(id, [{ n: 'load', x: 0, y: 2, z: 0, yaw: 0 }]);
       const cv = await Renderer.bombSheet(site, times); if (!cv) return null;

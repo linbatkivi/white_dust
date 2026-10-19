@@ -68,6 +68,13 @@ async function main() {
     ok(await B.wait(m => m.t === 'joined'), 'JOIN med kode virker');
     const lb = await A.wait(m => m.t === 'lobby' && m.players.length === 2);
     ok(lb && lb.host === A.id, 'Venterum viser 2 spillere, Alice er vært');
+    A.send({ t: 'pub', first: true, d: { fx: { w: 'x', L: { abcd1234: { f: 'klan', d: { kaffe: 20 } } } } } });
+    const pb = await B.wait(m => m.t === 'pub' && m.id === A.id);
+    ok(pb && pb.d.fx.L.abcd1234.d.kaffe === 20, 'Fraktions-regnskab/vennekort (pub) sendes videre til de andre i rummet');
+    B.send({ t: 'pub', first: true, d: { c: { n: 'Bob' } } });
+    ok(await B.wait(m => m.t === 'pub' && m.id === A.id && m.d.fx), 'Ny pub med first=true får de andres gemte data');
+    A.send({ t: 'pub', d: { big: 'x'.repeat(42000) } }); await sleep(150);
+    ok(!B.log.find(m => m.t === 'pub' && m.d.big), 'For store pub-beskeder afvises');
     B.send({ t: 'start' });
     await sleep(200);
     ok(!A.log.find(m => m.t === 'round'), 'Kun værten kan starte (Bob kan ikke)');

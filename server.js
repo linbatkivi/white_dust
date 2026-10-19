@@ -210,7 +210,7 @@ function cleanCos(c) {
 function cleanProf(c) {
   if (!c || typeof c !== 'object') return null;
   const id = v => typeof v === 'string' && /^[a-z0-9_]{0,24}$/.test(v) ? v : '';
-  return { lvl: Math.max(1, Math.min(100, Math.floor(+c.lvl) || 1)), t: id(c.t), c: id(c.c), b: id(c.b), n: id(c.n), m: typeof c.m === 'string' && /^[a-z0-9:,]{0,300}$/.test(c.m) ? c.m : '' };
+  return { lvl: Math.max(1, Math.min(100, Math.floor(+c.lvl) || 1)), t: id(c.t), c: id(c.c), b: id(c.b), n: id(c.n), f: id(c.f), u: id(c.u), m: typeof c.m === 'string' && /^[a-z0-9:,]{0,300}$/.test(c.m) ? c.m : '' };
 }
 function lobbyMsg(room) {
   return { t: 'lobby', ph: room.phase, map: room.map, maps: WD.MAP_LIST, veto: room.vetoMode !== 'host', code: room.code, host: room.hostId, max: MAX_PLAYERS, cap: MAX_PLAYERS / 2, players: [...room.players.values()].map(p => ({ id: p.id, name: p.name, team: p.pref, cos: p.cos || null, prof: p.prof || null })) };
@@ -228,7 +228,7 @@ function roundMsg(room) {
 function tpMsg(p) { return { t: 'tp', id: p.corrId, x: r2(p.x), y: r2(p.y), z: r2(p.z), yaw: r2(p.yaw) }; }
 
 /* ------------------------------------------------------------------ WebSocket */
-const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 8192, perMessageDeflate: false });
+const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 49152, perMessageDeflate: false });
 wss.on('connection', (ws, req) => {
   // v23: kun desktop-appen må spille, og kun med samme udgave af spillet som serveren
   const b = new URL(req.url, 'http://x').searchParams.get('b');
@@ -364,6 +364,12 @@ function handle(ws, m) {
       break;
     case 'chat': onChat(room, p, m); break;   // v17: chat (alle / holdet) – Y / U i klienten
     case 'cos': p.cos = cleanCos(m.c); room.bcast({ t: 'cos', id: p.id, c: p.cos }); break;   // inventar-valg -> alle i rummet
+    case 'pub': {   // v26.6: offentlige profildata (vennekort + fraktions-regnskab) – gemmes og sendes videre; den nye får de andres
+      let d = m.d; try { if (!d || typeof d !== 'object' || JSON.stringify(d).length > 40000) return; } catch (e) { return; }
+      p.pub = d; room.bcast({ t: 'pub', id: p.id, d });
+      if (m.first) for (const q of room.players.values()) if (q !== p && q.pub) sendP(p, { t: 'pub', id: q.id, d: q.pub });
+      break;
+    }
     case 'prof': p.prof = cleanProf(m.p); room.bcast({ t: 'prof', id: p.id, p: p.prof }); break;   // v26.6: level/rank/titel/kort til de andre
     case 'shoot': onShoot(room, p, m); break;
     case 'reload': startReload(p); break;
@@ -540,7 +546,7 @@ function endRound(room, win, reason) {
   for (const p of room.players.values()) {
     if (!p.side) continue; const rf = p.rf || newRF();
     sendP(p, { t: 'ev', k: 'rf', n: room.round, won: p.side === win ? 1 : 0, mvp: mvp === p ? 1 : 0, alive: p.alive ? 1 : 0, side: p.side, reason,
-      kills: rf.kills, plant: rf.plant, defuse: rf.defuse, dmg: Math.round(p.rdmg || 0), bounty: p.wasBounty ? 1 : 0, clutch: p.side === win && p.alive && [...room.players.values()].filter(q => q.side === win && q.alive).length === 1 ? 1 : 0 });
+      kills: rf.kills, plant: rf.plant, defuse: rf.defuse, site: rf.site || null, dmg: Math.round(p.rdmg || 0), bounty: p.wasBounty ? 1 : 0, clutch: p.side === win && p.alive && [...room.players.values()].filter(q => q.side === win && q.alive).length === 1 ? 1 : 0 });
   }
 }
 // v12: holdets økonomi (kun ens egne holdkammerater, som i CS) + tabsserie → købsmenuens økonomi-panel
@@ -1000,7 +1006,7 @@ function updateActions(room, p, dt) {
     if (p.actT >= TIMES.plant) {
       const site = WD.plantSpot(room.W, p.x, p.y, p.z);
       b.state = 2; b.x = p.x; b.y = WD.groundAt(room.W, p.x, p.z, p.y, 0.05); b.z = p.z; b.timer = TIMES.bomb; b.carrier = 0; p.inv.bomb = false;
-      addMoney(p, ECON.plant); p.act = null; p.actT = 0; room.planter = p.id; (p.rf = p.rf || newRF()).plant = 1;
+      addMoney(p, ECON.plant); p.act = null; p.actT = 0; room.planter = p.id; (p.rf = p.rf || newRF()).plant = 1; p.rf.site = site; b.site = site;
       sendP(p, { t: 'act', k: null }); sendP(p, { t: 'ev', k: 'pay', amt: ECON.plant, why: 'plant' }); sendSelf(p);
       room.bcast({ t: 'ev', k: 'plant', site, by: p.id, x: r2(b.x), y: r2(b.y), z: r2(b.z) });
     }
@@ -1009,7 +1015,7 @@ function updateActions(room, p, dt) {
     if (!ok) return cancelAct(room, p);
     p.actT += dt; b.defT = p.actT;
     if (p.actT >= TIMES.defuse) {
-      b.state = 3; p.act = null; b.defuser = 0; addMoney(p, ECON.defuse); room.defuser = p.id; (p.rf = p.rf || newRF()).defuse = 1;
+      b.state = 3; p.act = null; b.defuser = 0; addMoney(p, ECON.defuse); room.defuser = p.id; (p.rf = p.rf || newRF()).defuse = 1; p.rf.site = b.site || null;
       sendP(p, { t: 'act', k: null }); sendP(p, { t: 'ev', k: 'pay', amt: ECON.defuse, why: 'defuse' }); sendSelf(p);
       room.bcast({ t: 'ev', k: 'defuse', by: p.id });
       endRound(room, 'swat', 'defuse');

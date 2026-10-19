@@ -9,6 +9,7 @@ export function createProfile(o) {
   const blank = () => ({ v: 1, xp: 0, coins: 0, title: 'rekrut', card: 'paper', badge: '', owned: {}, stats: { matches: 0, wins: 0, rounds: 0, roundWins: 0, kills: 0, deaths: 0, hs: 0, knife: 0, mvps: 0, plants: 0, defuses: 0, aces: 0, high: 0, clutch: 0 }, hist: [] });
   let D = blank();
   try { const r = JSON.parse(localStorage.getItem(KEY) || 'null'); if (r && r.v === 1) D = Object.assign(blank(), r, { stats: Object.assign(blank().stats, r.stats || {}) }); } catch (e) { /* ny profil */ }
+  if (!D.uid) D.uid = Array.from({ length: 8 }, () => 'abcdefghjkmnpqrstuvwxyz23456789'[Math.floor(Math.random() * 31)]).join('');   // v26.6: vennekode / fraktions-regnskab
   const listeners = [];
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(D)); } catch (e) {} listeners.forEach(f => { try { f(D); } catch (e) {} }); };
   const lv = () => P.levelOf(D.xp);
@@ -89,7 +90,7 @@ export function createProfile(o) {
 
   /* ---------------- KARRIERE-hubben ---------------- */
   const tabs = [{ id: 'profil', label: 'PROFIL', render: renderProfile }]; let cur = 'profil', hub = null;
-  function addTab(id, label, render, click) { if (!tabs.some(t => t.id === id)) tabs.push({ id, label, render, click }); }
+  function addTab(id, label, render, click, after) { if (!tabs.some(t => t.id === id)) tabs.push({ id, label, render, click, after }); }   // after(hub): efter tegning (3D/canvas)
   function open(tab) {
     if (!hub) { hub = document.createElement('div'); hub.id = 'career'; hub.className = 'settings hidden'; document.body.appendChild(hub);
       hub.addEventListener('mousedown', e => { if (e.target === hub) close(); });
@@ -105,6 +106,7 @@ export function createProfile(o) {
   function render() {
     const t = tabs.find(x => x.id === cur) || tabs[0];
     hub.innerHTML = `<div class="st-panel cr-panel"><div class="st-head"><h2>KARRIERE</h2><div class="iv-tabs">${tabs.map(x => `<button data-ctab="${x.id}" class="${x.id === t.id ? 'sel' : ''}">${x.label}</button>`).join('')}</div><button class="btn btn-tiny btn-ghost" data-close>LUK (ESC)</button></div><div class="cr-body">${t.render()}</div></div>`;
+    if (t.after) try { t.after(hub); } catch (e) { console.warn('[karriere]', e); }
   }
   function card(big) {
     const l = lv(), r = P.rankOf(l.level), nm = (o.name && o.name()) || 'Spiller';
@@ -135,6 +137,6 @@ export function createProfile(o) {
     return `<div class="pf-strip" style="--rc:${r.col}">${emblem(l.level, 34)}<div><b>LEVEL ${l.level}</b><small>${r.label} · ${esc(titleName(D.title))}</small><i><em style="width:${(l.frac * 100).toFixed(1)}%"></em></i></div></div>`;
   }
   // kort sammendrag til de andre spillere (lobby/scoreboard)
-  const summary = () => ({ lvl: lv().level, t: D.title, c: D.card, b: D.badge, n: D.nc || '', m: o.mastery ? o.mastery() : '' });
+  const summary = () => ({ u: D.uid, f: (D.fx && D.fx.f) || '', lvl: lv().level, t: D.title, c: D.card, b: D.badge, n: D.nc || '', m: o.mastery ? o.mastery() : '' });
   return { get data() { return D; }, registerExtra, toast, save, onRound, onMatch, summary, open, close, isOpen, addTab, emblem, strip, card, hooks, has, titleName, cardCss, onChange: f => listeners.push(f), addXP, render: () => hub && isOpen() && render() };
 }

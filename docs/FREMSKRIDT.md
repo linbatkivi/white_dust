@@ -15,7 +15,7 @@ Venner og fraktioner udveksler data direkte mellem spillerne via PeerJS (ingen n
 | 6  | Mastery pr. våben/udstyr (level 1–10): bronze/sølv/guld-charm på våbnet (ses af alle), guld = snurre-inspect (F) | ✅ færdig     |
 | 7  | Bounty: 3 drab i træk → Bounty Target ($1000 + 250 pr. drab), chip/banner, rødt mærke (skjult bag vægge), +$300 til holdet, XP og trofæer | ✅ færdig     |
 | 8  | Dynamiske events (30 % fra runde 3, aldrig to i træk): tæt tåge (~15 m), skybrud (lyn + regn), strømafbrydelse (rødt pulserende nødlys, lommelygter afslører spillere) · banner + chip | ✅ færdig     |
-| 9  | Interaktive kortmekanikker (porte, projektører, damp)          | ⏳ næste      |
-| 10 | Fraktioner og kontrol over bydele (sæsonkort)                  | ⬜            |
-| 11 | Hideout / trofærum                                             | ⬜            |
+| 9  | Interaktive kortmekanikker (porte, projektører, damp)          | ✖ skrottet    |
+| 10 | Fraktioner: Kaffekartellet / Serverklanen / Krypterne kæmper om 10 bydele på de_bureau; sæsonkort, ugeopgørelse (XP, mønter, titel/badge), regnskab deles mellem alle man spiller med | ✅ færdig     |
+| 11 | Hideout / trofærum                                             | ⏳ næste      |
 | 12 | Vennesystem: sammenlign statistik og trofæer                   | ⬜            |
