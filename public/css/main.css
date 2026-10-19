@@ -1647,3 +1647,8 @@ body.mvpcine #hud, body.mvpcine #nameTags, body.mvpcine #clickToPlay, body.mvpci
 .bty-ban b { display: block; margin-top: 6px; font: 900 30px 'Archivo Black', sans-serif; text-shadow: 4px 4px 0 #0a0a0a; }
 .bty-ban em { display: block; font: 900 38px 'Archivo Black', sans-serif; font-style: normal; color: #ffd23a; text-shadow: 4px 4px 0 #0a0a0a; }
 @keyframes btyB { 0% { opacity: 0; transform: translateX(-50%) scale(1.6); } 10% { opacity: 1; transform: translateX(-50%) scale(1); } 85% { opacity: 1; } 100% { opacity: 0; transform: translateX(-50%) translateY(-20px); } }
+/* v26.6: events */
+.ev-chip { position: fixed; top: 74px; left: calc(50% + 190px); z-index: 12; display: flex; align-items: center; gap: 8px; background: #0a0a0a; color: #f4f4f2; padding: 4px 12px 4px 6px; box-shadow: 3px 3px 0 #ffd23a; font: 700 11px 'JetBrains Mono', monospace; letter-spacing: .14em; pointer-events: none; }
+.ev-chip.hidden { display: none; } .ev-chip i { width: 18px; height: 18px; background: #ffd23a; animation: btyP 1.4s infinite; }
+.ev-chip.blackout i { background: var(--red); } .ev-chip.fog i { background: #9fb0c3; } .ev-chip.storm i { background: #6ea2ff; }
+.ev-sub { display: block; margin-top: 4px; font: 700 13px 'JetBrains Mono', monospace; letter-spacing: .06em; text-shadow: 2px 2px 0 #0a0a0a; }

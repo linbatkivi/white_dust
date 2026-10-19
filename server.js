@@ -221,7 +221,7 @@ function sendSelf(p) {
 function roundMsg(room) {
   return {
     t: 'round', map: room.map, n: room.round, ph: room.phase, ms: Math.max(0, Math.round(room.phaseEnd - now())), score: [room.score.swat, room.score.hij], half: room.swapped,
-    intro: room.introEnd ? Math.max(0, Math.round(room.introEnd - now())) : 0,
+    intro: room.introEnd ? Math.max(0, Math.round(room.introEnd - now())) : 0, ev: room.event || null,
     players: [...room.players.values()].filter(p => p.side).map(p => ({ id: p.id, name: p.name, side: p.side, cos: p.cos || null, prof: p.prof || null }))
   };
 }
@@ -395,7 +395,7 @@ function assignTeams(room) {
 function startGame(room, teams) {
   const T = teams || assignTeams(room);
   if (!T) { const h = room.players.get(room.hostId); if (h) sendP(h, { t: 'notice', msg: 'Begge hold skal have mindst én spiller' }); return false; }
-  room.W = WD.buildWorld(room.map);                       // banen låses ved spilstart (skifter ikke af sig selv)
+  room.W = WD.buildWorld(room.map); room.event = null;   // banen låses ved spilstart (skifter ikke af sig selv)
   T.hij.forEach(p => { p.side = 'hij'; }); T.swat.forEach(p => { p.side = 'swat'; });
   const ps = [...room.players.values()];
   ps.forEach(p => {
@@ -470,6 +470,8 @@ function checkLoaded(room) {
 function newRound(room) {
   const t = now();
   room.round++;
+  // v26.6: dynamiske events fra runde 3 (ca. 30 %, aldrig to i træk): tæt tåge, skybrud eller strømafbrydelse (kun nødlys + lommelygter)
+  room.event = (room.round >= 3 || process.env.WD_EVENT) && !room.event && Math.random() < (process.env.WD_EVENT ? 1 : 0.3) ? (process.env.WD_EVENT || ['fog', 'storm', 'blackout'][Math.floor(Math.random() * 3)]) : null;
   room.phase = 'buy'; room.phaseEnd = t + TIMES.buy * 1000;
   // v22: kampens første runde starter med intro-cutscenen (holdene ankommer) – købsfasen forlænges, og der kan ikke købes imens
   room.introEnd = room.round === 1 && TIMES.intro > 0 ? t + TIMES.intro * 1000 : 0;

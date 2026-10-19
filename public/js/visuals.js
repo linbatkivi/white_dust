@@ -160,8 +160,9 @@ export function createVisuals(THREE, WD, W, canvasTexture, maxAniso, createTheme
       w += wt; r += p.data[idx * 4] * wt; g += p.data[idx * 4 + 1] * wt; b2 += p.data[idx * 4 + 2] * wt; s += p.data[idx * 4 + 3] * wt;
     }
     if (w < 1e-3) { out[0] = out[1] = out[2] = 0; out[3] = 0.35; return out; }
-    out[0] = r / w; out[1] = g / w; out[2] = b2 / w; out[3] = s / w; return out;
+    out[0] = r / w * PMUL[0]; out[1] = g / w * PMUL[1]; out[2] = b2 / w * PMUL[2]; out[3] = s / w; return out;
   }
+  const PMUL = [1, 1, 1];                                           // v26.6: events (strømafbrydelse) dæmper lyset på figurer/våben
   // flade-vertex: himmel (inkl. let 'bounce' fra omgivelserne) + lamper
   const _pr = [0, 0, 0, 0], _ll = [0, 0, 0];
   function bakeSurface(x, y, z, nx, ny, nz, cx, cy, cz) {
@@ -988,5 +989,5 @@ float wdN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
     const m = new THREE.Mesh(new THREE.SphereGeometry(200, 32, 16), mat2); m.renderOrder = -1000; m.frustumCulled = false; return m;
   }
 
-  return { buildWorldMesh, buildDecor, buildDoors, buildFx, buildSky, update, theme, probe, buildProbes, dynMat, withBake, insideSolid, weather: WU };
+  return { setProbeMul: (r, g, b) => { PMUL[0] = r; PMUL[1] = g; PMUL[2] = b; }, buildWorldMesh, buildDecor, buildDoors, buildFx, buildSky, update, theme, probe, buildProbes, dynMat, withBake, insideSolid, weather: WU };
 }

@@ -133,7 +133,7 @@ export function createNight(o) {
   }
 
   // ---------------------------------------------------------------- lyn og torden
-  let nextBolt = 6 + Math.random() * 10, bolt = null;
+  let nextBolt = 6 + Math.random() * 10, bolt = null, storm = false;
   const sunBase = o.sun ? o.sun.intensity : 0;
   function lightning() {
     const dist = 0.3 + Math.random() * 2.8;                                        // "afstand": kort = kraftigt blink og brag
@@ -156,7 +156,7 @@ export function createNight(o) {
     if ((poolT -= dt) <= 0) { poolT = 0.25; updatePool(cam); }
     for (const L of pool) if (L.userData.base) { const f = L.userData.fl; L.intensity = L.userData.base * (1 - f * (0.25 * Math.sin(t * 13 + L.position.x * 7) + 0.15 * Math.sin(t * 23 + L.position.z * 3))); }
     // lyn
-    if (R.lightning) { nextBolt -= dt; if (nextBolt <= 0) { nextBolt = 35 + Math.random() * 40; lightning(); } }
+    if (R.lightning) { nextBolt -= dt; if (nextBolt <= 0) { nextBolt = storm ? 6 + Math.random() * 9 : 35 + Math.random() * 40; lightning(); } }   // v26.6: skybrud – lyn langt oftere
     let fl = 0;
     if (bolt) {
       bolt.t += dt;
@@ -169,7 +169,8 @@ export function createNight(o) {
     // lyd efter tag-kortet: under tag → dæmpet regn + tagrende
     const roof = topAt(cam.x, cam.z) > cam.y + 0.2 ? 1 : 0;
     inside += (roof - inside) * Math.min(1, dt * 2.5);
-    if (rainOut) { rainOut.setVol(0.06 * (1 - inside) + 0.0001, 0.3); rainIn.setVol(0.035 * inside + 0.0001, 0.3); gutter.setVol(0.018 * inside + 0.006, 0.3); }   // v26.5: regnen langt lavere – kun en stemning i baggrunden
+    const sk = storm ? 1.8 : 1;
+    if (rainOut) { rainOut.setVol(0.06 * sk * (1 - inside) + 0.0001, 0.3); rainIn.setVol(0.035 * sk * inside + 0.0001, 0.3); gutter.setVol(0.018 * sk * inside + 0.006, 0.3); }   // v26.5: regnen langt lavere – kun en stemning i baggrunden
   }
   function dispose() {
     o.scene.remove(group); topTex.dispose(); g.dispose(); gs.dispose(); rainM.dispose(); splM.dispose();
@@ -177,5 +178,5 @@ export function createNight(o) {
     for (const h of [rainOut, rainIn, gutter]) if (h) h.stop(1.0);
     if (o.sun) o.sun.intensity = sunBase;
   }
-  return { group, rainM, update, dispose, lightning, topAt, get flash() { return flashU.value; } };
+  return { setStorm: on => { storm = !!on; if (on) nextBolt = Math.min(nextBolt, 3); if (rainM && rainM.uniforms && rainM.uniforms.uRate) rainM.uniforms.uRate.value = on ? 2.2 : 1; }, group, rainM, update, dispose, lightning, topAt, get flash() { return flashU.value; } };
 }
