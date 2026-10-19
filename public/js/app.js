@@ -26,6 +26,7 @@ import { createIntro } from '/js/intro.js';
 import { createBombCine } from '/js/bombcine.js';
 import { createMvpCine } from '/js/mvpcine.js';
 import { createRoundCine } from '/js/roundcine.js';
+import { createProfile } from '/js/profile.js';
 import { createNight } from '/js/night.js';
 import * as SK from '/js/skins.js';
 import { createInventory } from '/js/inventory.js';
@@ -58,7 +59,7 @@ const Settings = createSettings({ onChange: applySettings });
 // v11.3: inventar (agenter + våben-skins). Ændringer sendes til serveren og anvendes straks på førstepersonsvåbnet.
 const Inv = createInventory({ THREE, skins: SK, chars: () => Renderer.chars(), weap: () => Renderer.weap(), weaponCode: id => (WD.WEAPONS[id] || {}).code || 0,
   onChange: inv => { if (Net.connected) Net.send({ t: 'cos', c: inv }); Renderer.onCosmetics(); } });
-const uiOpen = () => Settings.isOpen() || Inv.isOpen() || Chat.isOpen();
+const uiOpen = () => Settings.isOpen() || Inv.isOpen() || Chat.isOpen() || Profile.isOpen();
 function applySettings(S) {
   Audio.setVolumes({ master: S.vol / 100, sfx: S.sfx / 100, music: S.music / 100, voice: S.voice / 100 });
   const xh = document.getElementById('crosshair'); if (xh) Settings.drawCrosshair(xh, S.xh, 1);
@@ -77,6 +78,10 @@ const lerp = (a, b, t) => a + (b - a) * t;
 const lerpAngle = (a, b, t) => { let d = ((b - a + Math.PI) % (Math.PI * 2)) - Math.PI; if (d < -Math.PI) d += Math.PI * 2; return a + d * t; };
 const fmtTime = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
 const smooth = t => t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
+// v26.6: profil & karriere (XP, levels, ranks, titler, profilkort – senere missioner, trofæer, mastery …)
+const Profile = createProfile({ $, Audio, esc: escapeHtml, onLevel: () => { if (Net.connected) Net.send({ t: 'prof', p: Profile.summary() }); }, name: () => ($('nameInput') && $('nameInput').value.trim()) || loadName() || 'Spiller' });
+function drawStrip() { const el = $('pfStrip'); if (el) el.innerHTML = Profile.strip(); }
+Profile.onChange(drawStrip);
 
 function canvasTexture(draw, w, h) {
   const c = document.createElement('canvas'); c.width = w; c.height = h;
@@ -348,6 +353,7 @@ $('btnLeave').addEventListener('click', () => { clearSession(); location.reload(
 $('btnSettings').addEventListener('click', () => Settings.open());
 $('btnSettingsGame').addEventListener('click', e => { e.stopPropagation(); Settings.open(); });
 for (const id of ['btnInventory', 'btnInventoryLobby']) $(id).addEventListener('click', () => Inv.open());
+$('btnCareer').addEventListener('click', () => Profile.open()); $('pfStrip').addEventListener('click', () => Profile.open()); drawStrip();   // v26.6
 $('btnInventoryGame').addEventListener('click', e => { e.stopPropagation(); if (document.pointerLockElement) document.exitPointerLock(); Inv.open(); });
 $('btnStart').addEventListener('click', () => Net.send({ t: 'start' }));
 $('btnTeamHij').addEventListener('click', () => Net.send({ t: 'team', side: 'hij' }));
@@ -384,7 +390,10 @@ $('chatInput').addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); Chat.send(); } else if (e.key === 'Escape') e.preventDefault();   // v17: Esc lukker ikke chatten (Mac: ville forlade fuldskærm) – Enter på tom linje lukker
 });
 Net.on('pong', m => { const rtt = performance.now() - m.c; if (rtt >= 0 && rtt < 5000) Game.ping = Game.ping ? Game.ping * 0.6 + rtt * 0.4 : rtt; });
-Net.on('cos', m => { const e = Game.players.get(m.id); if (e) e.cos = SK.sanitize(m.c); });   // en anden spiller skiftede agent/skins
+Net.on('cos', m => { const e = Game.players.get(m.id); if (e) e.cos = SK.sanitize(m.c); });
+Net.on('prof', m => { const e = Game.players.get(m.id); if (e) e.prof = m.p; });   // v26.6: en anden spillers level/rank
+// v26.6: lille rank-emblem + level ved navne (lobby, scoreboard)
+function lvlTag(pf) { if (!pf || !pf.lvl) return ''; const r = window.WDP.rankOf(pf.lvl); return `<b class="lvl-tag" style="--rc:${r.col}" title="${r.label}">${Profile.emblem(pf.lvl, 16)}${pf.lvl}</b>`; }   // en anden spiller skiftede agent/skins
 
 /* ---- v12.1: radar/minimap for baner bygget af bokse: gulve i lagets højdebånd (lyse), ramper, mure ovenpå (mørke) ---- */
 function drawBoxLayer(c, L, S, ox, oz, top, Wm) {
@@ -583,8 +592,8 @@ Net.on('lobby', m => {
   refreshMatchButtons();
   if (m.ph && m.ph !== 'lobby') return;     // værtsskifte midt i spillet: kun rolle-opdatering
   Game.players.clear();
-  m.players.forEach(p => Game.players.set(p.id, { name: p.name, side: null, cos: SK.sanitize(p.cos) }));
-  if (!Game.cosSent) { Game.cosSent = true; Net.send({ t: 'cos', c: Inv.get() }); }   // mit inventar til de andre spillere
+  m.players.forEach(p => Game.players.set(p.id, { name: p.name, side: null, cos: SK.sanitize(p.cos), prof: p.prof || null }));
+  if (!Game.cosSent) { Game.cosSent = true; Net.send({ t: 'cos', c: Inv.get() }); Net.send({ t: 'prof', p: Profile.summary() }); }   // mit inventar + min profil til de andre spillere
   if (Game.state !== 'lobby') leaveGameView();
   $('lobbyCode').textContent = m.code;
   const lists = { hij: $('listHij'), swat: $('listSwat'), none: $('lobbyList') }, cnt = { hij: 0, swat: 0, none: 0 };
@@ -596,7 +605,7 @@ Net.on('lobby', m => {
     if (p.id === Game.meId) Game.myTeam = p.team || null;
     const li = document.createElement('li');
     const key = p.id + ':' + k; nowSeen.add(key); if (!seen.has(key)) li.classList.add('join'); if (p.id === Game.meId) li.classList.add('me');   // v26: ny på holdet → glid ind
-    li.innerHTML = `<span>${escapeHtml(p.name)}${p.id === Game.meId ? ' <i style="opacity:.55">(dig)</i>' : ''}</span>` + (p.id === m.host ? '<span class="host-tag">VÆRT</span>' : '')
+    li.innerHTML = `${lvlTag(p.prof)}<span>${escapeHtml(p.name)}${p.id === Game.meId ? ' <i style="opacity:.55">(dig)</i>' : ''}${p.prof && p.prof.t ? `<small class="lb-title">${escapeHtml(Profile.titleName(p.prof.t))}</small>` : ''}</span>` + (p.id === m.host ? '<span class="host-tag">VÆRT</span>' : '')
       + (m.host === Game.meId && p.id !== Game.meId ? `<button class="kick-btn" data-kick="${p.id}" title="Smid ${escapeHtml(p.name)} ud af partyet">KICK</button>` : '');   // v20: kun værten kan kicke
     lists[k].appendChild(li);
   }
@@ -629,7 +638,7 @@ Net.on('round', m => {
   if (m.map) setMap(m.map);
   if (Game.state !== 'game') enterGame();
   Game.phase = m.ph; Game.phaseEnd = performance.now() + m.ms; Game.round = m.n; Game.score = m.score; Game.half = m.half;
-  m.players.forEach(p => { const e = Game.players.get(p.id) || {}; e.name = p.name; e.side = p.side; if (p.cos) e.cos = SK.sanitize(p.cos); Game.players.set(p.id, e); });
+  m.players.forEach(p => { const e = Game.players.get(p.id) || {}; e.name = p.name; e.side = p.side; if (p.cos) e.cos = SK.sanitize(p.cos); if (p.prof) e.prof = p.prof; Game.players.set(p.id, e); });
   const me = Game.players.get(Game.meId); if (me) Game.side = me.side;
   $('roundBanner').classList.add('hidden'); HUD.hideRoundEnd(); showLoadWait();
   if (m.ph === 'buy' && Game.lastRoundN !== m.n) { Game.lastRoundN = m.n; Audio.music('start'); }
@@ -678,7 +687,7 @@ Net.on('load', m => {
   hideVeto(); if (Victory.active) Victory.hide();
   if (m.map) setMap(m.map);
   Game.phase = 'loading'; Game.loadAcked = false; Game.round = 0;
-  m.players.forEach(p => { const e = Game.players.get(p.id) || {}; e.name = p.name; e.side = p.side; if (p.cos) e.cos = SK.sanitize(p.cos); Game.players.set(p.id, e); });
+  m.players.forEach(p => { const e = Game.players.get(p.id) || {}; e.name = p.name; e.side = p.side; if (p.cos) e.cos = SK.sanitize(p.cos); if (p.prof) e.prof = p.prof; Game.players.set(p.id, e); });
   const me = Game.players.get(Game.meId); if (me) Game.side = me.side;
   if (Game.state !== 'game') enterGame();
   Renderer.chars();                                                    // figurer/knive hentes nu (ikke først når de ses)
@@ -732,6 +741,8 @@ Net.on('ev', m => {
     case 'shot': Renderer.onShotFx(m); break;
     case 'hit': HUD.hitmarker(m.kill, m.hs); Renderer.flinchAim(); Audio.click(m.knife ? 'flesh' : m.hs ? 'hs' : 'hit'); if (m.kill) Audio.click('kill'); break;
     case 'hurt': HUD.damageIndicator(m.dx, m.dz, m.dmg); Renderer.shake(m.hs ? 0.3 : 0.18); break;
+    case 'rf': Profile.onRound(m); break;                                        // v26.6: rundens fakta → XP
+    case 'mf': Profile.onMatch(m); break;
     case 'kill': HUD.killfeed(m); noteKill(m); if (m.v === Game.meId) { HUD.showDead(); Game.nade = null; Game.firing = false; } break;
     case 'end': m._rx = performance.now(); if (!Renderer.deferEnd(m, roundCineInfo(m))) HUD.roundEnd(m); break;   // v26: bombe-filmen · v26.3: rundeslut-filmen – rundeslut/MVP bagefter
     case 'pay': HUD.pay(m); break;
@@ -1598,7 +1609,7 @@ const HUD = {
     const swat = $('sbSwat'), hij = $('sbHij'); swat.innerHTML = ''; hij.innerHTML = '';
     for (const [id, name, side, k, d, alive, conn] of rows) {
       const tr = document.createElement('tr'); if (!alive) tr.className = 'dead'; if (id === Game.meId) tr.className += ' me';
-      tr.innerHTML = `<td class="sb-name">${escapeHtml(name)}${!conn ? ' ⚠' : ''}</td><td>${k}</td><td>${d}</td>`;
+      tr.innerHTML = `<td class="sb-name">${lvlTag((Game.players.get(id) || {}).prof)}${escapeHtml(name)}${!conn ? ' ⚠' : ''}</td><td>${k}</td><td>${d}</td>`;
       (side === 'swat' ? swat : hij).appendChild(tr);
     }
   },
@@ -3075,7 +3086,7 @@ async function runTour(id, only) {
   const params = new URLSearchParams(location.search);
   const joinCode = params.get('join');
   if (joinCode && /^\d{4}$/.test(joinCode)) { $('codeInput').value = joinCode; $('joinRow').classList.remove('hidden'); }
-  if (DEV) window.__wd = { mvp: i => MvpCine.play(i), victory: m => startVictory(m), hudRE: m => HUD.roundEnd(m), introPlay: (ms) => { const I = Renderer.intro(); return I.preload().then(() => I.play({ side: Game.side, mates: [...Game.players.entries()].filter(([, p]) => p.side === Game.side).map(([id, p]) => ({ id, cos: p.cos, me: id === Game.meId })) }, ms || 13000)); }, Game, Renderer, Net, BuyMenu, get W() { return W; }, WD, THREE, KEY, Settings, act: { nadeStart, nadeRelease, fireStart, fireEnd, switchWeapon, startFlash, startReloadLocal }, tour: runTour,
+  if (DEV) window.__wd = { Profile, mvp: i => MvpCine.play(i), victory: m => startVictory(m), hudRE: m => HUD.roundEnd(m), introPlay: (ms) => { const I = Renderer.intro(); return I.preload().then(() => I.play({ side: Game.side, mates: [...Game.players.entries()].filter(([, p]) => p.side === Game.side).map(([id, p]) => ({ id, cos: p.cos, me: id === Game.meId })) }, ms || 13000)); }, Game, Renderer, Net, BuyMenu, get W() { return W; }, WD, THREE, KEY, Settings, act: { nadeStart, nadeRelease, fireStart, fireEnd, switchWeapon, startFlash, startReloadLocal }, tour: runTour,
     bombSheet: async (id, site, times, name) => {                              // v26: node pw/bomb.js – kontaktark af bombe-filmen → docs/qa/<name>.jpg
       if (Renderer.mapId !== id) await runTour(id, [{ n: 'load', x: 0, y: 2, z: 0, yaw: 0 }]);
       const cv = await Renderer.bombSheet(site, times); if (!cv) return null;

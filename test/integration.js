@@ -166,6 +166,8 @@ async function main() {
     const endEv = await A.wait(m => m.t === 'ev' && m.k === 'end', 3000);
     ok(endEv && endEv.win === A.side && endEv.reason === 'elim', `Runden slutter: ${endEv && endEv.win} vinder ved eliminering`);
     ok(endEv && (endEv.score[0] + endEv.score[1]) === 1, 'Score opdateret');
+    const rfA = await A.wait(m => m.t === 'ev' && m.k === 'rf', 1500), rfB = await B.wait(m => m.t === 'ev' && m.k === 'rf', 1500);   // v26.6: progressionens fakta
+    ok(rfA && rfA.won === 1 && rfA.kills.length === 1 && rfA.kills[0].hs && typeof rfA.kills[0].at === 'string' && rfB && rfB.won === 0 && !rfB.alive, 'Rundens fakta til progressionen (sejr, drab, headshot, rum)');
     await sleep(100);
     ok(A.self.money > 9000 - 2700 - 1, 'Penge udbetalt efter runden (vinder-bonus + kill)');
 
@@ -225,6 +227,8 @@ async function main() {
     ok(!!df, 'Bomben desarmeret');
     const e3 = await swat.wait(m => m.t === 'ev' && m.k === 'end' && m.reason === 'defuse', 2000);
     ok(e3 && e3.win === 'swat' && e3.reason === 'defuse', 'SWAT vinder ved desarmering');
+    const rf3 = await swat.wait(m => m.t === 'ev' && m.k === 'rf', 1500);
+    ok(rf3 && rf3.defuse === 1 && rf3.won === 1, 'Fakta: desarmeringen tælles til progressionen');
 
     console.log('\n== Runde 4: granater (kast-kraft, underhånd, HE, flashbang, molotov, smoke) ==');
     const GX = -3.5, GY = 4.8, GZ = -1;   // fri 20 m bane på øverste etage (atriets lounge-ø står på den gamle x=12-linje)
@@ -308,7 +312,7 @@ async function main() {
     let guard = 0, gameOver = null, halfSeen = false;
     A.log = []; 
     swat.log.length = 0;
-    const listen = b => b.ws.on('message', d => { const m = JSON.parse(d); if (m.t === 'ev' && m.k === 'half') halfSeen = true; if (m.t === 'ev' && m.k === 'over') gameOver = m; });
+    let mfSeen = null; const listen = b => b.ws.on('message', d => { const m = JSON.parse(d); if (m.t === 'ev' && m.k === 'half') halfSeen = true; if (m.t === 'ev' && m.k === 'over') gameOver = m; if (m.t === 'ev' && m.k === 'mf') mfSeen = m; });
     listen(A);
     while (!gameOver && guard++ < 30) {
       // afvent næste live-fase
@@ -328,6 +332,7 @@ async function main() {
       await A.wait(m => m.t === 'ev' && m.k === 'end', 2500);
     }
     ok(!!gameOver, 'Spillet slutter når et hold har 7 runder');
+    await sleep(200); if (!mfSeen) console.log('    (debug) A.log:', A.log.filter(m => m.t === 'ev').map(m => m.k).slice(-12).join(','), 'side', A.self && A.self.side); ok(mfSeen && typeof mfSeen.won === 'number' && mfSeen.rounds > 0, 'Kampens fakta (sejr, drab, runder) til progressionen');
     ok(halfSeen, 'Sidevalg skiftes ved halvleg');
     ok(gameOver && Math.max(...gameOver.score) === 7, 'Slutstilling: ' + (gameOver && gameOver.score.join('-')));
     const lob = await A.wait(m => m.t === 'lobby', 6000);

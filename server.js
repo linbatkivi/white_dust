@@ -206,8 +206,14 @@ function cleanCos(c) {
   if (c.skins && typeof c.skins === 'object') for (const k of Object.keys(WD.WEAPONS)) { const v = c.skins[k]; if (typeof v === 'string' && /^[a-z0-9_]{1,24}$/.test(v)) out.skins[k] = v; }
   return out;
 }
+// v26.6: profil-sammendrag fra klienten (kun visning): level 1–100, titel/kort/badge som korte id'er
+function cleanProf(c) {
+  if (!c || typeof c !== 'object') return null;
+  const id = v => typeof v === 'string' && /^[a-z0-9_]{0,24}$/.test(v) ? v : '';
+  return { lvl: Math.max(1, Math.min(100, Math.floor(+c.lvl) || 1)), t: id(c.t), c: id(c.c), b: id(c.b) };
+}
 function lobbyMsg(room) {
-  return { t: 'lobby', ph: room.phase, map: room.map, maps: WD.MAP_LIST, veto: room.vetoMode !== 'host', code: room.code, host: room.hostId, max: MAX_PLAYERS, cap: MAX_PLAYERS / 2, players: [...room.players.values()].map(p => ({ id: p.id, name: p.name, team: p.pref, cos: p.cos || null })) };
+  return { t: 'lobby', ph: room.phase, map: room.map, maps: WD.MAP_LIST, veto: room.vetoMode !== 'host', code: room.code, host: room.hostId, max: MAX_PLAYERS, cap: MAX_PLAYERS / 2, players: [...room.players.values()].map(p => ({ id: p.id, name: p.name, team: p.pref, cos: p.cos || null, prof: p.prof || null })) };
 }
 function sendSelf(p) {
   sendP(p, { t: 'self', hp: p.hp, money: p.money, alive: p.alive, side: p.side, inv: p.inv, cur: p.cur, ammo: p.ammo, bought: p.bought });
@@ -216,7 +222,7 @@ function roundMsg(room) {
   return {
     t: 'round', map: room.map, n: room.round, ph: room.phase, ms: Math.max(0, Math.round(room.phaseEnd - now())), score: [room.score.swat, room.score.hij], half: room.swapped,
     intro: room.introEnd ? Math.max(0, Math.round(room.introEnd - now())) : 0,
-    players: [...room.players.values()].filter(p => p.side).map(p => ({ id: p.id, name: p.name, side: p.side, cos: p.cos || null }))
+    players: [...room.players.values()].filter(p => p.side).map(p => ({ id: p.id, name: p.name, side: p.side, cos: p.cos || null, prof: p.prof || null }))
   };
 }
 function tpMsg(p) { return { t: 'tp', id: p.corrId, x: r2(p.x), y: r2(p.y), z: r2(p.z), yaw: r2(p.yaw) }; }
@@ -358,6 +364,7 @@ function handle(ws, m) {
       break;
     case 'chat': onChat(room, p, m); break;   // v17: chat (alle / holdet) – Y / U i klienten
     case 'cos': p.cos = cleanCos(m.c); room.bcast({ t: 'cos', id: p.id, c: p.cos }); break;   // inventar-valg -> alle i rummet
+    case 'prof': p.prof = cleanProf(m.p); room.bcast({ t: 'prof', id: p.id, p: p.prof }); break;   // v26.6: level/rank/titel/kort til de andre
     case 'shoot': onShoot(room, p, m); break;
     case 'reload': startReload(p); break;
     case 'sw': onSwitch(p, m.w); break;
@@ -480,7 +487,7 @@ function newRound(room) {
     p.alive = true; p.hp = 100;
     const list = room.W.spawns[p.side], sp = list[idx[p.side]++ % list.length];
     p.x = sp.x; p.y = sp.y; p.z = sp.z; p.yaw = sp.yaw; p.pitch = 0; p.crouch = false; p.ground = true; p.speed = 0;
-    p.bought = []; p.rk = 0; p.rdmg = 0;
+    p.bought = []; p.rk = 0; p.rdmg = 0; p.rf = newRF();
     p.hist = []; p.act = null; p.use = false; p.pin = false; p.fireAcc = 0; p.lastIn = t; p.budget = 4; p.corrId++;
     if (p.side === 'hij') hijs.push(p);
   }
@@ -527,6 +534,12 @@ function endRound(room, win, reason) {
     by: reason === 'defuse' ? room.defuser : reason === 'bomb' ? room.planter : 0 });
   for (const p of room.players.values()) if (p.side) sendSelf(p);
   sendEco(room);
+  // v26.6: rundens fakta til hver spiller (klienten regner XP/missioner/trofæer/mastery ud fra dem)
+  for (const p of room.players.values()) {
+    if (!p.side) continue; const rf = p.rf || newRF();
+    sendP(p, { t: 'ev', k: 'rf', n: room.round, won: p.side === win ? 1 : 0, mvp: mvp === p ? 1 : 0, alive: p.alive ? 1 : 0, side: p.side, reason,
+      kills: rf.kills, plant: rf.plant, defuse: rf.defuse, dmg: Math.round(p.rdmg || 0), clutch: p.side === win && p.alive && [...room.players.values()].filter(q => q.side === win && q.alive).length === 1 ? 1 : 0 });
+  }
 }
 // v12: holdets økonomi (kun ens egne holdkammerater, som i CS) + tabsserie → købsmenuens økonomi-panel
 function sendEco(room) {
@@ -547,6 +560,8 @@ function afterRoundEnd(room) {
     const board = [...room.players.values()].filter(q => q.side).map(q => ({ id: q.id, name: q.name, side: q.side, k: q.kills, d: q.deaths, adr: Math.round((q.dmgTot || 0) / rounds),
       hs: q.kills > 0 ? Math.round(100 * (q.hsK || 0) / q.kills) : 0, mvp: q.mvps || 0, cos: q.cos || null }));
     room.bcast({ t: 'ev', k: 'over', win, score: [room.score.swat, room.score.hij], board, ms: TIMES.over * 1000 });
+    for (const q of room.players.values()) if (q.side) sendP(q, { t: 'ev', k: 'mf', won: q.side === win ? 1 : 0, kills: q.kills, deaths: q.deaths, mvps: q.mvps || 0, hs: q.hsK || 0, rounds, map: room.W.id || 'bureau',
+      score: [room.score.swat, room.score.hij], side: q.side, id: room.id + '-' + room.matchNo + '-' + Date.now().toString(36) });
     return;
   }
   if (room.round === HALF) {          // halvleg: skift side, nulstil penge og udstyr
@@ -862,6 +877,7 @@ function onMelee(room, p, m) {
   if (victim.connected) sendP(victim, { t: 'ev', k: 'hurt', dx: r2(p.x - victim.x), dz: r2(p.z - victim.z), dmg });
 }
 
+const newRF = () => ({ kills: [], plant: 0, defuse: 0, dmg: 0 });
 function damage(room, victim, dmg, attacker, weapon, hs) {
   if (!victim.alive) return false;
   if (attacker && attacker !== victim && attacker.side !== victim.side) { const d_ = Math.min(dmg, victim.hp); attacker.rdmg += d_; attacker.dmgTot = (attacker.dmgTot || 0) + d_; }
@@ -869,7 +885,11 @@ function damage(room, victim, dmg, attacker, weapon, hs) {
   if (victim.hp > 0) { sendSelf(victim); return false; }
   victim.hp = 0; victim.alive = false; victim.deaths++;
   if (attacker && attacker !== victim) {
-    if (attacker.side !== victim.side) { attacker.kills++; attacker.rk++; if (hs) attacker.hsK = (attacker.hsK || 0) + 1; const rw = WD.killReward(weapon); addMoney(attacker, rw); if (rw) sendP(attacker, { t: 'ev', k: 'pay', amt: rw, why: 'kill', w: weapon }); }
+    if (attacker.side !== victim.side) { attacker.kills++; attacker.rk++; if (hs) attacker.hsK = (attacker.hsK || 0) + 1;
+      // v26.6: fakta til progressionen (XP, missioner, trofæer, mastery) – våben, headshot, afstand, højdeforskel, rum
+      (attacker.rf = attacker.rf || newRF()).kills.push({ w: weapon, hs: !!hs, d: Math.round(Math.hypot(attacker.x - victim.x, attacker.z - victim.z) * 10) / 10,
+        dy: Math.round((attacker.y - victim.y) * 10) / 10, at: WD.calloutAt(room.W, attacker.x, attacker.y, attacker.z), vt: WD.calloutAt(room.W, victim.x, victim.y, victim.z),
+        air: !attacker.ground, lo: attacker.hp <= 25, smoke: 0 }); const rw = WD.killReward(weapon); addMoney(attacker, rw); if (rw) sendP(attacker, { t: 'ev', k: 'pay', amt: rw, why: 'kill', w: weapon }); }
     else { attacker.kills--; addMoney(attacker, -300); }                     // holdkammerat-drab (fx egen HE/ild): straf som i CS
     sendSelf(attacker);
   }
@@ -969,7 +989,7 @@ function updateActions(room, p, dt) {
     if (p.actT >= TIMES.plant) {
       const site = WD.plantSpot(room.W, p.x, p.y, p.z);
       b.state = 2; b.x = p.x; b.y = WD.groundAt(room.W, p.x, p.z, p.y, 0.05); b.z = p.z; b.timer = TIMES.bomb; b.carrier = 0; p.inv.bomb = false;
-      addMoney(p, ECON.plant); p.act = null; p.actT = 0; room.planter = p.id;
+      addMoney(p, ECON.plant); p.act = null; p.actT = 0; room.planter = p.id; (p.rf = p.rf || newRF()).plant = 1;
       sendP(p, { t: 'act', k: null }); sendP(p, { t: 'ev', k: 'pay', amt: ECON.plant, why: 'plant' }); sendSelf(p);
       room.bcast({ t: 'ev', k: 'plant', site, by: p.id, x: r2(b.x), y: r2(b.y), z: r2(b.z) });
     }
@@ -978,7 +998,7 @@ function updateActions(room, p, dt) {
     if (!ok) return cancelAct(room, p);
     p.actT += dt; b.defT = p.actT;
     if (p.actT >= TIMES.defuse) {
-      b.state = 3; p.act = null; b.defuser = 0; addMoney(p, ECON.defuse); room.defuser = p.id;
+      b.state = 3; p.act = null; b.defuser = 0; addMoney(p, ECON.defuse); room.defuser = p.id; (p.rf = p.rf || newRF()).defuse = 1;
       sendP(p, { t: 'act', k: null }); sendP(p, { t: 'ev', k: 'pay', amt: ECON.defuse, why: 'defuse' }); sendSelf(p);
       room.bcast({ t: 'ev', k: 'defuse', by: p.id });
       endRound(room, 'swat', 'defuse');
