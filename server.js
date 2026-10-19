@@ -889,7 +889,7 @@ function damage(room, victim, dmg, attacker, weapon, hs) {
       // v26.6: fakta til progressionen (XP, missioner, trofæer, mastery) – våben, headshot, afstand, højdeforskel, rum
       (attacker.rf = attacker.rf || newRF()).kills.push({ w: weapon, hs: !!hs, d: Math.round(Math.hypot(attacker.x - victim.x, attacker.z - victim.z) * 10) / 10,
         dy: Math.round((attacker.y - victim.y) * 10) / 10, at: WD.calloutAt(room.W, attacker.x, attacker.y, attacker.z), vt: WD.calloutAt(room.W, victim.x, victim.y, victim.z),
-        air: !attacker.ground, lo: attacker.hp <= 25, smoke: 0 }); const rw = WD.killReward(weapon); addMoney(attacker, rw); if (rw) sendP(attacker, { t: 'ev', k: 'pay', amt: rw, why: 'kill', w: weapon }); }
+        site: WD.siteAt(room.W, victim.x, victim.y, victim.z) || '', air: !attacker.ground, lo: attacker.hp <= 25, smoke: 0 }); const rw = WD.killReward(weapon); addMoney(attacker, rw); if (rw) sendP(attacker, { t: 'ev', k: 'pay', amt: rw, why: 'kill', w: weapon }); }
     else { attacker.kills--; addMoney(attacker, -300); }                     // holdkammerat-drab (fx egen HE/ild): straf som i CS
     sendSelf(attacker);
   }

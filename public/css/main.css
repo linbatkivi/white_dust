@@ -1571,3 +1571,25 @@ body.mvpcine #hud, body.mvpcine #nameTags, body.mvpcine #clickToPlay, body.mvpci
 .lvl-tag { display: inline-flex; align-items: center; gap: 3px; margin-right: 7px; padding: 1px 6px 1px 2px; background: #0a0a0a; color: var(--rc); font: 900 11px 'Archivo Black', sans-serif; vertical-align: middle; }
 .lvl-tag .pf-emb { filter: none; }
 .lb-title { display: block; font: 700 9px 'JetBrains Mono', monospace; letter-spacing: .1em; color: #8a8f98; }
+/* v26.6: missioner */
+.pf-toasts { position: fixed; right: 22px; top: 22vh; z-index: 47; display: flex; flex-direction: column; gap: 6px; pointer-events: none; align-items: flex-end; }
+.pf-toast { background: #0a0a0a; color: #f4f4f2; padding: 7px 12px; min-width: 230px; max-width: 340px; box-shadow: 4px 4px 0 var(--red); animation: pfT .4s cubic-bezier(.2,1.4,.35,1); transition: opacity .4s, transform .4s; }
+.pf-toast.big { box-shadow: 4px 4px 0 #ffd23a; padding: 10px 14px; }
+.pf-toast.out { opacity: 0; transform: translateX(40px); }
+.pf-toast small { display: block; font: 700 9px 'JetBrains Mono', monospace; letter-spacing: .18em; color: #ff6b5e; } .pf-toast.big small { color: #ffd23a; }
+.pf-toast b { display: block; font: 700 13px 'Space Grotesk', sans-serif; margin-top: 2px; }
+.pf-toast em { display: block; font: 700 11px 'JetBrains Mono', monospace; font-style: normal; color: #ffd23a; margin-top: 2px; }
+@keyframes pfT { from { opacity: 0; transform: translateX(60px); } }
+.ms-wrap section { margin-bottom: 8px; }
+.ms-wrap h3 small { margin-left: 10px; letter-spacing: .04em; font-weight: 400; color: #8a8f98; }
+.ms-coins { float: right; font: 700 12px 'JetBrains Mono', monospace; letter-spacing: .12em; background: #0a0a0a; color: #ffd23a; padding: 6px 12px; box-shadow: 3px 3px 0 var(--red); }
+.ms-coins b { font: 900 16px 'Archivo Black', sans-serif; }
+.ms-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.ms-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+.ms-card { background: rgba(10,10,10,.04); border-left: 3px solid var(--red); padding: 10px 12px; }
+.ms-card.done { border-left-color: #2bb24c; background: rgba(43,178,76,.08); }
+.ms-t { font: 700 13px 'Space Grotesk', sans-serif; min-height: 34px; }
+.ms-bar { height: 6px; background: rgba(10,10,10,.12); margin: 8px 0 6px; } .ms-bar i { display: block; height: 100%; background: var(--red); } .ms-card.done .ms-bar i { background: #2bb24c; }
+.ms-f { display: flex; justify-content: space-between; font: 700 10.5px 'JetBrains Mono', monospace; } .ms-f em { font-style: normal; color: #b07c00; }
+.ms-grid .ms-t { min-height: 0; }
+.ms-h { display: flex; align-items: center; } .ms-h .ms-coins { float: none; margin-left: auto; }

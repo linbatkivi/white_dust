@@ -13,8 +13,11 @@ export function createProfile(o) {
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(D)); } catch (e) {} listeners.forEach(f => { try { f(D); } catch (e) {} }); };
   const lv = () => P.levelOf(D.xp);
   const has = (kind, id) => { const L = lv().level; const tab = kind === 'title' ? P.TITLES : kind === 'card' ? P.CARDS : P.BADGES; const e = tab.find(t => t[1] === id); return !!(e && L >= e[0]) || !!(D.owned[kind + ':' + id]); };
-  const titleName = id => (P.TITLES.find(t => t[1] === id) || [0, '', 'Rekrut'])[2];
-  const cardCss = id => (P.CARDS.find(c => c[1] === id) || P.CARDS[0])[3];
+  // ekstra titler/kort (sæson, trofæer, butik) – ejes via D.owned
+  const EXTRA = { title: [], card: [], badge: [] };
+  function registerExtra(kind, id, name, css) { if (!EXTRA[kind].some(e => e[1] === id)) EXTRA[kind].push([999, id, name, css]); }
+  const titleName = id => (P.TITLES.concat(EXTRA.title).find(t => t[1] === id) || [0, '', 'Rekrut'])[2];
+  const cardCss = id => (P.CARDS.concat(EXTRA.card).find(c => c[1] === id) || P.CARDS[0])[3];
 
   /* ---------------- rank-emblem (SVG i spillets stil: skjold, chevroner, stjerne for Elite) ---------------- */
   function emblem(level, px) {
@@ -49,6 +52,15 @@ export function createProfile(o) {
       try { o.Audio && o.Audio.cine && o.Audio.cine('braam', { vol: 0.7 }); } catch (e) {}
       setTimeout(() => { el.classList.add('out'); setTimeout(() => { el.remove(); res(); }, 600); }, 3600);
     });
+  }
+  // små toasts øverst til højre (missioner, trofæer, mastery)
+  let toastBox = null;
+  function toast(title, line, sub) {
+    if (!toastBox) { toastBox = document.createElement('div'); toastBox.className = 'pf-toasts'; document.body.appendChild(toastBox); }
+    const el = document.createElement('div'); el.className = 'pf-toast' + (/FULDFØRT|TROFÆ|KLARET|LEVEL/.test(title) ? ' big' : '');
+    el.innerHTML = `<small>${esc(title)}</small><b>${esc(line)}</b>${sub ? `<em>${esc(sub)}</em>` : ''}`;
+    toastBox.appendChild(el); while (toastBox.children.length > 4) toastBox.firstChild.remove();
+    setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 500); }, el.classList.contains('big') ? 5200 : 3200);
   }
   function addXP(title, lines) {
     const total = lines.reduce((a, l) => a + l[1], 0); if (!total) return;
@@ -98,7 +110,7 @@ export function createProfile(o) {
     return `<div class="pf-card${big ? ' big' : ''}" style="--card:${cardCss(D.card)};--rc:${r.col}"><div class="pf-bg"></div>
       <div class="pf-e">${emblem(l.level, big ? 92 : 50)}</div>
       <div class="pf-t"><small>${esc(titleName(D.title))}</small><b>${esc(nm)}</b><span>${r.label} · LEVEL ${l.level}</span></div>
-      ${D.badge ? `<div class="pf-badge">★ ${esc((P.BADGES.find(b => b[1] === D.badge) || [0, '', ''])[2])}</div>` : ''}
+      ${D.badge ? `<div class="pf-badge">★ ${esc((P.BADGES.concat(EXTRA.badge).find(b => b[1] === D.badge) || [0, '', ''])[2])}</div>` : ''}
       <div class="pf-xp"><i style="width:${(l.frac * 100).toFixed(1)}%"></i><em>${l.into} / ${l.need} XP</em></div></div>`;
   }
   function renderProfile() {
@@ -107,7 +119,7 @@ export function createProfile(o) {
     const next = []; for (let k = L + 1; k <= P.MAX_LEVEL && next.length < 7; k++) { const u = P.unlocksAt(k); if (u.length) next.push([k, u]); }
     const kd = S.deaths ? (S.kills / S.deaths).toFixed(2) : S.kills.toFixed(2), wr = S.matches ? Math.round(100 * S.wins / S.matches) + ' %' : '–', hsr = S.kills ? Math.round(100 * S.hs / S.kills) + ' %' : '–';
     const stats = [['KAMPE', S.matches], ['SEJRE', wr], ['RUNDER', S.rounds], ['K/D', kd], ['DRAB', S.kills], ['HEADSHOT', hsr], ['MVP', S.mvps], ['PLANTS', S.plants], ['DESARMERET', S.defuses], ['KNIVDRAB', S.knife], ['ACES', S.aces], ['CLUTCHES', S.clutch]];
-    const chips = (kind, tab) => tab.map(t => { const ok = has(kind, t[1]); return `<button class="cr-chip${D[kind] === t[1] ? ' sel' : ''}${ok ? '' : ' lock'}" data-${kind}="${t[1]}" ${ok ? '' : 'disabled'} title="${ok ? '' : 'Låses op ved level ' + t[0]}" ${kind === 'card' ? `style="--card:${t[3]}"` : ''}>${kind === 'card' ? '<i></i>' : ''}${esc(t[2])}${ok ? '' : `<small>LVL ${t[0]}</small>`}</button>`; }).join('');
+    const chips = (kind, tab) => tab.concat(EXTRA[kind].filter(e => D.owned[kind + ':' + e[1]])).map(t => { const ok = has(kind, t[1]); return `<button class="cr-chip${D[kind] === t[1] ? ' sel' : ''}${ok ? '' : ' lock'}" data-${kind}="${t[1]}" ${ok ? '' : 'disabled'} title="${ok ? '' : 'Låses op ved level ' + t[0]}" ${kind === 'card' ? `style="--card:${t[3]}"` : ''}>${kind === 'card' ? '<i></i>' : ''}${esc(t[2])}${ok ? '' : `<small>LVL ${t[0]}</small>`}</button>`; }).join('');
     return `<div class="cr-grid"><div class="cr-left">${card(true)}
         <h3>TITEL</h3><div class="cr-chips">${chips('title', P.TITLES)}</div>
         <h3>PROFILKORT</h3><div class="cr-chips cards">${chips('card', P.CARDS)}</div>
@@ -123,5 +135,5 @@ export function createProfile(o) {
   }
   // kort sammendrag til de andre spillere (lobby/scoreboard)
   const summary = () => ({ lvl: lv().level, t: D.title, c: D.card, b: D.badge });
-  return { get data() { return D; }, save, onRound, onMatch, summary, open, close, isOpen, addTab, emblem, strip, card, hooks, has, titleName, cardCss, onChange: f => listeners.push(f), addXP, render: () => hub && isOpen() && render() };
+  return { get data() { return D; }, registerExtra, toast, save, onRound, onMatch, summary, open, close, isOpen, addTab, emblem, strip, card, hooks, has, titleName, cardCss, onChange: f => listeners.push(f), addXP, render: () => hub && isOpen() && render() };
 }
