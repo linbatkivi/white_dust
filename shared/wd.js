@@ -362,7 +362,7 @@
     }
     return out;
   }
-  const MAP_LIST = () => Object.keys(MAP_REG).map(id => ({ id, name: MAP_REG[id].name, desc: MAP_REG[id].desc || '' }));
+  const MAP_LIST = () => Object.keys(MAP_REG).map(id => ({ id, name: MAP_REG[id].name, desc: MAP_REG[id].desc || '', brief: MAP_REG[id].brief || null, night: !!MAP_REG[id].night }));
 
   /* ---------------------------------------------------------------- geometri-hjælpere */
   function rampHeight(r, s) {
@@ -829,7 +829,8 @@
   function mapBureau() {
     const D = BUREAU_DATA, G = D.grid;
     return {
-      id: 'bureau', name: 'Bureau', desc: 'Luksus-bureauet øverst i et højhus om natten · marmor og valnød, serverhal (A), våbenkammer (B), tagterrasse med udsigt over byen.',
+      id: 'bureau', name: 'Bureau', night: true,
+      brief: { hij: 'Spring ind fra helikopteren på tagterrassen og plant C4 på A (serverhallen) eller B (våbenkammeret).', swat: 'Rul ind gennem parkeringskælderen, forsvar begge sites og desarmér bomben, hvis den bliver plantet.' }, desc: 'Luksus-bureauet øverst i et højhus om natten · marmor og valnød, serverhal (A), våbenkammer (B), tagterrasse med udsigt over byen.',
       GW: G.GW, GH: G.GH, GX0: G.GX0, GZ0: G.GZ0, data: D,
       layers: [{ id: 'G', yb: -4, yt: WALL_TOP, tiles: { '#': { solid: true }, ' ': { void: true } } }],
       grid(H) { H.fill(0, 0, G.GW - 1, G.GH - 1, ' '); },
@@ -855,7 +856,9 @@
     function mapValkyrie() {
     const D = VALKYRIE_DATA, G = D.grid;
     return {
-      id: 'valkyrie', name: 'Valkyrie', desc: 'Middelhavsby i dagslys · stuk, sandsten og terrakotta, snævre gyder og solbeskinnede gårde. A-site i nord, B-site tæt på SWAT i sydvest.',
+      id: 'valkyrie', name: 'Valkyrie', night: false,
+      brief: { hij: 'Kør ind fra jungleruinerne i nordvest og plant C4 på A (tempelpladsen) eller B (udgravningen i sydvest). B ligger langt fra jer – brug Mid til at skifte.', swat: 'B-udgravningen ligger tæt på jeres base: hold bundvejen og B Short. A kræver, at I dækker både A Long og Main.' },
+      desc: 'Overgroede mesoamerikanske ruiner i junglen · mosgrøn sten, trinpyramider, snævre gyder og solstråler gennem løvet. A-site (tempelpladsen) i nord, B-site (udgravningen) i sydvest tæt på SWAT.',
       GW: G.GW, GH: G.GH, GX0: G.GX0, GZ0: G.GZ0, data: D,
       layers: [{ id: 'G', yb: -4, yt: WALL_TOP, tiles: { '#': { solid: true }, ' ': { void: true } } }],
       grid(H) { H.fill(0, 0, G.GW - 1, G.GH - 1, ' '); },

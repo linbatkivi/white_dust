@@ -383,7 +383,7 @@ export function createAudio() {
     // v20: vinden skruet ned (brugerønske) – fugle og fjern trafik giver liv i stedet
     const wg = ctx.createGain(); wg.gain.value = 0.03; wind.connect(wl); wl.connect(wg); wg.connect(g); wind.start(t); nodes.push(wind);
     const lfo = ctx.createOscillator(); lfo.frequency.value = 0.07; const lg = ctx.createGain(); lg.gain.value = 0.025; lfo.connect(lg); lg.connect(wg.gain); lfo.start(t); nodes.push(lfo);
-    const AMB = { bureau: [0, 0.3] }[id] || [0.25, 0.3];             // v26: bureauet – ingen fugle 110 m oppe, byen summer langt nede
+    const AMB = { bureau: [0, 0.3], valkyrie: [0.7, 0] }[id] || [0.25, 0.3];             // v26: bureauet – ingen fugle 110 m oppe, byen summer langt nede
     let files = false;
     for (const [name, v, lp] of [['amb_birds', AMB[0], 0], ['amb_traffic', AMB[1], 1300]]) {
       const b = buf[name]; if (!b || v <= 0) continue; files = true;
@@ -397,8 +397,21 @@ export function createAudio() {
       for (const [f, v] of [[50, 0.018], [100, 0.012], [150, 0.005]]) { const o = ctx.createOscillator(); o.frequency.value = f; const og = ctx.createGain(); og.gain.value = v; o.connect(og); og.connect(g); o.start(t); nodes.push(o); }
       const vent = ctx.createBufferSource(); vent.buffer = noiseBuf; vent.loop = true; const vb = ctx.createBiquadFilter(); vb.type = 'bandpass'; vb.frequency.value = 900; vb.Q.value = 0.8; const vg = ctx.createGain(); vg.gain.value = 0.03; vent.connect(vb); vb.connect(vg); vg.connect(g); vent.start(t); nodes.push(vent);
     }
+    if (id === 'valkyrie') {                          // v26.9: junglens summen – insekter (modulerede højfrekvente toner), løvhvisken og dryp fra de gamle sten
+      for (const [f, am, v] of [[4300, 21, 0.006], [5200, 27, 0.005], [3600, 15, 0.004]]) {
+        const o = ctx.createOscillator(); o.frequency.value = f; const ag = ctx.createGain(); ag.gain.value = v; const mo = ctx.createOscillator(); mo.frequency.value = am; const mg = ctx.createGain(); mg.gain.value = v * 0.9;
+        mo.connect(mg); mg.connect(ag.gain); const sl = ctx.createOscillator(); sl.frequency.value = 0.08 + Math.random() * 0.1; const sg = ctx.createGain(); sg.gain.value = v * 0.8; sl.connect(sg); sg.connect(ag.gain);
+        o.connect(ag); ag.connect(g); o.start(t); mo.start(t); sl.start(t); nodes.push(o, mo, sl);
+      }
+      const lv = ctx.createBufferSource(); lv.buffer = noiseBuf; lv.loop = true; lv.playbackRate.value = 1.6; const lb = ctx.createBiquadFilter(); lb.type = 'bandpass'; lb.frequency.value = 2600; lb.Q.value = 0.5; const lgn = ctx.createGain(); lgn.gain.value = 0.012;
+      lv.connect(lb); lb.connect(lgn); lgn.connect(g); lv.start(t); nodes.push(lv);
+    }
     let alive = true;
-    amb = { id, g, nodes, files, stop() { alive = false; } };
+    const dripT = setInterval(() => {                   // fugtigt dryp (kun valkyrie)
+      if (!alive || id !== 'valkyrie' || !ctx) return; const tt = ctx.currentTime, o = ctx.createOscillator(), gg = ctx.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(1400 + Math.random() * 900, tt); o.frequency.exponentialRampToValueAtTime(500, tt + 0.09);
+      gg.gain.setValueAtTime(0.0001, tt); gg.gain.exponentialRampToValueAtTime(0.025, tt + 0.006); gg.gain.exponentialRampToValueAtTime(0.0001, tt + 0.14); o.connect(gg); gg.connect(g); o.start(tt); o.stop(tt + 0.16);
+    }, 1900 + Math.random() * 1500);
+    amb = { id, g, nodes, files, stop() { alive = false; clearInterval(dripT); } };
   }
   function stopAmbience() {
     if (!amb || !ctx) { amb = null; return; }

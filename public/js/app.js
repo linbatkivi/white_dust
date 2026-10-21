@@ -506,6 +506,20 @@ function drawRadarOld(canvas, mapId) {
   for (const k in Wm.sites) { const s = Wm.sites[k]; c.strokeRect(s.x0 * S + ox, s.z0 * S + oz, (s.x1 - s.x0) * S, (s.z1 - s.z0) * S); c.fillStyle = '#ff2b1f'; c.font = '900 14px Arial'; c.fillText(k, s.x0 * S + ox + 3, s.z0 * S + oz + 14); }
   for (const [side, colr] of [['hij', '#ff5a40'], ['swat', '#4a8cff']]) { const p = Wm.spawns[side][0]; c.fillStyle = colr; c.beginPath(); c.arc(p.x * S + ox, p.z * S + oz, 4, 0, 7); c.fill(); }
 }
+/* ---- v26.9: venteværelset følger den valgte bane (navn, mission, baggrund, radar, dag/nat) ---- */
+function applyLobbyMap(id, maps) {
+  const mp = (maps || []).find(x => x.id === id) || { id, name: id, desc: '' }, root = $('scr-lobby'); if (!root) return;
+  const nm = (mp.name || id).toUpperCase(), b = root.querySelector('.lb-name b'); if (b) b.textContent = nm;
+  const mn = root.querySelector('.lb-mapname'); if (mn) mn.textContent = nm;
+  if (mp.brief) { const h = root.querySelector('.lb-obj-h span'), s = root.querySelector('.lb-obj-s span'); if (h) h.textContent = mp.brief.hij; if (s) s.textContent = mp.brief.swat; }
+  root.classList.toggle('lb-day', mp.night === false);
+  if (root.dataset.map !== id) {
+    root.dataset.map = id;
+    const bg = root.querySelector('.lb-img'); if (bg) bg.style.backgroundImage = `url(/assets/ui/lobby_bg_${id}.jpg), url(/assets/ui/lobby_bg.jpg)`;
+    const im = root.querySelector('.lb-mapimg img'); if (im) { im.onerror = () => { im.onerror = null; im.src = '/assets/ui/lobby_map.jpg'; }; im.src = `/assets/ui/lobby_map_${id}.jpg`; }
+    const cv = $('lbRadar'); if (cv) { const r = new Image(); r.onload = () => { const c = cv.getContext('2d'); c.clearRect(0, 0, cv.width, cv.height); const k = Math.min(cv.width / r.width, cv.height / r.height); c.drawImage(r, (cv.width - r.width * k) / 2, (cv.height - r.height * k) / 2, r.width * k, r.height * k); }; r.src = `/assets/radar/${id}_0.png`; }
+  }
+}
 function renderMapCards(maps, cur, amHost) {
   const box = $('mapCards');
   if (box.childElementCount !== maps.length) {
@@ -513,7 +527,7 @@ function renderMapCards(maps, cur, amHost) {
     for (const mp of maps) {
       const b = document.createElement('button'); b.className = 'map-card'; b.dataset.id = mp.id;
       const cv = document.createElement('canvas'); cv.width = 160; cv.height = 160; b.appendChild(cv);
-      const nm = document.createElement('div'); nm.className = 'mc-name'; nm.innerHTML = `<span>de_${mp.id}</span>`; b.appendChild(nm);
+      const nm = document.createElement('div'); nm.className = 'mc-name'; nm.innerHTML = `<span>${escapeHtml(mp.name)}</span>`; b.appendChild(nm);
       b.addEventListener('click', () => { if (Game.host === Game.meId) Net.send({ t: 'map', id: mp.id }); });
       box.appendChild(b);
       try { drawRadar(cv, mp.id); } catch (e) { /* forhåndsvisning er kun pynt */ }
@@ -659,7 +673,7 @@ Net.on('lobby', m => {
   const cap = m.cap || 5;
   Game._lobbySeen = nowSeen;
   for (const k of ['hij', 'swat']) for (let i = cnt[k]; i < cap; i++) { const li = document.createElement('li'); li.className = 'slot-empty'; li.textContent = 'LEDIG PLADS'; lists[k].appendChild(li); }   // v26: holdenes fem pladser
-  try { const cv = $('lbRadar'); if (cv && !cv.dataset.done) { cv.dataset.done = 1; const im = new Image(); im.onload = () => { const c = cv.getContext('2d'); c.clearRect(0, 0, cv.width, cv.height); const k = Math.min(cv.width / im.width, cv.height / im.height); c.drawImage(im, (cv.width - im.width * k) / 2, (cv.height - im.height * k) / 2, im.width * k, im.height * k); }; im.src = '/assets/radar/bureau_0.png'; } } catch (e) {}
+  try { applyLobbyMap(m.map || Game.mapId, m.maps || Game.maps); } catch (e) { console.warn('[lobby-bane]', e); }
   $('cntHij').textContent = cnt.hij + '/' + cap; $('cntSwat').textContent = cnt.swat + '/' + cap;
   $('btnTeamHij').classList.toggle('sel', Game.myTeam === 'hij'); $('btnTeamSwat').classList.toggle('sel', Game.myTeam === 'swat');
   $('btnTeamAuto').classList.toggle('hidden', !Game.myTeam);

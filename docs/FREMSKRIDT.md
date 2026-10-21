@@ -30,3 +30,10 @@ Venner og fraktioner udveksler data direkte mellem spillerne via PeerJS (ingen n
 - Hænder: skinnede, glatte fingre (`public/js/hands.js`) + levende fingre; knive i tredjeperson holdes rigtigt.
 - Fraktionsnavne: Aurum / Vanta / Nocturne. CS-referencer fjernet (våbennavne, sjældenheder, knivnavne, bane-callouts, dokumenter, README).
 - Trailer: `▶ TRAILER` i menuen (afspilles i motoren) eller `node scripts/record-trailer.js` → `docs/trailer/white_dust_trailer.webm`.
+
+## v26.9 – Valkyrie (nyt map, Ancient-retning)
+- **Bane**: `valkyrie` – overgroede mesoamerikanske jungleruiner efter konceptkortet (tools/valkyrie/). B-site er rykket til sydvest (B Long), tæt på SWAT; løbetider T→A ≈16 s, T→B ≈14 s, SWAT→A ≈10 s, SWAT→B ≈13 s (`python3 tools/valkyrie/pathlen.py`).
+- **Pipeline**: `gen/layout.py` (tegnet layout + højder/trapper) → `gen/gen.py` + `rooms.py` + `dress.py` (trinpyramider, pilastre, relieffer, dækning, planter) → `export_collision.py` (shared/valkyrie_data.js) → `build_plants.py` (egne bladnet: bregner, bananer, vedbend, lianer, træer, grene) → `blender … build.py -- bake` (dagslys: HDRI + sol som lampe, mos/snavs pr. hjørne) → `textures.py` → `tools/radar/valkyrie_radar.py`. QA: `qa_floaters.py` (svævere/usynlige barrierer), `node test/nav.js valkyrie`.
+- **Højder**: A Heaven +2,0 m, Upper Mid +2,4 m, B-udgravningen −1,2 m (4 trapper, 2 ramper).
+- **Spillet**: banevalg i lobby/veto, venteværelset følger banen (navn, mission, baggrund, radar, dag/nat), junglelyd (insekter, dryp), oversættelser.
+- **Fundet undervejs**: delte materialer i flere modeller fik '.001'-navne uden spilmateriale (hvide blade) → samlet til ét datablok i build.py; Poly Haven-teksturer er for lyse/blanke → dæmpes og gøres ruere i fetch_tex.py.

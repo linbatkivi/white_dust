@@ -223,7 +223,7 @@ console.log('\nKollision:');
       along = nx ? Math.abs(b.z - z0) : Math.abs(b.x - x0);
       // 'klistret' = der VAR plads til at glide videre langs siden, men spilleren stod stille (et indvendigt hjørne mod en anden kasse/mur er ok)
       const tx = nx ? 0 : Math.sign(mvx), tz = nx ? Math.sign(mvz) : 0, room = !WD.isBlocked(W, b.x + tx * 0.35, b.z + tz * 0.35, b.y, PL.H, 0.5);
-      if (along < 1.0 && !(b.y > p.y1 - 0.05) && room) stuckP++;
+      if (along < 1.0 && !(b.y > p.y1 - 0.05) && room) { stuckP++; if (process.env.WD_DBG) console.log("    klistret:", p.x0.toFixed(2), p.y0.toFixed(2), p.z0.toFixed(2), p.x1.toFixed(2), p.y1.toFixed(2), p.z1.toFixed(2), "side", nx, nz); }
     }
   }
   stuckP === 0 ? okm(`glidning langs ${props} props/containere: ingen fastklemning`) : fail(`${stuckP} prop-sider stopper spilleren i stedet for at lade ham glide`);

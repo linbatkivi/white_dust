@@ -121,7 +121,7 @@ const BLEND_MAP = `
     float hvMoss = smoothstep( hvH - 0.12, hvH + 0.06, vHvBlend.g ) * ( 1.15 - hvCav * 0.6 );
     float hvWet = clamp( vHvBlend.b, 0.0, 1.0 );
     diffuseColor.rgb = mix( diffuseColor.rgb, diffuseColor.rgb * vec3( 0.52, 0.47, 0.41 ) + vec3( 0.035, 0.028, 0.02 ), hvDirt * 0.8 );
-    diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.085, 0.11, 0.035 ) * ( 0.7 + hvLum ), clamp( hvMoss, 0.0, 1.0 ) * 0.85 );
+    diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.10, 0.15, 0.04 ) * ( 0.7 + hvLum ), clamp( hvMoss, 0.0, 1.0 ) * 0.66 );
     diffuseColor.rgb *= 1.0 - 0.42 * hvWet;
   #endif`;
 // v20: fjerne flader gnistrede/'grynede' (fine normal-detaljer og skarp glans aliaserer når en pixel dækker mange teksler):

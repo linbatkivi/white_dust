@@ -1360,6 +1360,8 @@ body.mvpcine #hud, body.mvpcine #nameTags, body.mvpcine #clickToPlay, body.mvpci
 #scr-lobby.lb .lb-shade { position: absolute; inset: 0; background: radial-gradient(120% 90% at 70% 40%, rgba(5,6,8,.25), rgba(5,6,8,.92) 75%), linear-gradient(90deg, rgba(5,6,8,.92) 0%, rgba(5,6,8,.35) 45%, rgba(5,6,8,.75) 100%); }
 #scr-lobby.lb .lb-rain { position: absolute; inset: -20% 0 0 0; opacity: .22; background-image: repeating-linear-gradient(103deg, rgba(200,215,235,.0) 0 22px, rgba(200,215,235,.35) 22px 23px, rgba(200,215,235,0) 23px 61px); background-size: 120px 220px; animation: lbRain .55s linear infinite; mix-blend-mode: screen; }
 @keyframes lbRain { to { background-position: -40px 220px; } }
+#scr-lobby.lb.lb-day .lb-rain { display: none; }
+#scr-lobby.lb.lb-day .lb-img { filter: saturate(1) brightness(.75) contrast(1.05); }
 #scr-lobby.lb .lb-scan { position: absolute; inset: 0; opacity: .12; background: repeating-linear-gradient(0deg, rgba(255,255,255,.08) 0 1px, transparent 1px 3px); }
 #scr-lobby.lb .lb-wrap { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 22px; width: min(1320px, 94vw); max-width: none; height: min(860px, 94vh); }
 #scr-lobby.lb .lb-top { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; animation: lbIn .6s cubic-bezier(.2,.8,.2,1) backwards; }
@@ -1386,7 +1388,9 @@ body.mvpcine #hud, body.mvpcine #nameTags, body.mvpcine #clickToPlay, body.mvpci
 #scr-lobby.lb .map-label { letter-spacing: .2em; color: rgba(244,244,242,.85); }
 #scr-lobby.lb .vm-btn { background: transparent; color: rgba(244,244,242,.7); border: 1px solid rgba(255,255,255,.2); font-family: inherit; font-size: 10px; padding: 3px 8px; letter-spacing: .08em; }
 #scr-lobby.lb .vm-btn.sel { background: #fff; color: var(--ink); }
-#scr-lobby.lb .map-cards { display: none; }
+#scr-lobby.lb .map-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 6px 0 10px; }
+#scr-lobby.lb .map-card canvas { height: 84px; object-fit: contain; background: #0b0e12; }
+#scr-lobby.lb .map-card.sel { outline: 3px solid #ff2b1f; }
 #scr-lobby.lb .map-desc { font-size: 13px; line-height: 1.5; color: rgba(244,244,242,.78); }
 #scr-lobby.lb .lb-obj { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
 #scr-lobby.lb .lb-obj > div { display: flex; flex-direction: column; gap: 3px; padding: 8px 10px; background: rgba(255,255,255,.04); border-left: 3px solid; font-size: 12px; color: rgba(244,244,242,.8); }

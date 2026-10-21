@@ -5439,6 +5439,27 @@ export const DICT = {
 "01 / 01",
 "01 / 01"
 ],
+"Kør ind fra jungleruinerne i nordvest og plant C4 på A (tempelpladsen) eller B (udgravningen i sydvest). B ligger langt fra jer – brug Mid til at skifte.": [
+"Push in from the jungle ruins in the northwest and plant the C4 on A (the temple plaza) or B (the excavation in the southwest). B is far from you – use Mid to rotate.",
+"Avancez depuis les ruines de la jungle au nord-ouest et posez le C4 en A (la place du temple) ou en B (la fouille au sud-ouest). B est loin de vous – passez par Mid pour tourner.",
+"Entrad desde las ruinas de la selva al noroeste y plantad el C4 en A (la plaza del templo) o en B (la excavación al suroeste). B queda lejos de vosotros: usad Mid para rotar.",
+"Rückt aus den Dschungelruinen im Nordwesten vor und legt das C4 an A (der Tempelplatz) oder B (die Ausgrabung im Südwesten). B ist weit entfernt – wechselt über Mid.",
+"从西北的丛林遗迹推进，在 A（神庙广场）或 B（西南的发掘坑）安放 C4。B 点离你们很远——通过中路转点。"
+],
+"B-udgravningen ligger tæt på jeres base: hold bundvejen og B Short. A kræver, at I dækker både A Long og Main.": [
+"The B excavation is close to your base: hold the bottom road and B Short. A requires you to cover both A Long and Main.",
+"La fouille B est proche de votre base : tenez la route du bas et B Short. A exige de couvrir à la fois A Long et Main.",
+"La excavación B está cerca de vuestra base: defended el camino inferior y B Short. A exige cubrir tanto A Long como Main.",
+"Die B-Ausgrabung liegt nah an eurer Basis: haltet die untere Straße und B Short. A verlangt, dass ihr sowohl A Long als auch Main deckt.",
+"B 发掘坑离你们的基地很近：守住下路和 B Short。A 点需要你们同时封住 A Long 和中路。"
+],
+"Overgroede mesoamerikanske ruiner i junglen · mosgrøn sten, trinpyramider, snævre gyder og solstråler gennem løvet. A-site (tempelpladsen) i nord, B-site (udgravningen) i sydvest tæt på SWAT.": [
+"Overgrown Mesoamerican ruins in the jungle · mossy stone, stepped pyramids, narrow alleys and sunbeams through the leaves. A site (the temple plaza) in the north, B site (the excavation) in the southwest close to SWAT.",
+"Ruines mésoaméricaines envahies par la jungle · pierre moussue, pyramides à degrés, ruelles étroites et rayons de soleil à travers le feuillage. Site A (la place du temple) au nord, site B (la fouille) au sud-ouest près des SWAT.",
+"Ruinas mesoamericanas cubiertas por la selva · piedra musgosa, pirámides escalonadas, callejones estrechos y rayos de sol entre las hojas. Sitio A (la plaza del templo) al norte, sitio B (la excavación) al suroeste, cerca de SWAT.",
+"Überwucherte mesoamerikanische Ruinen im Dschungel · moosbewachsener Stein, Stufenpyramiden, enge Gassen und Sonnenstrahlen durchs Laub. A-Site (der Tempelplatz) im Norden, B-Site (die Ausgrabung) im Südwesten nahe bei SWAT.",
+"丛林中被藤蔓覆盖的中美洲遗迹 · 长满苔藓的石头、阶梯金字塔、狭窄小巷和透过树叶的阳光。A 点（神庙广场）在北面，B 点（发掘坑）在西南，靠近特警。"
+],
 "Grøn {0}": [
 "Green {0}",
 "Vert {0}",

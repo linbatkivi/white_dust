@@ -27,13 +27,24 @@ for _ in range(6):
     if not hole.any(): break
     n = np.maximum.reduce([np.roll(Fz, s, a) for a in (0, 1) for s in (1, -1)]); Fz[hole] = n[hole]
 lv = np.clip(np.round((Fz + 1.5) / 1.5), 0, 5).astype(int)              # niveauer à 1,5 m: −1,5 · 0 · 1,5 · 3 · 4,5 · 6
-TONE = [(96, 82, 66), (176, 152, 116), (196, 172, 134), (214, 192, 154), (228, 208, 172), (240, 224, 192)]
+TONE = [(92, 118, 104), (170, 160, 122), (206, 190, 140), (224, 206, 156), (236, 220, 176), (244, 232, 196)]
 H_, W_ = M.shape; rgb = np.zeros((H_, W_, 4), np.uint8)
 for k, c in enumerate(TONE): rgb[M & (lv == k)] = (*c, 255)
 st = M & (SL >= 0)                                                       # trapper/ramper: let blåt skær
 rgb[st, :3] = (rgb[st, :3] * 0.85 + np.array([90, 120, 160]) * 0.15).astype(np.uint8)
+ZI = G.ZID[i0:i1, j0:j1]
+for zi, n in enumerate(G.ZN):                                                # v26.9: zonetoner – indendørs (kamre) køligt blågråt, grønne gyder, lysere gårde
+    m_ = M & (ZI == zi) & (rgb[..., 3] > 0)
+    if G.ROOMS[n]['h'] is not None: rgb[m_, :3] = (rgb[m_, :3] * np.array([0.66, 0.8, 0.95])).astype(np.uint8)
+    elif G.ROOMS[n]['floor'] in ('rn_ground1', 'rn_ground2'): rgb[m_, :3] = (rgb[m_, :3] * np.array([0.78, 0.95, 0.7])).astype(np.uint8)
 img = Image.fromarray(rgb, 'RGBA').resize((W_ * PX, H_ * PX), Image.NEAREST)
 d = ImageDraw.Draw(img)
+for p_ in G.PROPS:                                                           # dækning (kasser, lave mure, træstammer): mørke blokke som på en rigtig radar
+    if 'c' not in p_: continue
+    x_, y_, z_, sx_, sy_, sz_ = p_['c']
+    if sy_ < 0.5 or sy_ > 3.5: continue
+    ax = (x_ - sx_ / 2 - G.cx(j0)) / (G.S / PX); bx = (x_ + sx_ / 2 - G.cx(j0)) / (G.S / PX); az = (z_ - sz_ / 2 - G.cz(i0)) / (G.S / PX); bz = (z_ + sz_ / 2 - G.cz(i0)) / (G.S / PX)
+    d.rectangle([ax, az, bx, bz], fill=(70, 66, 58, 255), outline=(24, 24, 22, 255))
 OUT = (18, 19, 22, 255); LINE = (40, 42, 48, 255)
 # kontur: kant mellem gangbart og ikke-gangbart (2 px, på ydersiden) og tynde linjer mellem niveauer
 for (ax, sh) in ((0, 1), (0, -1), (1, 1), (1, -1)):
