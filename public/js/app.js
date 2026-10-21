@@ -12,6 +12,7 @@ import { createThemes } from '/js/themes.js';
 import { createCharacters } from '/js/characters.js';
 import { createWeapons } from '/js/weapons.js';
 import { createHands } from '/js/hands.js';
+import { createTrailer } from '/js/trailer.js';
 import { createAudio } from '/js/audio.js';
 import { createPost } from '/js/post.js';
 import { createFx } from '/js/fx.js';
@@ -2923,8 +2924,9 @@ const Renderer = (() => {
   function frame(dt) {
     renderer.setRenderTarget(null); renderer.clear();
     if (loading || !V) return;
+    if (trailerDir && trailerDir.active) trailerDir.update(dt);                     // v26.7: trailer-instruktøren styrer kamera, figurer og effekter
     let vmOn = false;
-    if (Game.state === 'game' || devCam) {
+    if (Game.state === 'game' || devCam || (trailerDir && trailerDir.active)) {
       const tf = Game.scoped ? 26 : 90;                         // AWP-zoom
       if (Math.abs(camera.fov - tf) > 0.05) { camera.fov += (tf - camera.fov) * (1 - Math.exp(-20 * dt)); camera.updateProjectionMatrix(); }
       Game.fov = camera.fov;
@@ -2953,7 +2955,7 @@ const Renderer = (() => {
       if (BombCine && BombCine.active && !bcHold && BombCine.update(dt)) vmOn = false;   // v26: bombe-filmen styrer kameraet
       if (RoundCine && RoundCine.active && (rcHold || RoundCine.update(dt))) vmOn = false;   // v26.3: rundeslut-filmen styrer kameraet (rcHold: kontaktarket styrer tiden)
       if (BombCine && BombCine.active && bcHold && BombCine.fov) { camera.fov = BombCine.fov; camera.updateProjectionMatrix(); vmOn = false; }
-      if (devCam) { camera.position.set(devCam[0], devCam[1], devCam[2]); camera.rotation.set(devCam[4] || 0, devCam[3] || 0, 0); vmOn = false; }
+      if (devCam) { camera.position.set(devCam[0], devCam[1], devCam[2]); camera.rotation.set(devCam[4] || 0, devCam[3] || 0, devCam[5] || 0); vmOn = false; if (devCam[6] && Math.abs(camera.fov - devCam[6]) > 0.01) { camera.fov = devCam[6]; camera.updateProjectionMatrix(); } }
       sky.position.copy(camera.position);
       V.update(dt, performance.now() / 1000, camera.position, decorGroup); fxObj.update(dt, performance.now() / 1000, camera.position);
       if (night) night.update(dt, camera.position, performance.now() / 1000);
@@ -2967,6 +2969,7 @@ const Renderer = (() => {
       renderer.render(scene, camera);
       if (vmOn) { renderer.clearDepth(); renderer.render(vmScene, vmCam); }
     }
+    if (trailerDir && trailerDir.active) { drawTrOverlay(trNow()); renderer.clearDepth(); renderer.render(trOv.scene, trOv.cam); }   // v26.7: trailerens titler ovenpå
     placeNameTags();
     if (Game.flash && Game.flash.cap) { Game.flash.cap = false; captureAfterimage(); }   // flashbang: frys det sidste billede (efterbillede)
   }
@@ -3004,7 +3007,7 @@ const Renderer = (() => {
     } catch (e) { console.warn('[ikon]', e); iconQ = []; }
     if (iconQ.length) setTimeout(drainIcons, 16); else { iconBusy = false; if (BuyMenu.open) { BuyMenu._iconTick = (BuyMenu._iconTick || 0) + 1; BuyMenu.render(); } }
   }
-  const api = { setEvent, event: () => EV.cur, get camera() { return camera; }, intro: () => (ensureChars(), Intro), bombCine: () => BombCine, deferEnd: (m, info) => { if (BombCine && BombCine.active) { pendingEnd = m; return true; }
+  const api = { canvas: () => renderer.domElement, setEvent, event: () => EV.cur, get camera() { return camera; }, intro: () => (ensureChars(), Intro), bombCine: () => BombCine, deferEnd: (m, info) => { if (BombCine && BombCine.active) { pendingEnd = m; return true; }
       if (info && RoundCine && !Game.cineFull) { try { if (RoundCine.start(info)) { pendingEnd = m; m._cine = true; return true; } } catch (e) { console.warn('rundefilm', e); } } return false; },
     roundCine: () => RoundCine, introReady: () => introLoaded, setQuality, gunIcon, get gfx() { return gfxName; }, get pr() { return prCur; }, get perf() { return perf; }, chars: () => (ensureChars(), Chars), weap: () => (ensureChars(), Weap), onCosmetics, mapReady: () => !loading && mapId === W.id, cosReady: () => COS.ready, setCine, init, loadMap, flinchAim, onRoundStart, onShotFx, inspect, onRemoteMelee, onMeleeWall, onPlant, onExplode, onBoom, onSmokePop, onFlashPop, onFirePop, onFireOut, onRemoteThrow, onThrowLocal, onPinPull, onWeaponChange, mouseDelta, shake, skinName, get mapId() { return mapId; } };
   if (DEV) {   // v14: kontaktark over førstepersonsvåben (kun dev) – hvert våben renderes alene på neutral baggrund
@@ -3117,6 +3120,24 @@ const Renderer = (() => {
     };
     api.roundStop = () => { devCam = null; rcHold = false; if (RoundCine.active) RoundCine.stop(); };
   }
+  if (DEV) {   // v26.7: trailer-kontaktark – instruktøren afvikles i faste skridt (1/30 s) uden at tegne; kun de ønskede tidspunkter renderes
+    api.trailerSheet = async (times, cols, tw, th) => {
+      ensureChars(); const D = api.trailer(); await api.intro().preload(); cols = cols || 4; tw = tw || 480; th = th || 270;
+      const out = document.createElement('canvas'), rows = Math.ceil(times.length / cols); out.width = cols * tw; out.height = rows * th; const c2 = out.getContext('2d');
+      const RW = tw * 2, RH = th * 2; renderer.setPixelRatio(1); renderer.setSize(RW, RH, false); if (post && post.setSize) post.setSize(RW, RH); camera.aspect = RW / RH; camera.updateProjectionMatrix();
+      D.start(); const keepCine = Game.cineFull;
+      for (let i = 0; i < times.length; i++) {
+        Game.cineFull = true; let guard = 0; while (D.active && D.t < times[i] - 1e-4 && guard++ < 4000) frame(Math.min(1 / 30, times[i] - D.t));
+        Game.cineFull = false; shadowTick = 99; frame(1e-4); shadowTick = 99; frame(1e-4);
+        const X = (i % cols) * tw, Y = Math.floor(i / cols) * th;
+        c2.drawImage(renderer.domElement, 0, 0, RW, RH, X, Y, tw, th); c2.fillStyle = 'rgba(0,0,0,.55)'; c2.fillRect(X, Y, 90, 22); c2.fillStyle = '#fff'; c2.font = '700 14px monospace'; c2.fillText(D.t.toFixed(2) + ' s', X + 6, Y + 16);
+      }
+      Game.cineFull = keepCine; D.stop(); devCam = null;
+      renderer.setPixelRatio(prCur); renderer.setSize(innerWidth, innerHeight); if (post && post.setSize) { const v = renderer.getDrawingBufferSize(new THREE.Vector2()); post.setSize(v.x, v.y); }
+      camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+      return out;
+    };
+  }
   if (DEV) {   // v26: intro-kontaktark – afspiller introen i faste skridt (1/30 s) og tager et billede ved hvert tidspunkt
     api.introSheet = async (side, times, nMates, cols, tw, th) => {
       ensureChars(); const I = api.intro(); await I.preload(); cols = cols || 4; tw = tw || 480; th = th || 270;
@@ -3195,6 +3216,76 @@ const Renderer = (() => {
     return shots;
   }
   if (DEV) { api.setCam = (x, y, z, yaw, pitch) => { devCam = x === null ? null : [x, y, z, yaw, pitch]; }; api.frame = frame; Object.defineProperties(api, { V: { get: () => V }, renderer: { get: () => renderer }, scene: { get: () => scene }, post: { get: () => post }, fx: { get: () => fxs }, vm: { get: () => vm } }); }
+  /* ---------------- v26.7: TRAILER – host til trailer.js (kamera, figurer via syntetiske snapshots, effekter, lyd, titler) ---------------- */
+  let trailerDir = null, trC4 = null, trMusic = false;
+  const trNow = () => trailerDir ? trailerDir.t * 1000 : performance.now();   // titlernes tidsbase = trailerens tid (så kontaktark og optagelse er ens)
+  // titel-laget tegnes i et 2D-canvas og lægges som skærm-quad ovenpå billedet EFTER post-processing – så det også kommer med i optagelsen (canvas.captureStream)
+  const trOv = { cv: null, g: null, tex: null, scene: null, cam: null, lines: [], fade: { a: 0, to: 0, t0: 0, dur: 0 } };
+  function trOverlay() {
+    if (trOv.cv) return trOv; trOv.cv = document.createElement('canvas'); trOv.g = trOv.cv.getContext('2d');
+    trOv.tex = new THREE.CanvasTexture(trOv.cv); trOv.tex.colorSpace = THREE.SRGBColorSpace; trOv.scene = new THREE.Scene(); trOv.cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    const q = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ map: trOv.tex, transparent: true, depthTest: false, depthWrite: false, toneMapped: false })); q.frustumCulled = false; trOv.scene.add(q); return trOv;
+  }
+  function drawTrOverlay(now) {
+    const O = trOverlay(), rw = renderer.domElement.width, rh = renderer.domElement.height; if (O.cv.width !== rw || O.cv.height !== rh) { O.cv.width = rw; O.cv.height = rh; }
+    const g = O.g, W = rw, H = rh; g.clearRect(0, 0, W, H);
+    const ease = t => { t = Math.min(1, Math.max(0, t)); return 1 - Math.pow(1 - t, 3); };
+    const FONT = '"Archivo Black","Arial Black",Impact,sans-serif', MONO = '"JetBrains Mono","Menlo",monospace';
+    O.white = O.white || null;
+    { const f = O.fade, a = f.dur > 0 ? f.a + (f.to - f.a) * Math.min(1, (now - f.t0) / f.dur) : f.to; if (a > 0.001) { g.fillStyle = 'rgba(0,0,0,' + a + ')'; g.fillRect(0, 0, W, H); } }
+    for (const L of O.lines) {
+      const u = (now - L.t0) / 1000, dur = L.ms / 1000; if (u < 0 || u > dur + 0.4) continue;
+      const outA = u > dur ? 1 - (u - dur) / 0.4 : 1, parts = L.parts, isLogo = /logo/.test(L.cls), big = /slam/.test(L.cls) || isLogo, red = /red/.test(L.cls);
+      const fs = big ? H * (isLogo ? 0.19 : 0.13) : H * (/sub2/.test(L.cls) ? 0.03 : 0.044), y = big ? H * (isLogo ? 0.47 : 0.5) : H * (/sub2/.test(L.cls) ? 0.86 : 0.8);
+      g.font = (big ? '900 ' : '700 ') + fs + 'px ' + (big ? FONT : MONO); g.textBaseline = 'middle'; g.textAlign = 'left';
+      const sp = big ? fs * 0.05 : fs * 0.32, glyphs = []; let idx = 0;
+      for (const seg of parts) for (const ch of seg.t) { glyphs.push({ ch, col: seg.col, w: g.measureText(ch).width + sp, i: idx++ }); }
+      const tw = glyphs.reduce((a, b) => a + b.w, 0); let x = (W - tw) / 2;
+      if (!big) { g.fillStyle = 'rgba(0,0,0,' + (0.55 * Math.min(1, u / 0.3) * outA) + ')'; g.fillRect(0, y - fs * 1.1, W, fs * 2.2); }
+      for (const gl of glyphs) {
+        const e = ease((u - gl.i * (big ? 0.045 : 0.012)) / (big ? 0.2 : 0.35)), a = e * outA; if (a <= 0.001) { x += gl.w; continue; }
+        g.save(); g.globalAlpha = a; const sc = big ? 1 + (1 - e) * 2.4 : 1; g.translate(x + gl.w / 2, y); g.scale(sc, sc);
+        if (big) { g.fillStyle = red ? '#f4f4f2' : '#ff2b1f'; g.fillText(gl.ch, -gl.w / 2 + fs * 0.05, fs * 0.05); }
+        g.shadowColor = isLogo ? 'rgba(255,43,31,.55)' : 'rgba(0,0,0,.6)'; g.shadowBlur = fs * (isLogo ? 0.25 : 0.1);
+        g.fillStyle = gl.col || (red ? '#ff2b1f' : '#f4f4f2'); if (isLogo && gl.ch === '_') g.fillStyle = '#ff2b1f'; g.fillText(gl.ch, -gl.w / 2, 0); g.restore(); x += gl.w;
+      }
+    }
+    if (O.white) { const k = (now - O.white.t0) / O.white.dur; if (k >= 0 && k < 1) { g.fillStyle = 'rgba(255,255,255,' + Math.min(1, (1 - k) * 1.6).toFixed(3) + ')'; g.fillRect(0, 0, W, H); } }
+    O.tex.needsUpdate = true;
+  }
+  function trailerHost() {
+    return {
+      THREE, setPlayers: list => { for (const p of list) Game.players.set(p.id, { name: p.name, side: p.side, cos: null, prof: { lvl: 1 } }); },
+      cam: o => { devCam = [o.x, o.y, o.z, o.yaw, o.pitch, o.roll || 0, o.fov || 0]; },
+      pushPuppets: list => {
+        const now = performance.now(); Game.clk = 200;
+        Game.snapBuf.push({ recv: now, st: now + 100, p: list.map(p => [p.id, p.x, p.y, p.z, p.yaw, p.pitch || 0, p.flags, WD.WEAPONS[p.w] ? WD.WEAPONS[p.w].code : 0]), g: [], sm: [], f: [] });
+        while (Game.snapBuf.length > 6) Game.snapBuf.shift();
+      },
+      shot: m => onShotFx(m), flash: (x, y, z) => onFlashPop({ x, y, z }),
+      audio: (name, o) => Audio.cine(name, o || {}), music: (name, o) => { trMusic = true; Audio.playMusic(name, o || {}); },
+      bars: on => { $('introBars').classList.toggle('hidden', !on); },
+      rain: () => {},
+      fade: (a, secs) => { const O = trOverlay(), now = trNow(), f = O.fade; const cur = f.dur > 0 ? f.a + (f.to - f.a) * Math.min(1, (now - f.t0) / f.dur) : f.to; f.a = cur; f.to = a; f.t0 = now; f.dur = (secs || 0) * 1000; },
+      text: (html, ms, cls) => {
+        const O = trOverlay(), parts = []; let col = null;
+        for (const seg of String(html).split(/(<\/?i>)/)) { if (seg === '<i>') col = '#ff2b1f'; else if (seg === '</i>') col = null; else if (seg) parts.push({ t: seg, col }); }
+        O.lines.length = 0; O.lines.push({ parts, ms, cls: cls || '', t0: trNow() });
+      },
+      introPlay: (side, ms) => { devCam = null; ensureChars(); const I = api.intro(); const mates = Array.from({ length: 5 }, (_, i) => ({ id: 'tm' + i, name: 'Op' + i, me: i === 0, cos: null })); I.play({ side, mates }, ms); },
+      introStop: () => { const I = api.intro(); if (I && I.active) I.stop(); },
+      c4: (x, y, z, on) => { if (trC4) { scene.remove(trC4); trC4 = null; } if (on) { trC4 = Weap.c4Model(); trC4.position.set(x, y + 0.01, z); scene.add(trC4); } },
+      bombPlay: A => { devCam = null; Game.bomb = { state: 2, x: A[0], y: A[1], z: A[2], msLeft: 6500 }; BombCine.start({ x: A[0], y: A[1], z: A[2], ms: 6500 }); bcHold = false; trailerHost._bomb = performance.now(); trailerHost._boomT = 6.6; trailerHost._boomA = A; },
+      bombStop: () => { if (BombCine.active) BombCine.cancel(); Game.bomb = { state: 0, x: 0, y: 0, z: 0, msLeft: 0 }; },
+      begin: () => { devCam = null; Game.snapBuf.length = 0; Game.clk = 200; Game.phase = 'live'; document.body.classList.add('trailer'); trOverlay().lines.length = 0; trOverlay().fade.a = trOverlay().fade.to = 1; },
+      boom: () => api.bombBoom(trailerHost._boomA), whiteout: ms => { trOv.white = { t0: trNow(), dur: ms }; },
+      end: () => { devCam = null; document.body.classList.remove('trailer'); trOv.lines.length = 0; trOv.fade.a = trOv.fade.to = 0; $('introBars').classList.add('hidden'); if (trMusic) { Audio.stopMusic(0.5); trMusic = false; } for (const [id, r] of remoteModels) { dropRemote(r); remoteModels.delete(id); } if (trC4) { scene.remove(trC4); trC4 = null; } },
+      done: null
+    };
+  }
+  api.trailer = () => { if (!trailerDir) { const host = trailerHost(); trailerDir = createTrailer(host); trailerDir._host = host; } return trailerDir; };
+  api.trailerBoomTick = () => { /* eksplosionen i bombe-klippet udløses fra instruktøren via bombBoom() */ };
+  api.bombBoom = A => { try { BombCine.explode({ x: A[0], y: A[1], z: A[2] }); onExplode({ x: A[0], y: A[1], z: A[2] }); } catch (e) { console.warn('[trailer] boom', e); } };
   return api;
 })();
 
@@ -3209,6 +3300,35 @@ setInterval(() => {
 
 /* v14 (dev): foto-tur – ?dev=1&tour=<bane>[&shots=1,5,7] bygger banen uden server-spil, kører kameraerne og gemmer kontaktark
    i docs/qa/tour_<bane>_<n>.jpg (kræver testserveren: WD_TEST=1). Resultatet ligger også i window.__tourDone. */
+/* ---------------- v26.7: TRAILER – afspilles i motoren (menu → ▶ TRAILER); ?trailer=1&rec=1 optager en videofil (docs/trailer/ på testserveren) ---------------- */
+async function playTrailer(opts) {
+  opts = opts || {}; const sleep = ms => new Promise(r => setTimeout(r, ms));
+  Game.state = 'menu'; UI.showScreen('game'); $('hud').style.display = 'none'; $('introBars').classList.add('hidden');
+  if (!inited3d) { Renderer.init(); inited3d = true; }
+  Audio.stopMusic && Audio.stopMusic(0.2); try { Audio.init(); } catch (e) {}
+  setMap('bureau'); const t0 = performance.now();
+  while ((Renderer.mapId !== 'bureau' || !Renderer.mapReady()) && performance.now() - t0 < 120000) await sleep(200);
+  while (!Renderer.cosReady() && performance.now() - t0 < 120000) await sleep(200);
+  try { await Renderer.intro().preload(); } catch (e) {}
+  await sleep(600);
+  const D = Renderer.trailer(); let rec = null;
+  const finish = async () => {
+    if (rec) { await rec.stop(); }
+    Game.state = 'menu'; UI.showScreen('menu'); $('hud').style.display = ''; window.__trailerDone = true;
+  };
+  D._host.done = finish;
+  if (opts.record) rec = await recordCanvas(Renderer.canvas(), 'white_dust_trailer');
+  D.start();
+  return D;
+}
+async function recordCanvas(canvas, name) {
+  const stream = canvas.captureStream(30), at = Audio.tap && Audio.tap(); if (at) for (const t of at.getAudioTracks()) stream.addTrack(t);
+  if (at) { try { const ac = new AudioContext(), src = ac.createMediaStreamSource(at), an = ac.createAnalyser(); an.fftSize = 1024; src.connect(an); const buf = new Float32Array(1024); window.__tapLevels = []; window.__tapTimer = setInterval(() => { an.getFloatTimeDomainData(buf); let q = 0; for (const x of buf) q += x * x; window.__tapLevels.push(+Math.sqrt(q / buf.length).toFixed(3)); }, 1000); } catch (e) {} }   // (kun diagnostik)
+  const mime = ['video/webm;codecs=vp8,opus', 'video/webm;codecs=vp9,opus', 'video/webm'].find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m));
+  const mr = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 9e6, audioBitsPerSecond: 192e3 }), chunks = [];
+  mr.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); }; mr.start(1000);
+  return { stop: () => new Promise(res => { mr.onstop = async () => { const blob = new Blob(chunks, { type: 'video/webm' }); window.__trailerBytes = blob.size; try { const r = await fetch('/dev/save?f=' + name + '.webm', { method: 'POST', body: blob }); window.__trailerSaved = r.ok; } catch (e) { window.__trailerSaved = false; } res(); }; mr.stop(); }) };
+}
 async function runTour(id, only) {
   Game.state = 'menu'; try { Renderer.setEvent(null); EventHud.show(null); } catch (e) {} UI.showScreen('game'); $('hud').style.display = 'none';
   if (!inited3d) { Renderer.init(); inited3d = true; }
@@ -3230,6 +3350,8 @@ async function runTour(id, only) {
   return window.__tourDone;
 }
 
+{ const q = new URLSearchParams(location.search); const b = document.getElementById('btnTrailer'); if (b) b.addEventListener('click', () => playTrailer());
+  if (q.get('trailer')) { window.__wdStartTrailer = () => playTrailer({ record: !!q.get('rec') }); } }
 /* ==========================================================================
    OPSTART: forsøg automatisk genoptagelse af session
    ========================================================================== */
@@ -3237,7 +3359,7 @@ async function runTour(id, only) {
   const params = new URLSearchParams(location.search);
   const joinCode = params.get('join');
   if (joinCode && /^\d{4}$/.test(joinCode)) { $('codeInput').value = joinCode; $('joinRow').classList.remove('hidden'); }
-  if (DEV) window.__wd = { Bounty, EventHud, Factions, Hideout, Friends, Profile, Missions, Trophies, Mastery, mvp: i => MvpCine.play(i), victory: m => startVictory(m), hudRE: m => HUD.roundEnd(m), introPlay: (ms) => { const I = Renderer.intro(); return I.preload().then(() => I.play({ side: Game.side, mates: [...Game.players.entries()].filter(([, p]) => p.side === Game.side).map(([id, p]) => ({ id, cos: p.cos, me: id === Game.meId })) }, ms || 13000)); }, Game, Renderer, Net, BuyMenu, get W() { return W; }, WD, THREE, KEY, Settings, act: { nadeStart, nadeRelease, fireStart, fireEnd, switchWeapon, startFlash, startReloadLocal }, tour: runTour,
+  if (DEV) window.__wd = { playTrailer, Bounty, EventHud, Factions, Hideout, Friends, Profile, Missions, Trophies, Mastery, mvp: i => MvpCine.play(i), victory: m => startVictory(m), hudRE: m => HUD.roundEnd(m), introPlay: (ms) => { const I = Renderer.intro(); return I.preload().then(() => I.play({ side: Game.side, mates: [...Game.players.entries()].filter(([, p]) => p.side === Game.side).map(([id, p]) => ({ id, cos: p.cos, me: id === Game.meId })) }, ms || 13000)); }, Game, Renderer, Net, BuyMenu, get W() { return W; }, WD, THREE, KEY, Settings, act: { nadeStart, nadeRelease, fireStart, fireEnd, switchWeapon, startFlash, startReloadLocal }, tour: runTour,
     bombSheet: async (id, site, times, name) => {                              // v26: node pw/bomb.js – kontaktark af bombe-filmen → docs/qa/<name>.jpg
       if (Renderer.mapId !== id) await runTour(id, [{ n: 'load', x: 0, y: 2, z: 0, yaw: 0 }]);
       const cv = await Renderer.bombSheet(site, times); if (!cv) return null;

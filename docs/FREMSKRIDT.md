@@ -16,6 +16,17 @@ Venner og fraktioner udveksler data direkte mellem spillerne via PeerJS (ingen n
 | 7  | Bounty: 3 drab i træk → Bounty Target ($1000 + 250 pr. drab), chip/banner, rødt mærke (skjult bag vægge), +$300 til holdet, XP og trofæer | ✅ færdig     |
 | 8  | Dynamiske events (30 % fra runde 3, aldrig to i træk): tæt tåge (~15 m), skybrud (lyn + regn), strømafbrydelse (rødt pulserende nødlys, lommelygter afslører spillere) · banner + chip | ✅ færdig     |
 | 9  | Interaktive kortmekanikker (porte, projektører, damp)          | ✖ skrottet    |
-| 10 | Fraktioner: Kaffekartellet / Serverklanen / Krypterne kæmper om 10 bydele på de_bureau; sæsonkort, ugeopgørelse (XP, mønter, titel/badge), regnskab deles mellem alle man spiller med | ✅ færdig     |
+| 10 | Fraktioner: Aurum / Vanta / Nocturne kæmper om 10 bydele på de_bureau; sæsonkort, ugeopgørelse (XP, mønter, titel/badge), regnskab deles mellem alle man spiller med | ✅ færdig     |
 | 11 | Hideout (KARRIERE → HIDEOUT): 3D-rum med trofævæg (pokal pr. trofæ i bronze/sølv/guld, mus over = navn), mastery-plader, rank-banner, fraktionsflag og 12 dekorationer fra BUTIKKEN | ✅ færdig     |
 | 12 | Venner: vennekode WD-XXXXXXXX, seneste medspillere, sammenlign level/statistik/trofæer/mastery side om side, besøg vennens hideout; kort udveksles via pub-relæ og PeerJS | ✅ færdig     |
+
+
+## v26.7 (2026-10-21)
+- Sprogvalg: engelsk (standard), dansk, fransk, spansk, tysk, mandarin – menu og indstillinger; ordbog i `tools/i18n/*.txt` → `node tools/i18n/build.py`.
+- Introen slutter nu præcis i spillerens øjne (kameraet blev skubbet 7,8 m tilbage af kamera-sikringen).
+- Rundetimer: HUD-loopet stoppede når et element manglede (`setText` null-sikret).
+- Pistoler (undtagen deagle) kan ikke dræbe med ét headshot (2,2×).
+- Bane: yaw-fix i bageren (alt vendte samme vej), vægbilleder flugter med væggen i øjenhøjde, racks flyttet ind i A-hallen, store planter (3 typer) i stedet for småplanter.
+- Hænder: skinnede, glatte fingre (`public/js/hands.js`) + levende fingre; knive i tredjeperson holdes rigtigt.
+- Fraktionsnavne: Aurum / Vanta / Nocturne. CS-referencer fjernet (våbennavne, sjældenheder, knivnavne, bane-callouts, dokumenter, README).
+- Trailer: `▶ TRAILER` i menuen (afspilles i motoren) eller `node scripts/record-trailer.js` → `docs/trailer/white_dust_trailer.webm`.

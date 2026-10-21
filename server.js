@@ -120,10 +120,10 @@ const server = http.createServer((req, res) => {
   // v14 (kun testserver, WD_TEST=1): foto-turens kontaktark gemmes i docs/qa/ (filnavn renses, maks 20 MB)
   if (rel === '/dev/save' && req.method === 'POST' && process.env.WD_TEST) {
     const f = String(new URL(req.url, 'http://x').searchParams.get('f') || '').replace(/[^a-z0-9_.-]/gi, '');
-    if (!/^[a-z0-9_-]+\.(jpg|png|json)$/i.test(f)) { res.writeHead(400); return res.end(); }
-    const parts = []; let n = 0;
-    req.on('data', d => { n += d.length; if (n > 20e6) req.destroy(); else parts.push(d); });
-    req.on('end', () => { const dir = path.join(__dirname, 'docs', 'qa'); fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(path.join(dir, f), Buffer.concat(parts)); res.writeHead(200); res.end('ok'); });
+    if (!/^[a-z0-9_-]+\.(jpg|png|json|webm)$/i.test(f)) { res.writeHead(400); return res.end(); }
+    const parts = []; let n = 0, lim = /\.webm$/i.test(f) ? 600e6 : 20e6;   // trailer-optagelsen (webm) må fylde mere
+    req.on('data', d => { n += d.length; if (n > lim) req.destroy(); else parts.push(d); });
+    req.on('end', () => { const dir = path.join(__dirname, 'docs', /\.webm$/i.test(f) ? 'trailer' : 'qa'); fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(path.join(dir, f), Buffer.concat(parts)); res.writeHead(200); res.end('ok'); });
     return;
   }
   if (!WEB) { res.writeHead(404); return res.end(); }

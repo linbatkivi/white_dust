@@ -434,5 +434,8 @@ export function createAudio() {
     } catch (e) {}
   }
   if (typeof window !== 'undefined') try { build(); } catch (e) {}                 // v20: kontekst + afkodning straks (genoptages ved første klik)
-  return { duck, loaded, cine, cinePreload, playMusic, stopMusic, musicTime, musicPlaying, init, setListener, shot, step, impact, door, beep, boom, hiss, click, pin, throwSnd, bounce, flashbang, tinnitus, glass, ignite, fizzle, fireLoop, setVolume, setVolumes, music, ambience, stopAmbience, announce, get ready() { return ok(); }, set enabled(v) { enabled = v; } };
+  // v26.7: lyd-udtag til videooptagelse (MediaRecorder): hele mixet efter kompressoren
+  let tapDest = null;
+  function tap() { if (!ctx) build(); if (!ctx) return null; if (!tapDest) { tapDest = ctx.createMediaStreamDestination(); comp.connect(tapDest); } return tapDest.stream; }
+  return { tap, duck, loaded, cine, cinePreload, playMusic, stopMusic, musicTime, musicPlaying, init, setListener, shot, step, impact, door, beep, boom, hiss, click, pin, throwSnd, bounce, flashbang, tinnitus, glass, ignite, fizzle, fireLoop, setVolume, setVolumes, music, ambience, stopAmbience, announce, get ready() { return ok(); }, set enabled(v) { enabled = v; } };
 }

@@ -1,7 +1,7 @@
-# DE_WHITE_DUST
+# WHITE DUST
 
-Et multiplayer FPS i 3D, inspireret af **SUPERHOT** (den knivskarpe hvid/sort æstetik)
-og **Counter-Strike** (taktisk bombescenarie, køb-fase, SWAT vs. Hijackers).
+Et taktisk multiplayer-FPS i 3D: SWAT mod Hijackers på banen *Bureau* – et luksus-kontor øverst i et højhus om natten.
+Bombescenarie, købsfase, holdspil 5 mod 5, karriere (XP, ranks, missioner, trofæer, fraktioner, hideout, venner) og seks sprog (engelsk, dansk, fransk, spansk, tysk, mandarin).
 Spillet hentes som app til Windows, macOS og Linux. Der er **ingen server i skyen**: den der laver et party, er selv vært.
 
 ## Sådan virker multiplayer (v24)
