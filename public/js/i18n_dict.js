@@ -861,7 +861,7 @@ export const DICT = {
 "· nur im Spawn",
 "· 仅限出生点"
 ],
-"Rundeprognose": [
+"Loss/Win Predictor": [
 "Round outlook",
 "Pronostic de manche",
 "Pronóstico de ronda",
@@ -882,7 +882,7 @@ export const DICT = {
 "Du",
 "你"
 ],
-"FULD UDRUSTNING": [
+"FULL BUY": [
 "FULL LOADOUT",
 "ÉQUIPEMENT COMPLET",
 "EQUIPO COMPLETO",
@@ -896,7 +896,7 @@ export const DICT = {
 "Alle können Gewehr + Granaten kaufen",
 "所有人都能买步枪和手雷"
 ],
-"TVUNGET KØB": [
+"FORCE BUY": [
 "FORCED BUY",
 "ACHAT FORCÉ",
 "COMPRA FORZADA",
@@ -910,7 +910,7 @@ export const DICT = {
 "Pistolen/MPs/billige Gewehre – oder sparen",
 "手枪/冲锋枪/廉价步枪——或者存钱"
 ],
-"SPAR OP": [
+"ECO": [
 "SAVE UP",
 "ÉCONOMISER",
 "AHORRAR",
@@ -1393,7 +1393,7 @@ export const DICT = {
 "Klicken für die nächste Karte",
 "点击切换下一张地图"
 ],
-"BANEPULJE": [
+"MAP POOL": [
 "MAP POOL",
 "CARTES",
 "MAPAS",
@@ -1645,7 +1645,7 @@ export const DICT = {
 "Die Teams sperren abwechselnd Karten – die letzte wird gespielt",
 "双方轮流禁用地图——最后剩下的地图将被使用"
 ],
-"BANDLYS": [
+"PREMIER": [
 "MAP VETO",
 "ÉLIMINATION",
 "VETO",
@@ -2415,12 +2415,12 @@ export const DICT = {
 "Erziele {0} Kills mit dem Gewehr",
 "用步枪完成{0}次击杀"
 ],
-"Lav {0} drab med snigskytteriffel": [
-"Get {0} kills with a sniper rifle",
-"Fais {0} éliminations au fusil de précision",
-"Consigue {0} bajas con rifle de francotirador",
-"Erziele {0} Kills mit dem Scharfschützengewehr",
-"用狙击步枪完成{0}次击杀"
+"Lav {0} drab med AWP": [
+"Get {0} kills with the AWP",
+"Fais {0} éliminations à l'AWP",
+"Consigue {0} bajas con el AWP",
+"Erziele {0} Kills mit der AWP",
+"用AWP完成{0}次击杀"
 ],
 "Lav {0} drab fra etagen over": [
 "Get {0} kills from the floor above",
@@ -2499,14 +2499,14 @@ export const DICT = {
 "Laufe in derselben Runde durch den Kryptgang und die Treppenhalle",
 "在同一回合内穿过地窖走廊和楼梯大厅"
 ],
-"Tag trappen: Buegangen og Kaffebaren i samme runde": [
+"Tag trappen: Arch og Kaffebaren i samme runde": [
 "Take the stairs: the Arcade and the Coffee Bar in the same round",
 "Prends l'escalier : l'Arcade et le Café dans la même manche",
 "Sube la escalera: la Arcada y la Cafetería en la misma ronda",
 "Nimm die Treppe: Bogengang und Kaffeebar in derselben Runde",
 "走楼梯：同一回合内经过拱廊和咖啡吧"
 ],
-"Fra Mørkerummet til Kedelrummet i samme runde": [
+"Fra Dark til Kedelrummet i samme runde": [
 "From the Dark Room to the Boiler Room in the same round",
 "De la salle sombre à la chaufferie dans la même manche",
 "De la Sala Oscura a la Sala de Calderas en la misma ronda",
@@ -2569,7 +2569,7 @@ export const DICT = {
 "Besuche {0} verschiedene Bereiche im Lauf der Woche",
 "本周到访{0}个不同区域"
 ],
-"Gå gennem alle tre kælderveje (Kryptgangen, Kedelrummet, Mørkekammeret) i én kamp": [
+"Gå gennem alle tre kælderveje (Kryptgangen, Kedelrummet, Dark-kammeret) i én kamp": [
 "Walk all three basement routes (Crypt Corridor, Boiler Room, Dark Chamber) in one match",
 "Emprunte les trois voies du sous-sol (couloir de la crypte, chaufferie, chambre sombre) dans un match",
 "Recorre las tres rutas del sótano (pasillo de la cripta, sala de calderas, cámara oscura) en una partida",
@@ -3885,7 +3885,7 @@ export const DICT = {
 "Der Kellerbewohner",
 "地下室居民"
 ],
-"Drab i kælderen (Kryptgang, Kedelrum, Mørkerummet, Tunnelerne, Trappehal)": [
+"Drab i kælderen (Kryptgang, Kedelrum, Dark, Tunnels, Trappehal)": [
 "Kills in the basement (Crypt Corridor, Boiler Room, Dark Room, Tunnels, Stair Hall)",
 "Éliminations au sous-sol (couloir de la crypte, chaufferie, salle sombre, tunnels, cage d'escalier)",
 "Bajas en el sótano (pasillo de la cripta, calderas, sala oscura, túneles, escalera)",
@@ -4151,7 +4151,7 @@ export const DICT = {
 "Durch das Labyrinth",
 "穿越迷宫"
 ],
-"Kryptgangen, Trappehallen, Kedelrummet og Mørkerummet i samme runde": [
+"Kryptgangen, Trappehallen, Kedelrummet og Dark i samme runde": [
 "Crypt Corridor, Stair Hall, Boiler Room and Dark Room in the same round",
 "Couloir de la crypte, cage d'escalier, chaufferie et salle sombre dans la même manche",
 "Pasillo de la cripta, escalera, calderas y sala oscura en la misma ronda",
@@ -4473,14 +4473,14 @@ export const DICT = {
 "A – Serverhalle",
 "A点服务器大厅"
 ],
-"Østgangen": [
+"Long A": [
 "East Corridor",
 "Couloir est",
 "Pasillo este",
 "Ostgang",
 "东走廊"
 ],
-"Østgangen top": [
+"Long A top": [
 "East Corridor Top",
 "Haut du couloir est",
 "Parte alta del pasillo este",
@@ -4508,21 +4508,21 @@ export const DICT = {
 "Säulengang",
 "柱廊"
 ],
-"Buegangen": [
+"Arch": [
 "Arcade",
 "Arcade",
 "Arcada",
 "Bogengang",
 "拱廊"
 ],
-"Galleriet": [
+"Top Mid": [
 "Gallery",
 "Galerie",
 "Galería",
 "Galerie",
 "画廊"
 ],
-"Teknikgangen": [
+"Connector A": [
 "Utility Corridor",
 "Couloir technique",
 "Pasillo técnico",
@@ -4543,7 +4543,7 @@ export const DICT = {
 "Kaffeebar",
 "咖啡吧"
 ],
-"Atriedøren": [
+"Mid Door": [
 "Atrium Door",
 "Porte de l'atrium",
 "Puerta del atrio",
@@ -4564,21 +4564,21 @@ export const DICT = {
 "Aufzugslobby",
 "电梯大厅"
 ],
-"Sydgangen øst": [
+"B Halls øst": [
 "South Corridor East",
 "Couloir sud est",
 "Pasillo sur este",
 "Südgang Ost",
 "南走廊东段"
 ],
-"Sydgangen nisse": [
+"B Halls lomme": [
 "South Corridor Nook",
 "Recoin du couloir sud",
 "Rincón del pasillo sur",
 "Südgang-Nische",
 "南走廊凹室"
 ],
-"Sydgangen vest": [
+"B Halls vest": [
 "South Corridor West",
 "Couloir sud ouest",
 "Pasillo sur oeste",
@@ -4641,21 +4641,21 @@ export const DICT = {
 "Krypta-Abgang",
 "地窖入口"
 ],
-"Ventilationsrummet": [
-"Ventilation Room",
-"Salle de ventilation",
-"Sala de ventilación",
-"Lüftungsraum",
-"通风室"
+"Vent": [
+"Vent",
+"Ventilation",
+"Ventilación",
+"Lüftung",
+"通风口"
 ],
-"Gangbroen øst": [
+"Catwalk øst": [
 "Catwalk East",
 "Passerelle est",
 "Pasarela este",
 "Laufsteg Ost",
 "东栈桥"
 ],
-"Gangbroen": [
+"Catwalk": [
 "Catwalk",
 "Passerelle",
 "Pasarela",
@@ -4669,28 +4669,28 @@ export const DICT = {
 "Lüftungsgang",
 "通风走廊"
 ],
-"Hovedtrappen": [
+"Main B": [
 "Main Staircase",
 "Escalier principal",
 "Escalera principal",
 "Haupttreppe",
 "主楼梯"
 ],
-"Lageret": [
+"Storage": [
 "Storage Room",
 "Réserve",
 "Almacén",
 "Lager",
 "仓库"
 ],
-"Kapellet": [
+"Back B": [
 "Chapel",
 "Chapelle",
 "Capilla",
 "Kapelle",
 "礼拜堂"
 ],
-"Søjlesalen": [
+"Pillars B": [
 "Pillar Hall",
 "Salle des piliers",
 "Sala de pilares",
@@ -4704,47 +4704,40 @@ export const DICT = {
 "B – Waffenkammer",
 "B点军械库"
 ],
-"Tunnelerne": [
+"Tunnels": [
 "The Tunnels",
 "Les tunnels",
 "Los túneles",
 "Die Tunnel",
 "隧道"
 ],
-"Tunnelerne vest": [
+"Tunnels vest": [
 "Tunnels West",
 "Tunnels ouest",
 "Túneles oeste",
 "Tunnel West",
 "隧道西段"
 ],
-"Tunnelerne hjørne": [
+"Tunnels hjørne": [
 "Tunnels Corner",
 "Angle des tunnels",
 "Esquina de los túneles",
 "Tunnel-Ecke",
 "隧道拐角"
 ],
-"Mørkerummet": [
+"Dark": [
 "Dark Room",
 "Salle sombre",
 "Sala oscura",
 "Dunkelraum",
 "暗室"
 ],
-"Mørkekammeret": [
+"Dark-kammeret": [
 "Dark Chamber",
 "Chambre sombre",
 "Cámara oscura",
 "Dunkelkammer",
 "暗室内室"
-],
-"Vent": [
-"Vent",
-"Ventilation",
-"Ventilación",
-"Lüftung",
-"通风口"
 ],
 "GARAGEN": [
 "GARAGE",
@@ -4809,7 +4802,7 @@ export const DICT = {
 "WAFFENKAMMER",
 "军械库"
 ],
-"MØRKERUMMET": [
+"DARK": [
 "DARK ROOM",
 "SALLE SOMBRE",
 "SALA OSCURA",

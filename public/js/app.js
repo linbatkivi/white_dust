@@ -1395,7 +1395,7 @@ const BuyMenu = {
     $('bwTimer').textContent = 'Køb lukker om ' + fmtTime(this.left()) + (Game.phase === 'live' ? ' · kun i spawn' : '');
     if (this._ecoSig !== JSON.stringify(Game.eco) + Game.self.money) this.renderEco();
   },
-  /* v12: holdets økonomi + 'Rundeprognose': samlet/gennemsnitlige penge, hvad næste runde giver ved sejr og tab, og en købsanbefaling */
+  /* v12: holdets økonomi + 'Loss/Win Predictor': samlet/gennemsnitlige penge, hvad næste runde giver ved sejr og tab, og en købsanbefaling */
   renderEco() {
     const e = Game.eco, box = $('bwEco'); if (!box) return;
     this._ecoSig = JSON.stringify(e) + Game.self.money;
@@ -1405,7 +1405,7 @@ const BuyMenu = {
     const tot = rows.reduce((a, r) => a + r.money, 0), avg = Math.round(tot / rows.length);
     const lossNext = WD.lossBonus(Math.min(E.loss.length, (e.streak || 0) + 1));
     const full = 3700, force = 2000;     // rifle (~2700-3100) + granater ≈ 3700 pr. spiller
-    const rec = avg >= full ? ['FULD UDRUSTNING', 'full', 'Alle kan købe rifle + granater'] : avg >= force ? ['TVUNGET KØB', 'force', 'Pistoler/SMG/billige rifler – eller spar sammen'] : ['SPAR OP', 'eco', 'Spar pengene – køb højst en pistol'];
+    const rec = avg >= full ? ['FULL BUY', 'full', 'Alle kan købe rifle + granater'] : avg >= force ? ['FORCE BUY', 'force', 'Pistoler/SMG/billige rifler – eller spar sammen'] : ['ECO', 'eco', 'Spar pengene – køb højst en pistol'];
     const bar = r => `<i class="eco-bar" style="width:${Math.min(100, r.money / 60)}%"></i>`;
     box.innerHTML = `<div class="eco-rec eco-${rec[1]}"><b>${rec[0]}</b><span>${rec[2]}</span></div>
       <ul class="eco-list">${rows.map(r => `<li class="${r.alive ? '' : 'dead'}${r.id === Game.meId ? ' me' : ''}"><span>${escapeHtml(r.name)}</span><em>${r.prim ? r.prim.name : '—'}</em><b>$${r.money}</b>${bar(r)}</li>`).join('')}</ul>
@@ -3210,7 +3210,7 @@ const Renderer = (() => {
       });
     }
     for (const side of ['hij', 'swat']) { const p = W.spawns[side][0]; if (!p) continue; const g = eye(p.x, p.z, (p.y || 0) + 1) || 0, y = g + 1.65, a = yawTo(p.x, p.z, mcx, mcz);
-      shots.push({ n: (side === 'hij' ? 'T' : 'CT') + ' SPAWN → midt', x: p.x, y, z: p.z, yaw: a, pitch: -0.05 }, { n: (side === 'hij' ? 'T' : 'CT') + ' SPAWN ← bag', x: p.x, y, z: p.z, yaw: a + Math.PI, pitch: -0.05 }); }
+      shots.push({ n: (side === 'hij' ? 'HIJ' : 'SWAT') + ' SPAWN → midt', x: p.x, y, z: p.z, yaw: a, pitch: -0.05 }, { n: (side === 'hij' ? 'HIJ' : 'SWAT') + ' SPAWN ← bag', x: p.x, y, z: p.z, yaw: a + Math.PI, pitch: -0.05 }); }
     const R = Math.max(b.x1 - b.x0, b.z1 - b.z0) * 0.55;
     shots.push({ n: 'OVERSIGT fra syd', x: mcx, y: R * 0.75, z: b.z1 + R * 0.25, yaw: 0, pitch: -0.72 }, { n: 'OVERSIGT fra nord', x: mcx, y: R * 0.75, z: b.z0 - R * 0.25, yaw: Math.PI, pitch: -0.72 });
     return shots;

@@ -42,8 +42,8 @@ async function main() {
     await A.waitForSelector('#hud:not(.hidden)', { timeout: 5000 }); await B.waitForSelector('#hud:not(.hidden)', { timeout: 5000 });
     await A.waitForFunction(() => window.__wd && __wd.Renderer.mapId === 'bureau' && __wd.Renderer.mapReady(), null, { timeout: 120000 });
     ok(true, 'de_bureau indlæses (bagt lys) og vises');
-    ok(await A.$eval('#weaponName', el => el.textContent) === 'GX-18 VIPER', 'Hijackers starter med GX-18 Viper');
-    ok(await B.$eval('#weaponName', el => el.textContent) === 'VS-9 WARDEN', 'SWAT starter med VS-9 Warden');
+    ok(await A.$eval('#weaponName', el => el.textContent) === 'GLOCK-18', 'Hijackers starter med Glock-18');
+    ok(await B.$eval('#weaponName', el => el.textContent) === 'USP-S', 'SWAT starter med USP-S');
     ok(await A.isVisible('#buyHint') || await A.evaluate(() => __wd.Game.phase !== 'buy'), 'Købsmulighed vises i købsfasen (tryk B)');
     ok(!(await A.isVisible('#clickToPlay')), 'Ingen pausemenu ved kampstart'); await A.click('#gl', { force: true }); await sleep(200);
     if (process.env.E2E_HEADED) ok(await A.evaluate(() => document.pointerLockElement != null), 'Pointer lock aktiveres ved klik');   // (findes ikke i headless-browsere)

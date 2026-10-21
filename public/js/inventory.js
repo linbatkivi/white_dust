@@ -10,7 +10,7 @@ export function createInventory(opt) {
   try { inv = S.sanitize(JSON.parse(localStorage.getItem(KEY) || 'null')); } catch (e) { /* standard */ }
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(inv)); } catch (e) {} };
   const el = document.getElementById('inventory');
-  const WNAME = { usp: 'VS-9 WARDEN', glock: 'GX-18 VIPER', tec9: 'TX-9 HORNET', fiveseven: 'FS-57 KESTREL', deagle: 'HC-50 CANNON', mp5: 'MS-5 WHISPER', mac10: 'MX-10 STINGER', mp9: 'MD-9 DART', mp7: 'ML-7 LYNX', ump45: 'UM-45 BULLDOG', p90: 'PR-90 HIVE', galil: 'GR-35 RIDGE', famas: 'CL-F1 CLARION', ak47: 'KR-47 RAVEN', m4a1: 'MR-4 SENTRY', awp: 'SR-50 LONGSHOT' };
+  const WNAME = { usp: 'USP-S', glock: 'GLOCK-18', tec9: 'TEC-9', fiveseven: 'FIVE-SEVEN', deagle: 'DESERT EAGLE', mp5: 'MP5-SD', mac10: 'MAC-10', mp9: 'MP9', mp7: 'MP7', ump45: 'UMP-45', p90: 'P90', galil: 'GALIL AR', famas: 'FAMAS', ak47: 'AK-47', m4a1: 'M4A1', awp: 'AWP' };
   const WTEAM = { ak47: 'hij', galil: 'hij', mac10: 'hij', mp9: 'swat', tec9: 'hij', glock: 'hij', m4a1: 'swat', famas: 'swat', usp: 'swat', fiveseven: 'swat' };
   let tab = 'agents', side = 'swat', gun = 'ak47', open = false;
   const knifeKey = () => S.knifeOf(inv.skins.knife || S.defaultKnife);

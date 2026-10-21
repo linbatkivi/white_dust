@@ -7,13 +7,13 @@
 //   • prepGun(): roterer/normaliserer en våbenmodel (løb langs -z, op = +y, længde 1) uanset modellens egne akser/enheder
 // ==========================================================================
 export const RARITY = {
-  base: { name: 'STANDARD', col: '#b0c3d9' }, mil: { name: 'REFINED', col: '#4b69ff' }, res: { name: 'PREMIUM', col: '#8847ff' },
-  cls: { name: 'EXCLUSIVE', col: '#d32ce6' }, cov: { name: 'LEGENDARY', col: '#eb4b4b' }, gold: { name: 'MYTHIC', col: '#e4ae39' }
+  base: { name: 'STANDARD', col: '#b0c3d9' }, mil: { name: 'MIL-SPEC', col: '#4b69ff' }, res: { name: 'RESTRICTED', col: '#8847ff' },
+  cls: { name: 'CLASSIFIED', col: '#d32ce6' }, cov: { name: 'COVERT', col: '#eb4b4b' }, gold: { name: 'CONTRABAND', col: '#e4ae39' }
 };
 // farver i sRGB-hex; base = våbnets krop, dark = detaljer/greb, wood = skæfter, p = mønsterfarver
 export const WEAPON_SKINS = [
-  { id: 'factory', name: 'Slidt fabrik', rarity: 'base', pat: 'worn', base: 0x3a3833, dark: 0x1e1c19, wood: 0x6b4426, rough: 0.66, metal: 0.35, team: 'hij' },
-  { id: 'graphite', name: 'Taktisk grafit', rarity: 'base', pat: 'solid', base: 0x34383d, dark: 0x1b1d20, wood: 0x2a2c2f, rough: 0.42, metal: 0.25, team: 'swat' },
+  { id: 'factory', name: 'Worn Factory', rarity: 'base', pat: 'worn', base: 0x3a3833, dark: 0x1e1c19, wood: 0x6b4426, rough: 0.66, metal: 0.35, team: 'hij' },
+  { id: 'graphite', name: 'Tactical Graphite', rarity: 'base', pat: 'solid', base: 0x34383d, dark: 0x1b1d20, wood: 0x2a2c2f, rough: 0.42, metal: 0.25, team: 'swat' },
   { id: 'desert', name: 'Desert Storm', rarity: 'mil', pat: 'solid', base: 0xb39b74, dark: 0x3a332a, wood: 0x8a7352, rough: 0.6, metal: 0.1 },
   { id: 'woodland', name: 'Woodland', rarity: 'mil', pat: 'camo', base: 0x4c5a35, dark: 0x22251c, wood: 0x5b4a33, p: [0x2e3a22, 0x6b5a3a, 0x1b1e17], rough: 0.7, metal: 0.05 },
   { id: 'digital', name: 'Urban Digital', rarity: 'res', pat: 'digital', base: 0x6f757b, dark: 0x202326, wood: 0x45494d, p: [0x3d4247, 0x9ca3a8, 0x24272a], rough: 0.62, metal: 0.08 },
@@ -71,13 +71,13 @@ export const defaultAgent = side => side === 'hij' ? 'hij:olive' : 'swat:navy';
 /* ---- v26.5: KNIVE – brugerens færdige modeller med deres egne teksturer (tools/knives/import.py → assets/weapons/knives/knife_<id>.glb).
    Hver kniv har sin egen finish (teksturen). Valget gemmes som '<id>_std' i inv.skins.knife (gamle '<model>_<finish>'-valg falder tilbage til standard) ---- */
 export const KNIVES = [
-  { id: 'karambitgold', name: 'Klo-kniv', fin: 'Guldrunerne', rarity: 'gold' },
-  { id: 'karambitscand', name: 'Klo-kniv', fin: 'Skandinavisk', rarity: 'gold' },
-  { id: 'gut', name: 'Jagtkniv', fin: 'Skandinavisk', rarity: 'gold' },
-  { id: 'karambit', name: 'Klo-kniv', fin: 'Børstet stål', rarity: 'cov' },
-  { id: 'm9', name: 'Kampbajonet', fin: 'Børstet stål', rarity: 'cov' },
-  { id: 'kabar', name: 'Marinekniv', fin: 'Feltudstyr', rarity: 'cls' },
-  { id: 'classic', name: 'Foldekniv', fin: 'Obsidian', rarity: 'res' }
+  { id: 'karambitgold', name: 'Karambit', fin: 'Gold Runes', rarity: 'gold' },
+  { id: 'karambitscand', name: 'Karambit', fin: 'Scandinavian', rarity: 'gold' },
+  { id: 'gut', name: 'Gut-kniv', fin: 'Scandinavian', rarity: 'gold' },
+  { id: 'karambit', name: 'Karambit', fin: 'Vanilla', rarity: 'cov' },
+  { id: 'm9', name: 'M9 Bayonet', fin: 'Vanilla', rarity: 'cov' },
+  { id: 'kabar', name: 'KA-BAR', fin: 'Field Issue', rarity: 'cls' },
+  { id: 'classic', name: 'Classic-kniv', fin: 'Obsidian', rarity: 'res' }
 ];
 export const KNIFE_FINISHES = KNIVES.map(k => ({ id: 'std', name: k.fin, rarity: k.rarity, knife: k.id }));
 export const defaultKnife = 'karambitgold_std';

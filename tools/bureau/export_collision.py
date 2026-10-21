@@ -76,8 +76,7 @@ for k_, v in M['sites'].items():
     sites[k_] = [round(x0, 2), round(z0, 2), round(x1, 2), round(z1, 2), round(float(F[i, j]), 2)]
 NAMES = {'CT Spawn': 'Parkeringskælder', 'CT Forgård': 'Varegården', 'A Site': 'A – Serverhallen', 'Heaven': 'Kontrolrummet', 'Mid': 'Atriet',
          'T Spawn': 'Tagterrassen', 'T Ramp': 'Helipad-trappen', 'T Base': 'Receptionen', 'Mid T': 'Elevatorlobbyen', 'B Site': 'B – Våbenkammeret',
-         'Connector': 'Kaffebaren', 'Lower B': 'Kedelrummet',
-         'Long A top': 'Østgangen top', 'Long A': 'Østgangen', 'Top Mid': 'Galleriet', 'Mid Door': 'Atriedøren', 'Arch': 'Buegangen', 'B Halls øst': 'Sydgangen øst', 'B Halls lomme': 'Sydgangen nisse', 'B Halls vest': 'Sydgangen vest', 'Connector A': 'Teknikgangen', 'Back B': 'Kapellet', 'Pillars B': 'Søjlesalen', 'Main B': 'Hovedtrappen', 'Catwalk øst': 'Gangbroen øst', 'Catwalk': 'Gangbroen', 'Vent': 'Ventilationsrummet', 'Storage': 'Lageret', 'Tunnels vest': 'Tunnelerne vest', 'Tunnels hjørne': 'Tunnelerne hjørne', 'Tunnels': 'Tunnelerne', 'Dark-kammeret': 'Mørkekammeret', 'Dark': 'Mørkerummet'}
+         'Connector': 'Kaffebaren', 'Long A': 'Long A', 'Top Mid': 'Top Mid', 'Lower B': 'Kedelrummet'}
 labels = [[NAMES.get(z['name'], z['name']), round(cx((z['r'][0] + z['r'][2]) / 2), 2), round(cz((z['r'][1] + z['r'][3]) / 2), 2), z['y']] for z in M['zones']]
 # v26: intro – hijackernes helikopter svæver ud for tagterrassens sydlige brystning (skids lige over brystningen, døren mod terrassen)
 zt = G.ZN.index('T Spawn'); ii_, jj_ = np.nonzero(ZID == zt); jc = int((jj_.min() + jj_.max()) / 2); ie = int(ii_.max()) + 1

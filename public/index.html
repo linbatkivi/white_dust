@@ -38,7 +38,7 @@
   </aside>
   <!-- v21: bane-rotation (radar + navn, skifter med scanner-glitch) -->
   <aside id="menuMaps" class="mm-card" title="Klik for næste bane">
-    <div class="ma-tag"><span>BANEPULJE</span><i id="mmIdx">01 / 06</i></div>
+    <div class="ma-tag"><span>MAP POOL</span><i id="mmIdx">01 / 06</i></div>
     <div class="mm-frame"><canvas id="mmCanvas" width="320" height="320"></canvas><div class="mm-sweep"></div><div class="mm-grid"></div>
       <i class="ma-c tl"></i><i class="ma-c tr"></i><i class="ma-c bl"></i><i class="ma-c br"></i></div>
     <div class="ma-info"><div id="mmName" class="ma-name"></div><div id="mmDesc" class="mm-desc"></div></div>
@@ -88,7 +88,7 @@
       <aside class="map-pick lb-mission">
         <div class="lb-mapimg"><img src="/assets/ui/lobby_map.jpg" alt=""><canvas id="lbRadar" width="220" height="165" class="lb-radar"></canvas><span class="lb-mapname">BUREAU</span></div>
         <div class="map-pick-head"><span class="map-label">BANEVALG</span>
-          <span class="vmode"><button id="btnVmodePremier" class="vm-btn" data-vmode="premier" title="Holdene skiftes til at stemme baner ud – den sidste bane spilles">BANDLYS</button><button id="btnVmodeHost" class="vm-btn" data-vmode="host" title="Værten vælger banen">VÆRT VÆLGER</button></span>
+          <span class="vmode"><button id="btnVmodePremier" class="vm-btn" data-vmode="premier" title="Holdene skiftes til at stemme baner ud – den sidste bane spilles">PREMIER</button><button id="btnVmodeHost" class="vm-btn" data-vmode="host" title="Værten vælger banen">VÆRT VÆLGER</button></span>
           <span id="mapHostHint" class="map-host-hint">værten vælger banen</span></div>
         <div id="mapCards" class="map-cards"></div>
         <div id="mapDesc" class="map-desc"></div>
@@ -221,7 +221,7 @@
       <div id="loCard" class="lo-card">
         <div class="lo-ic"><img id="loIcon" alt=""></div>
         <div class="lo-main">
-          <div class="lo-name"><span id="weaponName" class="weapon-name">VS-9 WARDEN</span><span id="skinName" class="skin-name"></span></div>
+          <div class="lo-name"><span id="weaponName" class="weapon-name">USP-S</span><span id="skinName" class="skin-name"></span></div>
           <div class="ammo-row"><span id="ammoMag">12</span><span class="ammo-sep">/</span><span id="ammoRes">36</span></div>
           <div id="loPips" class="lo-pips"></div>
           <div id="reloadBar" class="reload-bar hidden"><div id="reloadFill" class="reload-fill"></div><span class="reload-label">GENLADER</span></div>
@@ -288,7 +288,7 @@
       <h4>DIT UDSTYR <small>køb i denne runde kan sælges</small></h4>
       <ul id="bwInv" class="bw-list"></ul>
       <button id="bwDrop" class="bw-act">SMID PRIMÆRVÅBEN (G)</button>
-      <h4>HOLDETS ØKONOMI <small>rundeprognose</small></h4>
+      <h4>HOLDETS ØKONOMI <small>loss/win predictor</small></h4>
       <div id="bwEco" class="bw-eco"></div>
       <h4>HOLDETS ØNSKER</h4>
       <ul id="bwReqs" class="bw-list"></ul>

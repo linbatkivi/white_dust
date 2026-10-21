@@ -65,7 +65,7 @@ export function createWeapons(THREE, WD, opts) {
     for (let i = 0; i < 20; i++) { const x = R() * w, y = R() * h, r = 20 + R() * 60, g = c.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, 'rgba(60,40,20,.5)'); g.addColorStop(1, 'rgba(60,40,20,0)'); c.fillStyle = g; c.fillRect(x - r, y - r, r * 2, r * 2); }
   }, 256);
   // hvilket hold-finish et våben får: holdets egne våben altid deres holds finish; fælles våben (AWP, Deagle, nades) følger ejerens hold
-  const FINISH_NAME = { hij: 'Slidt fabrik', swat: 'Taktisk grafit' };
+  const FINISH_NAME = { hij: 'Worn Factory', swat: 'Tactical Graphite' };
   const finishTeam = (id, team) => { const w = WD.WEAPONS[id]; return (w && w.team) || (team === 'hij' ? 'hij' : 'swat'); };
   const skinName = (id, team) => { const w = WD.WEAPONS[id]; return w && w.kind === 'gun' ? FINISH_NAME[finishTeam(id, team)] : null; };
   const SKIN_NAME = {}; for (const k in WD.WEAPONS) if (WD.WEAPONS[k].kind === 'gun') SKIN_NAME[k] = FINISH_NAME[finishTeam(k, 'swat')];

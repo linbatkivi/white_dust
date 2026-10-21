@@ -14,15 +14,15 @@ export function createFactions(o) {
   ];
   const DIST = [
     ['garage', 'GARAGEN', ['Parkeringskælder', 'Varegården', 'A Rampe', 'A Forplads']],
-    ['server', 'SERVERHALLEN', ['Kontrolrummet', 'A – Serverhallen', 'Østgangen top', 'Balkonen']],
-    ['arch', 'SØJLEGANGEN', ['Søjlegangen A', 'Buegangen', 'Galleriet', 'Teknikgangen']],
-    ['kaffe', 'KAFFEBAREN', ['Østgangen', 'Rampen', 'Kaffebaren', 'Atriedøren']],
-    ['atrium', 'ATRIET', ['Atriet', 'Elevatorlobbyen', 'Sydgangen øst', 'Sydgangen nisse', 'Sydgangen vest']],
+    ['server', 'SERVERHALLEN', ['Kontrolrummet', 'A – Serverhallen', 'Long A top', 'Balkonen']],
+    ['arch', 'SØJLEGANGEN', ['Søjlegangen A', 'Arch', 'Top Mid', 'Connector A']],
+    ['kaffe', 'KAFFEBAREN', ['Long A', 'Rampen', 'Kaffebaren', 'Mid Door']],
+    ['atrium', 'ATRIET', ['Atriet', 'Elevatorlobbyen', 'B Halls øst', 'B Halls lomme', 'B Halls vest']],
     ['tag', 'TAGET', ['Receptionen', 'Helipad-trappen', 'Tagterrassen', 'Vestpassagen']],
     ['kaelder', 'KÆLDEREN', ['Trappehallen', 'Kryptgangen', 'Kedelrummet', 'Kryptnedgangen']],
-    ['vent', 'VENTILATIONEN', ['Ventilationsrummet', 'Gangbroen øst', 'Vent-gangen', 'Gangbroen']],
-    ['vaaben', 'VÅBENKAMMERET', ['Hovedtrappen', 'Lageret', 'Kapellet', 'Søjlesalen', 'B – Våbenkammeret']],
-    ['dark', 'MØRKERUMMET', ['Tunnelerne', 'Tunnelerne vest', 'Tunnelerne hjørne', 'Mørkerummet', 'Mørkekammeret']]
+    ['vent', 'VENTILATIONEN', ['Vent', 'Catwalk øst', 'Vent-gangen', 'Catwalk']],
+    ['vaaben', 'VÅBENKAMMERET', ['Main B', 'Storage', 'Back B', 'Pillars B', 'B – Våbenkammeret']],
+    ['dark', 'DARK', ['Tunnels', 'Tunnels vest', 'Tunnels hjørne', 'Dark', 'Dark-kammeret']]
   ];
   const AREA = {}; for (const [id, , L] of DIST) for (const a of L) AREA[a] = id;
   const districtOf = a => AREA[a] || null;
