@@ -18,4 +18,4 @@ Venner og fraktioner udveksler data direkte mellem spillerne via PeerJS (ingen n
 | 9  | Interaktive kortmekanikker (porte, projektører, damp)          | ✖ skrottet    |
 | 10 | Fraktioner: Kaffekartellet / Serverklanen / Krypterne kæmper om 10 bydele på de_bureau; sæsonkort, ugeopgørelse (XP, mønter, titel/badge), regnskab deles mellem alle man spiller med | ✅ færdig     |
 | 11 | Hideout (KARRIERE → HIDEOUT): 3D-rum med trofævæg (pokal pr. trofæ i bronze/sølv/guld, mus over = navn), mastery-plader, rank-banner, fraktionsflag og 12 dekorationer fra BUTIKKEN | ✅ færdig     |
-| 12 | Vennesystem: sammenlign statistik og trofæer                   | ⏳ næste      |
+| 12 | Venner: vennekode WD-XXXXXXXX, seneste medspillere, sammenlign level/statistik/trofæer/mastery side om side, besøg vennens hideout; kort udveksles via pub-relæ og PeerJS | ✅ færdig     |
