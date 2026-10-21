@@ -1,0 +1,3 @@
+
+## Valkyrie (v26.8)
+Teksturer og modeller til Valkyrie er CC0 fra Poly Haven (polyhaven.com): white_stucco, yellow_plaster_02, clay_plaster, white_sandstone_bricks, sandstone_blocks_05, cobblestone_floor_01, red_sandstone_pavement, terracotta_floor_tiles, dense_sand, clay_roof_tiles, brown_planks_03, wood_shutter, worn_plaster_wall; HDRI kloofendal_48d_partly_cloudy_puresky; modeller: wooden_barrels_01, barrel_03, wine_barrel_01, planter_box_01–03, planter_pot_clay, ceramic_pot, wicker_basket_01/02, wooden_bucket_01, painted_wooden_bench, wooden_picnic_table, round_wooden_table_01, street_lamp_02, painted_wooden_cabinet, dining_table, potted_plant_02, wooden_ladder.

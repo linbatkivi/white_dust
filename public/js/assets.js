@@ -9,6 +9,7 @@
 import { loadGLTF } from './models.js';
 export const ASSET_SETS = {
   bureau: { dir: '/assets/bureau/', havn: true, sky: 'sky.hdr', tex: [], models: [] },       // v26: luksus-bureauet om natten (tools/bureau/)
+  valkyrie: { dir: '/assets/valkyrie/', havn: true, sky: 'sky.hdr', tex: [], models: [] },   // v26.8: middelhavsbyen i dagslys (tools/valkyrie/)
 };
 
 // Radiance .hdr (RGBE) → { w, h, data: Float32Array RGBA (lineær) }. Understøtter "nyt" RLE-format og flade scanlines.

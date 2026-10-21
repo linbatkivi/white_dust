@@ -120,6 +120,13 @@ const CFG = {
       ['B-site (SWAT) før Hijackers kommer op ad Main B', 'swat', [B_PL[0], B_PL[1], W.sites.B.y], 'hij', [-27.4, -1.6, 3]]
     ]
   }
+  ,
+  valkyrie: {   // v26.8: middelhavsbyen – ét niveau; målene er zonernes midter
+    snap: 3.5,
+    targets: Object.assign({ 'A-site (plant)': [A_PL[0], A_PL[1], W.sites.A.y], 'B-site (plant)': [B_PL[0], B_PL[1], W.sites.B.y] },
+      Object.fromEntries(W.data.labels.filter(l => l[0].length > 1).map(l => [l[0], [l[1], l[2], l[3]]]))),
+    timings: []
+  }
 }[MAPID];
 
 /* ---------------- 1. rækkevidde fra begge spawns ---------------- */

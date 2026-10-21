@@ -425,7 +425,7 @@ async function main() {
     const WDt = require('../shared/wd.js');
     A.send({ t: 'endgame' }); await A.wait(m => m.t === 'lobby' && m.ph === 'lobby', 3000); await sleep(200);
     const lob0 = A.log.filter(m => m.t === 'lobby').pop();
-    ok(lob0 && lob0.maps && lob0.maps.length === 1 && lob0.maps[0].id === 'bureau' && lob0.map === 'bureau', 'Lobbyen viser banen (de_bureau) og den er valgt som standard');
+    ok(lob0 && lob0.maps && lob0.maps.length === WDt.MAP_LIST.length && lob0.maps.some(m => m.id === 'valkyrie') && lob0.map === 'bureau', 'Lobbyen viser alle baner (Bureau, Valkyrie) og Bureau er valgt som standard');
     A.clear(); B.clear(); B.send({ t: 'map', id: 'bureau' }); await sleep(250);
     ok(!A.log.find(m => m.t === 'lobby' && m.map === 'bureau' && m.by === B.id), 'Kun værten kan vælge bane');
     // v11.3: inventar-valg videresendes til alle i rummet – kun gyldige korte id'er overlever serverens validering
@@ -615,7 +615,7 @@ async function main() {
         }
         fin = fin || [...P.log].reverse().find(m => m.t === 'veto' && m.final);
         ok(fin && fin.banned.length === WD.MAP_LIST.length - 1 && fin.pool.includes(fin.final) && !fin.banned.some(b => b.id === fin.final), 'Holdene bandlyser på skift til én bane er tilbage (' + (fin && fin.final) + ')');
-        ok(fin && new Set(fin.banned.slice(0, 2).map(b => b.by)).size === 2, 'Turen skifter mellem holdene');
+        ok(fin && (fin.banned.length < 2 || new Set(fin.banned.slice(0, 2).map(b => b.by)).size === 2), 'Turen skifter mellem holdene');
       } else ok(true, 'Kun én bane i puljen: afstemningen springes over, banen indlæses direkte');
       const ld = await P.wait(m => m.t === 'load', 6000);
       ok(ld && ld.map === (fin ? fin.final : WD.MAP_LIST[0].id), 'Den valgte bane indlæses hos alle');

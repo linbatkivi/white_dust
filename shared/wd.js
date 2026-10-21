@@ -12,6 +12,7 @@
   else root.WD = factory();
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
+  const VALKYRIE_DATA = (typeof module === 'object' && module.exports) ? require('./valkyrie_data.js') : (typeof self !== 'undefined' ? self.WD_VALKYRIE : null);   // v26.8
   const BUREAU_DATA = (typeof module === 'object' && module.exports) ? require('./bureau_data.js') : (typeof self !== 'undefined' ? self.WD_BUREAU : null);   // v26
 
   /* ---------------------------------------------------------------- konstanter */
@@ -819,6 +820,7 @@
   /* ---------------------------------------------------------------- kort-definitioner (funktionserklæringer => hoisted) */
   function defineMaps(REG, K) {
     if (BUREAU_DATA) REG.bureau = mapBureau(K);
+    if (VALKYRIE_DATA) REG.valkyrie = mapValkyrie(K);
   }
 
   /* ================================================================ bureau (v26) ================================================================
@@ -828,6 +830,32 @@
     const D = BUREAU_DATA, G = D.grid;
     return {
       id: 'bureau', name: 'Bureau', desc: 'Luksus-bureauet øverst i et højhus om natten · marmor og valnød, serverhal (A), våbenkammer (B), tagterrasse med udsigt over byen.',
+      GW: G.GW, GH: G.GH, GX0: G.GX0, GZ0: G.GZ0, data: D,
+      layers: [{ id: 'G', yb: -4, yt: WALL_TOP, tiles: { '#': { solid: true }, ' ': { void: true } } }],
+      grid(H) { H.fill(0, 0, G.GW - 1, G.GH - 1, ' '); },
+      props(H) {
+        const { wallBox, stairs, fRamp } = H;
+        for (const b of D.boxes) wallBox(b[0], b[1], b[2], b[3], b[4], b[5], b[6]);
+        for (const r of D.ramps) fRamp(r[0], r[1], r[2], r[3], r[4], r[5], r[6]);
+        for (const t of D.stairs) { const [x0, z0, x1, z1, ax, ya, yb, n] = t, lo = Math.min(ya, yb); stairs(x0, z0, x1, z1, ax, yb > ya ? 1 : -1, lo, Math.abs(yb - ya), n, lo - 0.3, 'stone'); }
+        for (const r of D.rails) H.rail(r[0], r[1], r[2], r[3], r[4], r[5], 'metal');
+      },
+      meta(H) {
+        for (const l of D.labels) H.labels.push({ text: l[0], x: l[1], z: l[2], y: l[3], kind: l[0] === 'A' || l[0] === 'B' ? 'site' : undefined });
+        const sites = {}; for (const k in D.sites) { const S = D.sites[k]; sites[k] = { x0: S[0], z0: S[1], x1: S[2], z1: S[3], y: S[4] }; }
+        const sp = p => ({ x: p[0], y: p[3], z: p[1], yaw: p[2] });
+        return { sites, spawns: { hij: D.spawns.hij.map(sp), swat: D.spawns.swat.map(sp) } };
+      }
+    };
+  }
+
+  /* ================================================================ valkyrie (v26.8) ================================================================
+     Middelhavs-/ørkenby i dagslys – layout efter brugerens konceptkort (tools/valkyrie/). B-sitet ligger i sydvest, tæt på SWAT (bundvejen "B Long"),
+     og langt fra Hijackerne i nordvest. Kollision i shared/valkyrie_data.js. */
+    function mapValkyrie() {
+    const D = VALKYRIE_DATA, G = D.grid;
+    return {
+      id: 'valkyrie', name: 'Valkyrie', desc: 'Middelhavsby i dagslys · stuk, sandsten og terrakotta, snævre gyder og solbeskinnede gårde. A-site i nord, B-site tæt på SWAT i sydvest.',
       GW: G.GW, GH: G.GH, GX0: G.GX0, GZ0: G.GZ0, data: D,
       layers: [{ id: 'G', yb: -4, yt: WALL_TOP, tiles: { '#': { solid: true }, ' ': { void: true } } }],
       grid(H) { H.fill(0, 0, G.GW - 1, G.GH - 1, ' '); },
