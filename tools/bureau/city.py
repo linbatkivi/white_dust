@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ==========================================================================
-# de_bureau · egen nat-skyline: facade-teksturer til højhusene + nattehimmel (HDR). Kun numpy + PIL.
+# bureau · egen nat-skyline: facade-teksturer til højhusene + nattehimmel (HDR). Kun numpy + PIL.
 #   python3 tools/bureau/city.py  → cache/city/city_{a,b,c}_albedo.jpg (+ normal/ORM-reserver), cache/city/street_albedo.jpg,
 #                                   cache/sky/night.hdr (2048 × 1024, ækvirektangulær, Radiance RGBE)
 # Facaden: etagehøjde 3,6 m, fag 1,8 m – én tekstur = 8 fag × 4 etager (14,4 × 14,4 m). De fleste vinduer er mørke (glas, der spejler

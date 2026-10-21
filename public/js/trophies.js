@@ -6,13 +6,13 @@
 // ==========================================================================
 export function createTrophies(o) {
   const Pf = o.Profile, esc = o.esc;
-  const BASE = ['Kryptgangen', 'Kryptnedgangen', 'Kedelrummet', 'Dark', 'Dark-kammeret', 'Tunnels', 'Tunnels vest', 'Tunnels hjørne', 'Trappehallen'];
+  const BASE = ['Kryptgangen', 'Kryptnedgangen', 'Kedelrummet', 'Mørkerummet', 'Mørkekammeret', 'Tunnelerne', 'Tunnelerne vest', 'Tunnelerne hjørne', 'Trappehallen'];
   const zk = (zs) => k => zs.includes(k.at) || zs.includes(k.vt);
   // c: tæller-id · tiers: grænser · kill/round/match/visit: hvad der tæller
   const T = [
     { id: 'heights', name: 'Master of Heights', desc: 'Drab fra etagen over (mindst 1,4 m højere end offeret)', tiers: [5, 25, 100], kill: k => k.dy >= 1.4, icon: '⇣' },
-    { id: 'kartograf', name: 'Kartograf', desc: 'Besøg alle områder på de_bureau', tiers: [15, 30, 40], visit: true, icon: '⌖' },
-    { id: 'kaelder', name: 'Kældermennesket', desc: 'Drab i kælderen (Kryptgang, Kedelrum, Dark, Tunnels, Trappehal)', tiers: [10, 50, 200], kill: zk(BASE), icon: '▼' },
+    { id: 'kartograf', name: 'Kartograf', desc: 'Besøg alle områder på bureau', tiers: [15, 30, 40], visit: true, icon: '⌖' },
+    { id: 'kaelder', name: 'Kældermennesket', desc: 'Drab i kælderen (Kryptgang, Kedelrum, Mørkerummet, Tunnelerne, Trappehal)', tiers: [10, 50, 200], kill: zk(BASE), icon: '▼' },
     { id: 'kaffe', name: 'Kaffepause', desc: 'Drab i Kaffebaren', tiers: [5, 20, 60], kill: zk(['Kaffebaren']), icon: '☕' },
     { id: 'elevator', name: 'Elevatormusik', desc: 'Drab i Elevatorlobbyen eller Atriet', tiers: [10, 40, 120], kill: zk(['Elevatorlobbyen', 'Atriet']), icon: '♫' },
     { id: 'tag', name: 'Tagterrassens konge', desc: 'Drab på Tagterrassen eller Helipad-trappen', tiers: [5, 20, 60], kill: zk(['Tagterrassen', 'Helipad-trappen']), icon: '⌂' },
@@ -33,7 +33,7 @@ export function createTrophies(o) {
     { id: 'bounty', name: 'Dusørjæger', desc: 'Stop en spiller med bounty på hovedet', tiers: [1, 10, 30], kill: k => k.bty > 0, icon: '☠' },
     { id: 'wanted', name: 'Eftersøgt', desc: 'Bliv selv Bounty Target (3 drab i træk)', tiers: [1], round: r => r.bounty ? 1 : 0, secret: true, icon: '⚠' },
     { id: 'vertigo', name: 'Vertigo', desc: 'Tre drab fra etagen over i én runde', tiers: [1], round: r => (r.kills || []).filter(k => k.dy >= 1.4).length >= 3 ? 1 : 0, secret: true, icon: '⇊' },
-    { id: 'route', name: 'Gennem labyrinten', desc: 'Kryptgangen, Trappehallen, Kedelrummet og Dark i samme runde', tiers: [1], roundVisit: ['Kryptgangen', 'Trappehallen', 'Kedelrummet', 'Dark'], secret: true, icon: '⌬' },
+    { id: 'route', name: 'Gennem labyrinten', desc: 'Kryptgangen, Trappehallen, Kedelrummet og Mørkerummet i samme runde', tiers: [1], roundVisit: ['Kryptgangen', 'Trappehallen', 'Kedelrummet', 'Mørkerummet'], secret: true, icon: '⌬' },
     { id: 'pistolace', name: 'Revolverhelt', desc: 'Tre pistoldrab i én runde', tiers: [1], round: r => (r.kills || []).filter(k => { const d = window.WD.WEAPONS[k.w]; return d && d.slot === 2; }).length >= 3 ? 1 : 0, secret: true, icon: '⌐' },
     { id: 'samler', name: 'Trofæjæger', desc: 'Lås trofætrin op', tiers: [10, 30, 60], meta: true, icon: '🏆' }
   ];

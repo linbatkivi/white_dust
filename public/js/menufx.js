@@ -59,7 +59,7 @@ export function createMenuFx(o) {
     const mp = o.maps[(i + o.maps.length) % o.maps.length];
     mapCard.classList.remove('swap'); void mapCard.offsetWidth; mapCard.classList.add('swap');
     setTimeout(() => {
-      $('mmName').textContent = 'de_' + mp.id; $('mmDesc').textContent = mp.desc || ''; $('mmIdx').textContent = String((i % o.maps.length) + 1).padStart(2, '0') + ' / ' + String(o.maps.length).padStart(2, '0');
+      $('mmName').textContent = (mp.name || mp.id).toUpperCase(); $('mmDesc').textContent = mp.desc || ''; $('mmIdx').textContent = String((i % o.maps.length) + 1).padStart(2, '0') + ' / ' + String(o.maps.length).padStart(2, '0');
       try { o.drawRadar($('mmCanvas'), mp.id); } catch (e) {}
     }, 140);
   }

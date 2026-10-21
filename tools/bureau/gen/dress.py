@@ -291,6 +291,12 @@ def run(B, ROOMS, MATS, MI):
                 if 0 < ce_ - top_ < 1.95: bot_ = cyp_ - sy_ / 2; coll = [cxp_, (bot_ + ce_) / 2, czp_, sx_, ce_ - bot_, sz_]
             e['c'] = [round(v, 3) for v in coll]
         props.append(e)
+    PLANTS = ('plant_fig', 'plant_palm', 'plant_strelitzia')
+    def bigplant(x, y, z, pot=True, kind=None):
+        """v26.7: stor, høj stueplante (2–2,4 m) i grafitkrukke – kollision kun om krukken (bladene kan man gå ind i)"""
+        nm = kind or rnd.choice(PLANTS)
+        if pot: put(CUSTOM % nm, x, y, z, rnd.uniform(0, 360), [x, y + 0.27, z, 0.62, 0.54, 0.62])
+        else: put(CUSTOM % (nm + '_np'), x, y, z, rnd.uniform(0, 360))
     def floor_at(x, z):
         i, j = int(z / S + B['CY']), int(x / S + B['CX'])
         return float(F[i, j]) if 0 <= i < H and 0 <= j < W and WALK[i, j] else None
@@ -355,7 +361,7 @@ def run(B, ROOMS, MATS, MI):
             if L > 4.0:
                 put(CUSTOM % 'reception_desk', xc, y, zc, 0.0 if along_x else 90.0); hh = 1.12
             else:
-                put(ph('potted_plant_04'), xc, y, zc, rnd.uniform(0, 360)); hh = max(h, 1.1)
+                bigplant(xc, y, zc); hh = max(h, 1.1)
         elif room in ('Mid T', 'Top Mid', 'Arch', 'Balkonen'):
             put(ph('sofa_02'), xc, y, zc, yaw_long); hh = 0.9
         elif room == 'B Site':
@@ -428,7 +434,7 @@ def run(B, ROOMS, MATS, MI):
             if k == 0: put(ph('korean_fire_extinguisher_01'), x + ox, fl, z + oz, yaw)
             elif k == 1 and r['light'] != 'none': put(ph('security_camera_01'), x + ox, float(C[i, j]) - 0.3, z + oz, yaw)
             elif k == 2 and n in ('Long A', 'B Halls øst', 'Connector', 'Back B', 'Mid', 'Mid T', 'T Base', 'Søjlegangen A', 'Top Mid'):
-                put(ph(rnd.choice(('potted_plant_01', 'potted_plant_04', 'calathea_orbifolia_01'))), x + ox * 3, fl, z + oz * 3, rnd.uniform(0, 360))
+                bigplant(x + ox * 3.2, fl, z + oz * 3.2)
             elif k == 3 and n in ('Vent-gangen', 'Rampen', 'Kryptgangen', 'Lower B', 'Tunnels', 'Storage', 'CT Forgård', 'Trappehallen', 'Vestpassagen'):
                 put(ph(rnd.choice(('power_box_01', 'utility_box_01', 'utility_box_02'))), x + ox * 0.5, fl + 1.3, z + oz * 0.5, yaw)
             elif k == 4 and n in ('Long A', 'Connector', 'B Halls øst', 'Mid T', 'T Base'):
@@ -444,7 +450,13 @@ def run(B, ROOMS, MATS, MI):
             px, pz = x + ox, z + oz
             ci, cj = int(pz / S + B['CY']), int(px / S + B['CX'])
             if not (0 <= ci < H and 0 <= cj < W and ZID[ci, cj] == zi and SLOPE[ci, cj] < 0) or FREE[ci, cj]: continue
+            if n == 'A Site' and pz > -19.4 and 41.0 < px < 53.0: continue          # v26.7: rækken i passagen fra Long A top spærrede indgangen → flyttes ind i hallen (nedenfor)
             put(CUSTOM % 'server_rack', px, float(F[ci, cj]), pz, yaw, [px, float(F[ci, cj]) + 1.0, pz, 0.62 if abs(ox) < 0.1 else 1.07, 2.0, 1.07 if abs(ox) < 0.1 else 0.62])
+    # v26.7: racks langs vestmuren inde i selve A-site-hallen (forsiden mod øst, ind mod sitet) – passagen i Long A top er fri
+    for k_ in range(11):
+        px, pz = 42.17, -24.4 + k_ * 0.6; ci, cj = int(pz / S + B['CY']), int(px / S + B['CX'])
+        if 0 <= ci < H and 0 <= cj < W and WALK[ci, cj] and not FREE_D[ci, cj]:
+            put(CUSTOM % 'server_rack', px, float(F[ci, cj]), pz, 90.0, [px, float(F[ci, cj]) + 1.0, pz, 1.07, 2.0, 0.62])
     # site-dækning (CS' "default"-kasser): flightcases med IT-/våbenudstyr – én dobbeltstabel og én enkelt pr. site, ud fra sitets rektangel
     #   (u, v) = brøkdel af sitet (vest→øst, nord→syd), stak = lille kasse ovenpå (2,05 m: kan ikke ses over, kun hoppes på fra den lave)
     COVER = {'A': [(0.30, 0.52, 0.0, True), (0.76, 0.24, 90.0, False)], 'B': [(0.36, 0.45, 90.0, True), (0.78, 0.78, 0.0, False)]}
@@ -487,7 +499,7 @@ def run(B, ROOMS, MATS, MI):
     put(ph('modern_coffee_table_01'), acx, afl, acz, 0.0)
     put(CUSTOM % 'plinth', acx + 3.6, afl, acz, 0.0); put(ph('bronze_shark_statue'), acx + 3.6, afl + 1.0, acz, 90.0)
     put(CUSTOM % 'plinth', acx - 3.6, afl, acz, 0.0); put(ph('marble_bust_01'), acx - 3.6, afl + 1.0, acz, -90.0)
-    for (dx_, dz_) in ((-2.6, -3.0), (2.6, -3.0), (-2.6, 3.0), (2.6, 3.0)): put(ph('potted_plant_04'), acx + dx_, afl, acz + dz_, rnd.uniform(0, 360))
+    for (k_, (dx_, dz_)) in enumerate(((-2.6, -3.0), (2.6, -3.0), (-2.6, 3.0), (2.6, 3.0))): bigplant(acx + dx_, afl, acz + dz_, kind=PLANTS[k_ % 3])
     print('[dress] atriets lysring og lounge-ø ved (%.1f, %.1f), ring i %.1f m' % (acx, acz, ry))
     # ------------------------------------------------------------ v26: kunst og skærme på væggene i de lange gange (også på skrå gulve)
     nart = 0
@@ -496,8 +508,8 @@ def run(B, ROOMS, MATS, MI):
         for k_, (x, z, yaw, i, j) in enumerate(wall_spots(ZID == ZN.index(n_), 4.5, slope=True)):
             if FREE[i, j] and SLOPE[i, j] < 0: continue
             rad = math.radians(yaw); ox, oz = math.sin(rad) * 0.03, math.cos(rad) * 0.03
-            if k_ % 5 == 2: put(CUSTOM % 'wall_tv', x + ox, float(F[i, j]) + 1.7, z + oz, yaw)
-            else: put(CUSTOM % ('wall_art_%d' % (k_ % 4)), x + ox, float(F[i, j]) + 1.45, z + oz, yaw)
+            if k_ % 5 == 2: put(CUSTOM % 'wall_tv', x + ox, float(F[i, j]) + 0.15, z + oz, yaw)
+            else: put(CUSTOM % ('wall_art_%d' % (k_ % 4)), x + ox, float(F[i, j]) + 0.1, z + oz, yaw)
             nart += 1
     print('[dress] vægkunst/skærme i gangene', nart)
     # elevatorer i elevatorlobbyen, adgangsgates og metaldetektor i sikkerhedsslusen
@@ -639,12 +651,12 @@ def run(B, ROOMS, MATS, MI):
             hang(zi, ph('wall_clock'), 2.25, 1, 6.0)
             against(zi, CUSTOM % 'bookshelf', 0.9, 0.36, 2.0, 3, spacing=1.0)
             against(zi, ph('drawer_cabinet'), 0.6, 0.6, 1.1, 3, spacing=1.0)
-            against(zi, ph('potted_plant_04'), 0.7, 0.7, 1.6, 2, spacing=3.0)
+            against(zi, CUSTOM % rnd.choice(PLANTS), 0.62, 0.62, 0.54, 2, spacing=3.0)
             against(zi, ph('metal_trash_can'), 0.35, 0.35, 0.6, 2, spacing=2.0)
             if n == 'Long A top':                                              # v26.3: gennemgangen mellem Long A og A-sitet (var helt tom)
                 ii_, jj_ = np.nonzero(ZID == zi); xw, xe = cx(jj_.min()), cx(jj_.max() + 1); zn, zs = cz(ii_.min()), cz(ii_.max() + 1); fl_ = float(F[ii_[0], jj_[0]])
                 for (xx, yaw_, s_, zp) in ((xw, 90.0, 1, zs - 0.62), (xe, -90.0, -1, zn + 0.62)):   # op ad sidevæggene, fri af reolerne – midten er passage
-                    put(ph('potted_plant_04'), xx + s_ * 0.45, fl_, zp, rnd.uniform(0, 360), [xx + s_ * 0.45, fl_ + 0.8, zp, 0.6, 1.6, 0.6])
+                    bigplant(xx + s_ * 0.5, fl_, zp)
                     if s_ < 0: put(CUSTOM % 'wall_tv', xx - 0.03, fl_ + 1.75, zn + 1.55, yaw_)          # (vestvæggen har allerede reol + kunst)
         elif n in LUXR:
             big = n in ('Mid', 'Arch', 'Top Mid', 'T Base', 'Mid T', 'Balkonen')
@@ -659,7 +671,7 @@ def run(B, ROOMS, MATS, MI):
                 put(ph(rnd.choice(('bronze_shark_statue', 'horse_statue_01', 'marble_bust_01'))), cxp, fl + 1.0, czp, yaw)
             against(zi, CUSTOM % 'plinth', 0.7, 0.7, 1.0, 2 if big else 1, spacing=4.0, extra=statue)
             def plant(cxp, fl, czp, yaw, fx, fz):
-                put(ph('potted_plant_01'), cxp, fl + 0.6, czp, rnd.uniform(0, 360))
+                bigplant(cxp, fl + 0.58, czp, pot=False)
             against(zi, CUSTOM % 'planter_large', 0.9, 0.9, 0.62, 3 if big else 1, spacing=3.0, extra=plant)
             hang(zi, CUSTOM % ('wall_art_%d' % rnd.randint(0, 3)), 0.0, 3 if big else 2, 4.0)
             if n == 'Connector':

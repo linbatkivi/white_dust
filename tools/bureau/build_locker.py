@@ -1,5 +1,5 @@
 # ==========================================================================
-# de_bureau · våbenskab til B-sitet (v26.3) – blender -b --factory-startup -P tools/bureau/build_locker.py
+# bureau · våbenskab til B-sitet (v26.3) – blender -b --factory-startup -P tools/bureau/build_locker.py
 #   → cache/custom/weapon_locker.glb (100 × 50 × 190 cm, forside mod +Z, origo i gulvhøjde midt under skabet)
 #   Før: en glat grå kasse med sorte flader. Nu et rigtigt pansret våbenskab: oliven pulverlak, to gitterdøre man kan se ind
 #   igennem, fire rifler i et stativ, hylde med ammokasser, kodelås med LED, hængsler, ventilationsslidser, sokkel og stencil-nummer.

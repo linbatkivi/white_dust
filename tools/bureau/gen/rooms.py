@@ -1,4 +1,4 @@
-# de_bureau (tidl. Ascension Agency) – rumtabel: overblikkets zoner → rum i bygningen (se docs/DESIGN.md).
+# bureau (tidl. Ascension Agency) – rumtabel: overblikkets zoner → rum i bygningen (se docs/DESIGN.md).
 # Stil (CS2 Agency): luksuriøst penthouse-agency øverst i et højhus ved skumring – poleret marmor, valnød, børstet stål,
 # panoramavinduer mod skylinen, varme indbyggede spots mod den kolde blå time udenfor. Teknik/kælder/varegård: rå beton.
 #   floor, wall, ceil: materialer · h: loftshøjde (None = udendørs tagterrasse, 'atrium' = glastag)

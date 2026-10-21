@@ -1,7 +1,7 @@
 {
   "name": "de-white-dust",
   "version": "13.0.0",
-  "description": "SUPERHOT x Counter-Strike multiplayer FPS (de_bureau) – PBR, SSAO, bloom, flashbang/molotov, holdvåben, crosshair-indstillinger",
+  "description": "taktisk multiplayer-FPS (bureau) – PBR, SSAO, bloom, flashbang/molotov, holdvåben, crosshair-indstillinger",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

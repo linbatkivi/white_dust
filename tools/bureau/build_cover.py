@@ -1,5 +1,5 @@
 # ==========================================================================
-# de_bureau · site-dækning: flightcases til IT-/våbenudstyr (CS' "default"-kasser) – blender -b --factory-startup -P tools/bureau/build_cover.py
+# bureau · site-dækning: flightcases til IT-/våbenudstyr (CS' "default"-kasser) – blender -b --factory-startup -P tools/bureau/build_cover.py
 #   → cache/custom/flight_case.glb (120 × 105 × 120 cm, kan hoppes op på) og flight_case_s.glb (90 × 60 × 60 cm, stables ovenpå)
 #   Bygget som rigtige transportkasser: sort fenol-krydsfiner, aluminiumsprofiler på alle kanter, kuglehjørner, sommerfuglelåse,
 #   nedsænkede håndtag, låg-fuge og en papirlabel. Origo i gulvhøjde midt under kassen, forside mod +Z.

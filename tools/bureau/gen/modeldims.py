@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# de_bureau · modellernes faktiske mål (akse-orienteret boks i modellens eget rum, y op, forside +z) → data/model_dims.json
+# bureau · modellernes faktiske mål (akse-orienteret boks i modellens eget rum, y op, forside +z) → data/model_dims.json
 #   Bruges af dress.py, så hvert møbel får kollision efter sin egen form – ikke efter overblikkets dækningsfelt.
 #   python3 tools/bureau/gen/modeldims.py      (læser cache/models/<navn>/<navn>.gltf og cache/custom/<navn>.glb)
 import json, os, struct, glob

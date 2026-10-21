@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ==========================================================================
-# de_bureau – kollision og gameplay-data i spillets format (som de_havn/de_ascension): shared/bureau_data.js
+# bureau – kollision og gameplay-data i spillets format (som de_havn/de_ascension): shared/bureau_data.js
 #   python3 tools/bureau/export_collision.py   (kører generatoren gen/gen.py – samme grundlag som grafikken)
 #   boxes [x0,z0,x1,z1,y0,y1,kind] · stairs [x0,z0,x1,z1,axis,ya,yb,n] · ramps [x0,z0,x1,z1,axis,ya,yb] · rails [x0,z0,x1,z1,y,h]
 # ==========================================================================
@@ -76,7 +76,8 @@ for k_, v in M['sites'].items():
     sites[k_] = [round(x0, 2), round(z0, 2), round(x1, 2), round(z1, 2), round(float(F[i, j]), 2)]
 NAMES = {'CT Spawn': 'Parkeringskælder', 'CT Forgård': 'Varegården', 'A Site': 'A – Serverhallen', 'Heaven': 'Kontrolrummet', 'Mid': 'Atriet',
          'T Spawn': 'Tagterrassen', 'T Ramp': 'Helipad-trappen', 'T Base': 'Receptionen', 'Mid T': 'Elevatorlobbyen', 'B Site': 'B – Våbenkammeret',
-         'Connector': 'Kaffebaren', 'Long A': 'Long A', 'Top Mid': 'Top Mid', 'Lower B': 'Kedelrummet'}
+         'Connector': 'Kaffebaren', 'Lower B': 'Kedelrummet',
+         'Long A top': 'Østgangen top', 'Long A': 'Østgangen', 'Top Mid': 'Galleriet', 'Mid Door': 'Atriedøren', 'Arch': 'Buegangen', 'B Halls øst': 'Sydgangen øst', 'B Halls lomme': 'Sydgangen nisse', 'B Halls vest': 'Sydgangen vest', 'Connector A': 'Teknikgangen', 'Back B': 'Kapellet', 'Pillars B': 'Søjlesalen', 'Main B': 'Hovedtrappen', 'Catwalk øst': 'Gangbroen øst', 'Catwalk': 'Gangbroen', 'Vent': 'Ventilationsrummet', 'Storage': 'Lageret', 'Tunnels vest': 'Tunnelerne vest', 'Tunnels hjørne': 'Tunnelerne hjørne', 'Tunnels': 'Tunnelerne', 'Dark-kammeret': 'Mørkekammeret', 'Dark': 'Mørkerummet'}
 labels = [[NAMES.get(z['name'], z['name']), round(cx((z['r'][0] + z['r'][2]) / 2), 2), round(cz((z['r'][1] + z['r'][3]) / 2), 2), z['y']] for z in M['zones']]
 # v26: intro – hijackernes helikopter svæver ud for tagterrassens sydlige brystning (skids lige over brystningen, døren mod terrassen)
 zt = G.ZN.index('T Spawn'); ii_, jj_ = np.nonzero(ZID == zt); jc = int((jj_.min() + jj_.max()) / 2); ie = int(ii_.max()) + 1
@@ -109,7 +110,7 @@ for i in range(0, H, 4):
         if WALK[i, j] and SLOPE[i, j] < 0 and not OUT[i, j] or (WALK[i, j] and OUT[i, j] and SLOPE[i, j] < 0):
             wc.append([round(cx(j + 0.5), 2), round(cz(i + 0.5), 2), round(float(F[i, j]), 2), G.ZN[ZID[i, j]]])
 json.dump({'cells': wc}, open(os.path.join(HERE, 'out', 'bureau_walk.json'), 'w'))
-txt = ('/* AUTOGENERERET af tools/bureau/export_collision.py – redigér ikke i hånden.\n   de_bureau: luksus-bureauet øverst i et højhus om natten. */\n'
+txt = ('/* AUTOGENERERET af tools/bureau/export_collision.py – redigér ikke i hånden.\n   bureau: luksus-bureauet øverst i et højhus om natten. */\n'
        '(function (root) {\n  const D = ' + json.dumps(D, ensure_ascii=False, separators=(',', ':')) + ';\n'
        "  if (typeof module === 'object' && module.exports) module.exports = D; else root.WD_BUREAU = D;\n})(typeof self !== 'undefined' ? self : this);\n")
 open(os.path.join(ROOT, 'shared', 'bureau_data.js'), 'w').write(txt)

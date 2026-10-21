@@ -56,6 +56,8 @@ async function main() {
     if (up) break; await sleep(200);
   }
   try {
+    console.log('\n== Pistol-headshots ==');
+    ok(['usp', 'glock', 'tec9', 'fiveseven'].every(id => Math.round(WD.WEAPONS[id].dmg * WD.hitMul(WD.WEAPONS[id], 'head')) < 100) && WD.WEAPONS.deagle.dmg * WD.hitMul(WD.WEAPONS.deagle, 'head') >= 100 && WD.WEAPONS.ak47.dmg * WD.hitMul(WD.WEAPONS.ak47, 'head') >= 100, 'Pistoler (undtagen Desert Eagle) dræber ikke med ét headshot');
     console.log('\n== Lobby & rum ==');
     const A = new Bot('Alice'), B = new Bot('Bob'), C = new Bot('Cleo');
     await A.connect(); await B.connect(); await C.connect();

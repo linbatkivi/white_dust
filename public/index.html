@@ -1,13 +1,15 @@
 <!doctype html>
-<html lang="da">
+<html lang="en" class="i18n-wait">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>DE_WHITE_DUST</title>
+<title>WHITE DUST</title>
 <link rel="icon" href="data:,">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/main.css">
+<style>html.i18n-wait body { visibility: hidden; }</style>
+<script>setTimeout(function () { document.documentElement.classList.remove("i18n-wait"); }, 4000);</script>
 <script src="/shared/bureau_data.js"></script>
 <script src="/shared/wd.js"></script>
 <script src="/shared/progress.js"></script>
@@ -18,6 +20,7 @@
 
 <!-- ============================================================ HOVEDMENU ============================================================ -->
 <section id="scr-menu" class="screen">
+  <div class="lang-pick"><label for="langSel" class="lang-ic" title="Sprog / Language">🌐</label><select id="langSel" class="st-sel" aria-label="Sprog"></select></div>
   <canvas id="logo3d" class="logo3d"></canvas>
   <!-- v21: spiller-hjørnet – din valgte agent i 3D (klik = inventar) -->
   <aside id="menuAgent" class="m-agent">
@@ -35,12 +38,12 @@
   </aside>
   <!-- v21: bane-rotation (radar + navn, skifter med scanner-glitch) -->
   <aside id="menuMaps" class="mm-card" title="Klik for næste bane">
-    <div class="ma-tag"><span>MAP POOL</span><i id="mmIdx">01 / 06</i></div>
+    <div class="ma-tag"><span>BANEPULJE</span><i id="mmIdx">01 / 06</i></div>
     <div class="mm-frame"><canvas id="mmCanvas" width="320" height="320"></canvas><div class="mm-sweep"></div><div class="mm-grid"></div>
       <i class="ma-c tl"></i><i class="ma-c tr"></i><i class="ma-c bl"></i><i class="ma-c br"></i></div>
     <div class="ma-info"><div id="mmName" class="ma-name"></div><div id="mmDesc" class="mm-desc"></div></div>
   </aside>
-  <div class="mfx-tape"><span>WHITE_DUST ▮ SWAT VS HIJACKERS ▮ DE_BUREAU ▮ HELIKOPTER-INDSÆTNING ▮ 5 MOD 5 ▮ INGEN NÅDE ▮ </span><span>WHITE_DUST ▮ SWAT VS HIJACKERS ▮ DE_BUREAU ▮ HELIKOPTER-INDSÆTNING ▮ 5 MOD 5 ▮ INGEN NÅDE ▮ </span></div>
+  <div class="mfx-tape"><span>WHITE DUST ▮ SWAT VS HIJACKERS ▮ BUREAU ▮ HELIKOPTER-INDSÆTNING ▮ 5 MOD 5 ▮ INGEN NÅDE ▮ </span><span>WHITE DUST ▮ SWAT VS HIJACKERS ▮ BUREAU ▮ HELIKOPTER-INDSÆTNING ▮ 5 MOD 5 ▮ INGEN NÅDE ▮ </span></div>
   <div class="menu-wrap">
     <div id="logoSlot" class="logo-slot" title="Klik på medaljonen"></div>
     <h1 class="logo">WHITE<span class="logo-us">_</span>DUST<span class="cursor">▮</span></h1>
@@ -78,14 +81,14 @@
   <div class="lb-bg"><div class="lb-img"></div><div class="lb-shade"></div><div class="lb-rain"></div><div class="lb-scan"></div></div>
   <div class="lobby-wrap lb-wrap">
     <header class="lb-top">
-      <div class="lb-op"><span class="lb-live"><i></i>LIVE</span><span class="lb-kick">VENTEVÆRELSE</span><h1 class="lb-name">OPERATION <b>DE_BUREAU</b></h1></div>
+      <div class="lb-op"><span class="lb-live"><i></i>LIVE</span><span class="lb-kick">VENTEVÆRELSE</span><h1 class="lb-name">OPERATION <b>BUREAU</b></h1></div>
       <div class="lobby-head code-badge lb-code"><span class="code-label">PARTY-KODE</span><span id="lobbyCode" class="code-big">----</span><button id="btnCopyCode" class="btn btn-tiny">KOPIÉR LINK</button></div>
     </header>
     <div class="lb-grid">
       <aside class="map-pick lb-mission">
-        <div class="lb-mapimg"><img src="/assets/ui/lobby_map.jpg" alt=""><canvas id="lbRadar" width="220" height="165" class="lb-radar"></canvas><span class="lb-mapname">DE_BUREAU</span></div>
+        <div class="lb-mapimg"><img src="/assets/ui/lobby_map.jpg" alt=""><canvas id="lbRadar" width="220" height="165" class="lb-radar"></canvas><span class="lb-mapname">BUREAU</span></div>
         <div class="map-pick-head"><span class="map-label">BANEVALG</span>
-          <span class="vmode"><button id="btnVmodePremier" class="vm-btn" data-vmode="premier" title="Holdene skiftes til at stemme baner ud – den sidste bane spilles">PREMIER</button><button id="btnVmodeHost" class="vm-btn" data-vmode="host" title="Værten vælger banen">VÆRT VÆLGER</button></span>
+          <span class="vmode"><button id="btnVmodePremier" class="vm-btn" data-vmode="premier" title="Holdene skiftes til at stemme baner ud – den sidste bane spilles">BANDLYS</button><button id="btnVmodeHost" class="vm-btn" data-vmode="host" title="Værten vælger banen">VÆRT VÆLGER</button></span>
           <span id="mapHostHint" class="map-host-hint">værten vælger banen</span></div>
         <div id="mapCards" class="map-cards"></div>
         <div id="mapDesc" class="map-desc"></div>
@@ -158,7 +161,7 @@
 <div id="hud" class="hidden">
   <div id="nameTags" class="name-tags"></div>
   <!-- v17: chat nede i venstre hjørne (Y = alle, U = holdet) -->
-  <div id="chat" class="chat"><div id="chatLog" class="chat-log"></div>
+  <div id="chat" class="chat"><div id="chatLog" class="chat-log" translate="no"></div>
     <div id="chatRow" class="chat-row hidden"><span id="chatMode" class="chat-mode">ALLE</span><input id="chatInput" class="chat-input" maxlength="120" autocomplete="off" spellcheck="false"></div></div>
   <div id="areaName" class="area-name"></div>
   <div id="scopeOv" class="scope-ov hidden"></div>
@@ -218,7 +221,7 @@
       <div id="loCard" class="lo-card">
         <div class="lo-ic"><img id="loIcon" alt=""></div>
         <div class="lo-main">
-          <div class="lo-name"><span id="weaponName" class="weapon-name">USP-S</span><span id="skinName" class="skin-name"></span></div>
+          <div class="lo-name"><span id="weaponName" class="weapon-name">VS-9 WARDEN</span><span id="skinName" class="skin-name"></span></div>
           <div class="ammo-row"><span id="ammoMag">12</span><span class="ammo-sep">/</span><span id="ammoRes">36</span></div>
           <div id="loPips" class="lo-pips"></div>
           <div id="reloadBar" class="reload-bar hidden"><div id="reloadFill" class="reload-fill"></div><span class="reload-label">GENLADER</span></div>
@@ -285,7 +288,7 @@
       <h4>DIT UDSTYR <small>køb i denne runde kan sælges</small></h4>
       <ul id="bwInv" class="bw-list"></ul>
       <button id="bwDrop" class="bw-act">SMID PRIMÆRVÅBEN (G)</button>
-      <h4>HOLDETS ØKONOMI <small>loss/win predictor</small></h4>
+      <h4>HOLDETS ØKONOMI <small>rundeprognose</small></h4>
       <div id="bwEco" class="bw-eco"></div>
       <h4>HOLDETS ØNSKER</h4>
       <ul id="bwReqs" class="bw-list"></ul>
@@ -305,7 +308,7 @@
   <div class="pm-scan"></div>
   <div class="pm-wrap">
     <div class="pm-left">
-      <div class="pm-kicker"><i></i>OPERATION <span id="pmMap">DE_BUREAU</span></div>
+      <div class="pm-kicker"><i></i>OPERATION <span id="pmMap">BUREAU</span></div>
       <div class="pm-title">PAUSE</div>
       <div class="pm-sub"><span class="only-mouse">Klik hvor som helst – eller tryk <kbd>ESC</kbd> – for at fortsætte</span><span class="only-touch">Tryk på skærmen for at fortsætte</span></div>
       <div id="pmMeta" class="pm-meta"></div>

@@ -1,5 +1,5 @@
 // ==========================================================================
-// TEMA: de_bureau (v26) – luksus-bureauet øverst i et højhus en regnfuld nat. Banen er FORFATTET (tools/bureau/build.py: Blender +
+// TEMA: bureau (v26) – luksus-bureauet øverst i et højhus en regnfuld nat. Banen er FORFATTET (tools/bureau/build.py: Blender +
 // bagt lys – varme spots, lamelloft, exit-skilte og nødlys er bagt ind). Udenfor: egen skyline med oplyste vinduer 110 m nede i byen.
 // Temaet giver en meget svag, kold måne (realtid), nattehimlen, mørk dis over byen og en filmisk efterbehandling; regnen på
 // tagterrassen og lygternes glorier kommer fra night.js.

@@ -1,5 +1,5 @@
 # ==========================================================================
-# de_bureau · Blender-bygger (headless): luksus-bureauet øverst i et højhus om natten.
+# bureau · Blender-bygger (headless): luksus-bureauet øverst i et højhus om natten.
 #   python3 tools/bureau/city.py && python3 tools/bureau/gen/gen.py        (teksturer/himmel + layout → out/bureau.json)
 #   blender -b --factory-startup -P tools/bureau/build.py -- bake            → public/assets/bureau (lysmaps + world.bin/json)
 #   blender -b --factory-startup -P tools/bureau/build.py -- clay            → kun geometri (out/bureau_clay.blend)
@@ -64,7 +64,7 @@ TARGET = {'covered_car': 6000, 'pachira_aquatica_01': 2600, 'sofa_02': 2400, 'so
           'classic_laptop': 500, 'desk_lamp_arm_01': 500, 'calathea_orbifolia_01': 1600, 'potted_plant_01': 1400, 'potted_plant_04': 1400,
           'korean_fire_extinguisher_01': 400, 'bookshelf': 1400, 'keyboard_mouse': 260, 'pallet': 500, 'office_chair': 700, 'server_rack': 500,
           'desk_pair': 700, 'reception_desk': 400, 'elevator_doors': 600, 'coffee_bar': 700, 'cable_tray': 280, 'security_camera_01': 400, 'wall_clock': 300, 'bar_chair_round_01': 700, 'metal_trash_can': 500,
-          'flight_case': 3600, 'flight_case_s': 3400, 'mid_century_lounge_chair': 1800, 'side_table_01': 600, 'weapon_locker': 3000}
+          'plant_fig': 16000, 'plant_fig_np': 16000, 'plant_palm': 16000, 'plant_palm_np': 16000, 'plant_strelitzia': 16000, 'plant_strelitzia_np': 16000, 'flight_case': 3600, 'flight_case_s': 3400, 'mid_century_lounge_chair': 1800, 'side_table_01': 600, 'weapon_locker': 3000}
 _lib = {}
 def model_obj(path):
     if path in _lib: return _lib[path]
@@ -136,7 +136,7 @@ def furnish(props):
         ob0, mnz = L; ob = ob0.copy(); ob.hide_render = False; n += 1; ob.name = 'props_%d' % n
         x, y, z = p['p']; custom = '/custom/' in rel
         loc = B(x, y if custom else y - mnz, z)                                  # Poly Haven: laveste punkt på gulvet (ingen svævere)
-        ob.location = loc; ob.rotation_euler = (0, 0, math.radians(p['yaw']))
+        ob.location = loc; ob.rotation_mode = 'XYZ'; ob.rotation_euler = (0, 0, math.radians(p['yaw']))   # v26.7: glTF-import sætter QUATERNION → yaw blev ignoreret og alt vendte samme vej
         coll('props').objects.link(ob)
     print('[bureau] inventar: %d stk., %d modeller, %.0f s' % (n, len(_lib), time.time() - t0))
 

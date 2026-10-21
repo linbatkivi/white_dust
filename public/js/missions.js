@@ -18,7 +18,7 @@ export function createMissions(o) {
     { id: 'd_pistol', t: 'Lav {n} drab med pistol', n: 4, on: { kill: k => cls(k.w) === 'pistol' } },
     { id: 'd_smg', t: 'Lav {n} drab med maskinpistol', n: 5, on: { kill: k => cls(k.w) === 'smg' } },
     { id: 'd_rifle', t: 'Lav {n} drab med riffel', n: 8, on: { kill: k => cls(k.w) === 'rifle' } },
-    { id: 'd_awp', t: 'Lav {n} drab med AWP', n: 3, on: { kill: k => cls(k.w) === 'awp' } },
+    { id: 'd_awp', t: 'Lav {n} drab med snigskytteriffel', n: 3, on: { kill: k => cls(k.w) === 'awp' } },
     { id: 'd_high', t: 'Lav {n} drab fra etagen over', n: 3, on: { kill: k => k.dy >= 1.4 } },
     { id: 'd_trap', t: 'Lav {n} drab i Trappehallen eller Kryptgangen', n: 3, on: { kill: k => inZ(k, ['Trappehallen', 'Kryptgangen', 'Kryptnedgangen']) } },
     { id: 'd_atrium', t: 'Lav {n} drab i Atriet eller Elevatorlobbyen', n: 4, on: { kill: k => inZ(k, ['Atriet', 'Elevatorlobbyen']) } },
@@ -30,8 +30,8 @@ export function createMissions(o) {
     { id: 'd_hij', t: 'Vind {n} runder som Hijackers', n: 4, on: { round: r => r.won && r.side === 'hij' } },
     { id: 'd_explore', t: 'Besøg {n} forskellige områder i én kamp', n: 18, max: 'matchAreas' },
     { id: 'd_route1', t: 'Løb gennem Kryptgangen og Trappehallen i samme runde', n: 1, route: ['Kryptgangen', 'Trappehallen'] },
-    { id: 'd_route2', t: 'Tag trappen: Arch og Kaffebaren i samme runde', n: 1, route: ['Arch', 'Kaffebaren'] },
-    { id: 'd_route3', t: 'Fra Dark til Kedelrummet i samme runde', n: 1, route: ['Dark', 'Kedelrummet'] },
+    { id: 'd_route2', t: 'Tag trappen: Buegangen og Kaffebaren i samme runde', n: 1, route: ['Buegangen', 'Kaffebaren'] },
+    { id: 'd_route3', t: 'Fra Mørkerummet til Kedelrummet i samme runde', n: 1, route: ['Mørkerummet', 'Kedelrummet'] },
     { id: 'd_mvp', t: 'Bliv rundens MVP {n} gange', n: 2, on: { round: r => r.mvp } },
     { id: 'd_long', t: 'Lav {n} drab på over 25 meters afstand', n: 3, on: { kill: k => k.d >= 25 } }
   ];
@@ -45,7 +45,7 @@ export function createMissions(o) {
     { id: 'w_clutch', t: 'Vind {n} runder som sidste mand i live', n: 2, on: { round: r => r.clutch } },
     { id: 'w_bomb', t: 'Plant eller desarmér bomben {n} gange', n: 6, on: { round: r => (r.plant ? 1 : 0) + (r.defuse ? 1 : 0) } },
     { id: 'w_areas', t: 'Besøg {n} forskellige områder i løbet af ugen', n: 34, max: 'weekAreas' },
-    { id: 'w_routes', t: 'Gå gennem alle tre kælderveje (Kryptgangen, Kedelrummet, Dark-kammeret) i én kamp', n: 1, mroute: ['Kryptgangen', 'Kedelrummet', 'Dark-kammeret'] },
+    { id: 'w_routes', t: 'Gå gennem alle tre kælderveje (Kryptgangen, Kedelrummet, Mørkekammeret) i én kamp', n: 1, mroute: ['Kryptgangen', 'Kedelrummet', 'Mørkekammeret'] },
     { id: 'w_mvp', t: 'Bliv rundens MVP {n} gange', n: 8, on: { round: r => r.mvp } }
   ];
   const SEASON = { id: 's1', name: 'SÆSON 1 · PENTHOUSE', end: '2026-12-31', reward: { title: ['s1_penthouse', 'Sæson 1: Penthouse'], card: ['s1_card', 'Sæson 1', 'linear-gradient(135deg,rgba(228,174,57,.0) 0 60%,rgba(228,174,57,.55) 60% 62%,transparent 62%),repeating-linear-gradient(90deg,rgba(255,255,255,.05) 0 1px,transparent 1px 40px),linear-gradient(160deg,#141a24,#060709)'] },
@@ -58,7 +58,7 @@ export function createMissions(o) {
       { id: 's_knife', t: 'Lav {n} knivdrab', n: 10, on: { kill: k => k.w === 'knife' } },
       { id: 's_ace', t: 'Lav en ACE (5 drab i én runde)', n: 1, on: { round: r => (r.kills || []).length >= 5 } },
       { id: 's_clutch', t: 'Vind {n} clutches', n: 10, on: { round: r => r.clutch } },
-      { id: 's_areas', t: 'Besøg alle {n} områder på de_bureau', n: ALL_AREAS, max: 'everAreas' },
+      { id: 's_areas', t: 'Besøg alle {n} områder på bureau', n: ALL_AREAS, max: 'everAreas' },
       { id: 's_mvp', t: 'Bliv rundens MVP {n} gange', n: 30, on: { round: r => r.mvp } }
     ] };
   const REW = { d: [350, 50], w: [1200, 180], s: [3000, 400] };

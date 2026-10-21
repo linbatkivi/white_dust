@@ -1,5 +1,5 @@
 // ==========================================================================
-// White Dust · v26.6 FRAKTIONER – vælg side i kampen om de_bureau. Banen er delt i 10 bydele; drab, plants og desarmeringer
+// White Dust · v26.6 FRAKTIONER – vælg side i kampen om bureau. Banen er delt i 10 bydele; drab, plants og desarmeringer
 //   i en bydel giver din fraktion indflydelse dér. Den fraktion med mest indflydelse i en bydel kontrollerer den (sæsonkortet).
 //   Ingen server i skyen: hver spiller fører et regnskab for ugen (én post pr. spiller) og udveksler det med alle man spiller med,
 //   så kortet vokser for hver kamp. Ved ugeskifte gøres ugen op: belønning pr. bydel din fraktion holdt + bonus til ugens vinder.
@@ -8,21 +8,21 @@
 export function createFactions(o) {
   const Pf = o.Profile, esc = o.esc;
   const F = [
-    { id: 'kartel', name: 'KAFFEKARTELLET', col: '#d08a3a', motto: 'Koffein og kontrol', sym: 'K' },
-    { id: 'klan', name: 'SERVERKLANEN', col: '#2fbf71', motto: 'Vi ejer netværket', sym: 'S' },
-    { id: 'krypt', name: 'KRYPTERNE', col: '#8a5cff', motto: 'Vi kommer nedefra', sym: 'X' }
+    { id: 'kartel', name: 'AURUM', col: '#d08a3a', motto: 'Rigdom er magt', sym: 'A' },
+    { id: 'klan', name: 'VANTA', col: '#2fbf71', motto: 'Ingen lys, ingen spor', sym: 'V' },
+    { id: 'krypt', name: 'NOCTURNE', col: '#8a5cff', motto: 'Natten tilhører os', sym: 'N' }
   ];
   const DIST = [
     ['garage', 'GARAGEN', ['Parkeringskælder', 'Varegården', 'A Rampe', 'A Forplads']],
-    ['server', 'SERVERHALLEN', ['Kontrolrummet', 'A – Serverhallen', 'Long A top', 'Balkonen']],
-    ['arch', 'SØJLEGANGEN', ['Søjlegangen A', 'Arch', 'Top Mid', 'Connector A']],
-    ['kaffe', 'KAFFEBAREN', ['Long A', 'Rampen', 'Kaffebaren', 'Mid Door']],
-    ['atrium', 'ATRIET', ['Atriet', 'Elevatorlobbyen', 'B Halls øst', 'B Halls lomme', 'B Halls vest']],
+    ['server', 'SERVERHALLEN', ['Kontrolrummet', 'A – Serverhallen', 'Østgangen top', 'Balkonen']],
+    ['arch', 'SØJLEGANGEN', ['Søjlegangen A', 'Buegangen', 'Galleriet', 'Teknikgangen']],
+    ['kaffe', 'KAFFEBAREN', ['Østgangen', 'Rampen', 'Kaffebaren', 'Atriedøren']],
+    ['atrium', 'ATRIET', ['Atriet', 'Elevatorlobbyen', 'Sydgangen øst', 'Sydgangen nisse', 'Sydgangen vest']],
     ['tag', 'TAGET', ['Receptionen', 'Helipad-trappen', 'Tagterrassen', 'Vestpassagen']],
     ['kaelder', 'KÆLDEREN', ['Trappehallen', 'Kryptgangen', 'Kedelrummet', 'Kryptnedgangen']],
-    ['vent', 'VENTILATIONEN', ['Vent', 'Catwalk øst', 'Vent-gangen', 'Catwalk']],
-    ['vaaben', 'VÅBENKAMMERET', ['Main B', 'Storage', 'Back B', 'Pillars B', 'B – Våbenkammeret']],
-    ['dark', 'DARK', ['Tunnels', 'Tunnels vest', 'Tunnels hjørne', 'Dark', 'Dark-kammeret']]
+    ['vent', 'VENTILATIONEN', ['Ventilationsrummet', 'Gangbroen øst', 'Vent-gangen', 'Gangbroen']],
+    ['vaaben', 'VÅBENKAMMERET', ['Hovedtrappen', 'Lageret', 'Kapellet', 'Søjlesalen', 'B – Våbenkammeret']],
+    ['dark', 'MØRKERUMMET', ['Tunnelerne', 'Tunnelerne vest', 'Tunnelerne hjørne', 'Mørkerummet', 'Mørkekammeret']]
   ];
   const AREA = {}; for (const [id, , L] of DIST) for (const a of L) AREA[a] = id;
   const districtOf = a => AREA[a] || null;
@@ -94,11 +94,11 @@ export function createFactions(o) {
     for (const f of Object.values(ctrl)) if (f) cnt[f] = (cnt[f] || 0) + 1;
     const ends = new Date(S.week + 'T00:00:00'); ends.setDate(ends.getDate() + 7); const days = Math.max(0, Math.ceil((ends - Date.now()) / 864e5));
     const players = Object.keys(S.L).length, canSwitch = S.sw !== S.week;
-    if (!S.f) return `<div class="fx-wrap"><h3 class="ms-h">VÆLG FRAKTION <small>kæmp om bydelene på de_bureau · regnskabet deles med alle du spiller med</small></h3>
+    if (!S.f) return `<div class="fx-wrap"><h3 class="ms-h">VÆLG FRAKTION <small>kæmp om bydelene på bureau · regnskabet deles med alle du spiller med</small></h3>
       <div class="fx-pick">${F.map(f => `<button class="fx-card" data-fxpick="${f.id}" style="--fc:${f.col}">${emblem(f.id, 84)}<b>${f.name}</b><span>${f.motto}</span><em>VÆLG</em></button>`).join('')}</div>
       <p class="fx-note">Drab i en bydel giver din fraktion indflydelse dér (headshot ekstra, plant/desarmering på sitet, sejr i den bydel du kæmpede mest i). Mest indflydelse = kontrol. Ugen gøres op mandag: XP og mønter pr. bydel din fraktion holdt, og ekstra til ugens vinder.</p></div>`;
     const my = facOf(S.f);
-    return `<div class="fx-wrap"><h3 class="ms-h">SÆSONKORT · UGE ${S.week.slice(5).split('-').reverse().join('/')} <small>gøres op om ${days} dag${days === 1 ? '' : 'e'} · ${players} spiller${players === 1 ? '' : 'e'} i regnskabet</small></h3>
+    return `<div class="fx-wrap"><h3 class="ms-h">SÆSONKORT · UGE ${S.week.slice(5).split('-').reverse().join('/')} <small>gøres op om ${days} d · ${players} i regnskabet</small></h3>
       <div class="fx-grid"><div class="fx-mapbox"><canvas id="fxMap" width="900" height="720"></canvas></div>
       <div class="fx-side"><div class="fx-me" style="--fc:${my.col}">${emblem(my.id, 56)}<div><small>DIN FRAKTION</small><b>${my.name}</b><span>${me ? sumOf(me) : 0} indflydelse fra dig i denne uge</span></div></div>
         <h3>STILLING</h3><ul class="fx-stand">${F.map(f => `<li style="--fc:${f.col}" class="${f.id === S.f ? 'me' : ''}">${emblem(f.id, 26)}<b>${f.name}</b><em>${cnt[f.id] || 0} bydele</em><small>${S.season[f.id] || 0} uger vundet</small></li>`).join('')}</ul>

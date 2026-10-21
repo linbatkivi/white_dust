@@ -65,7 +65,7 @@ export function createWeapons(THREE, WD, opts) {
     for (let i = 0; i < 20; i++) { const x = R() * w, y = R() * h, r = 20 + R() * 60, g = c.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, 'rgba(60,40,20,.5)'); g.addColorStop(1, 'rgba(60,40,20,0)'); c.fillStyle = g; c.fillRect(x - r, y - r, r * 2, r * 2); }
   }, 256);
   // hvilket hold-finish et våben får: holdets egne våben altid deres holds finish; fælles våben (AWP, Deagle, nades) følger ejerens hold
-  const FINISH_NAME = { hij: 'Worn Factory', swat: 'Tactical Graphite' };
+  const FINISH_NAME = { hij: 'Slidt fabrik', swat: 'Taktisk grafit' };
   const finishTeam = (id, team) => { const w = WD.WEAPONS[id]; return (w && w.team) || (team === 'hij' ? 'hij' : 'swat'); };
   const skinName = (id, team) => { const w = WD.WEAPONS[id]; return w && w.kind === 'gun' ? FINISH_NAME[finishTeam(id, team)] : null; };
   const SKIN_NAME = {}; for (const k in WD.WEAPONS) if (WD.WEAPONS[k].kind === 'gun') SKIN_NAME[k] = FINISH_NAME[finishTeam(k, 'swat')];
@@ -1140,12 +1140,20 @@ export function createWeapons(THREE, WD, opts) {
     const M = mats(id, 'world', team);
     if (sharedMat && sharedMat.userData.uBake) for (const k in M) if (M[k].userData && M[k].userData.uBake) M[k].userData.uBake = sharedMat.userData.uBake;
     const tmp = new THREE.Group(); const meta = build(tmp, M, skinId) || {};
-    if (meta.knife) {                                                                // v26.6: tredjeperson – kniven i rigtigt greb (ikke peget frem som en pistol, så den ses fra alle sider)
+    if (meta.knife) {                                                                // v26.7: tredjeperson – grebets midte lægges i næven, klingen vendes frem/op (hammer) eller ned/frem (karambit)
       const piv = new THREE.Group(), kids = tmp.children.slice(); for (const c of kids) { tmp.remove(c); piv.add(c); }
-      const rev = /^karambit/.test(meta.model || '');
-      piv.rotation.x = rev ? -0.85 : 0.55; piv.position.set(0, rev ? -0.015 : 0.02, 0.01);   // hammergreb: klingen op og lidt frem · karambit: omvendt, klingen ned under næven
+      const rev = /^karambit/.test(meta.model || ''), gz = meta.gripZ !== undefined ? meta.gripZ : rev ? 0.07 : 0.055;
+      const gp = new THREE.Vector3(0, 0, gz), bv = (meta.tip ? meta.tip.clone() : new THREE.Vector3(0, 0, -0.18)).sub(gp).normalize();
+      const KT = (typeof window !== 'undefined' && window.__kt) || {};
+      const t = new THREE.Vector3(...(rev ? (KT.r || [0, -0.35, -0.94]) : (KT.h || [0, 0.5, -0.87]))).normalize();      // klingens retning i våbnets rum (-Z frem, +Y op)
+      const q = new THREE.Quaternion().setFromUnitVectors(bv, t);
+      const spine = new THREE.Vector3(0, 1, 0).applyQuaternion(q), want = new THREE.Vector3(...(rev ? (KT.rs || [0.0, 0.7, 0.7]) : (KT.hs || [0, 1, 0.25]))).normalize(); want.addScaledVector(t, -want.dot(t)).normalize(); spine.addScaledVector(t, -spine.dot(t)).normalize();
+      const ang = Math.atan2(new THREE.Vector3().crossVectors(spine, want).dot(t), spine.dot(want));
+      q.premultiply(new THREE.Quaternion().setFromAxisAngle(t, ang));
+      piv.quaternion.copy(q); piv.position.copy(gp.clone().applyQuaternion(q).negate()); piv.position.y += 0.005;
       piv.updateMatrix(); tmp.add(piv); piv.updateMatrixWorld(true);
       for (const c of piv.children.slice()) { c.applyMatrix4(piv.matrix); piv.remove(c); tmp.add(c); } tmp.remove(piv);
+      if (meta.tip) meta.tip = meta.tip.clone().applyMatrix4(piv.matrix);
     }
     const mkW = p => { const m = o.dynMat ? o.dynMat(p) : new THREE.MeshLambertMaterial({ color: p.color, map: p.map || null }); if (sharedMat && sharedMat.userData.uBake && m.userData.uBake) m.userData.uBake = sharedMat.userData.uBake; return m; };
     const glb = fitTemplate(tmp, id, team, skinId, mkW, meta);

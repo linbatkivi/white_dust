@@ -7,7 +7,7 @@
 //   Om natten tænder køretøjet forlygterne (ét fast spotlys, så shaderne aldrig genoversættes), og i regn sprøjter vand i stedet for støv.
 //   Køretøjets vej findes automatisk på hver bane (fri, flad strækning ind mod holdets spawn – kollisions-test mod banens colliders),
 //   kameraet klippes mellem filmiske vinkler (lavt ved jorden, følgende, slowmotion, kran) og flyver til sidst ind i spillerens øjne.
-// v26: HELIKOPTER (de_bureau, banedata intro.hij.mode = 'heli'): hijackernes mørke helikopter kommer ind over byen i regnen med søgelyset
+// v26: HELIKOPTER (bureau, banedata intro.hij.mode = 'heli'): hijackernes mørke helikopter kommer ind over byen i regnen med søgelyset
 //   tændt, flarer op og svæver ud for tagterrassens brystning (110 m over gaden); skydedørene glider op i rødt kabinelys, hijackerne springer
 //   fra dørkarmen op på brystningen og ned på terrassen under rotoren (slowmotion), og helikopteren letter og drejer væk ud over byen.
 // createIntro(o) -> { preload(), play(info, ms), update(dt) -> bool (styrer kameraet), stop(), active }
@@ -557,6 +557,7 @@ export function createIntro(o) {
     // kamera
     const sh = heliShots(t), tgt = sh.look;
     if ((sh.fp !== undefined || t >= 7.7) && !sh.raw) camSafe(tgt, sh.pos, cam.position); else cam.position.copy(sh.pos);
+    if (sh.fp !== undefined) cam.position.lerp(sh.pos, Math.min(1, sh.fp * 1.3) ** 2);   // v26.7: de sidste meter lander præcis i spillerens øjne (kamera-sikring skubbede kameraet tilbage)
     cam.lookAt(tgt);
     if (Math.abs(cam.fov - sh.fov) > 0.01) { cam.fov = sh.fov; cam.updateProjectionMatrix(); }
     if (sh.fp !== undefined) {
@@ -647,6 +648,7 @@ export function createIntro(o) {
     // kamera
     const sh = shots(t), tgt = sh.look;
     if (sh.raw) cam.position.copy(sh.pos); else camSafe(tgt, sh.pos, cam.position);
+    if (sh.fp !== undefined) cam.position.lerp(sh.pos, Math.min(1, sh.fp * 1.3) ** 2);   // v26.7: lander præcis i spillerens øjne
     cam.lookAt(tgt);
     if (Math.abs(cam.fov - sh.fov) > 0.01) { cam.fov = sh.fov; cam.updateProjectionMatrix(); }
     if (sh.fp !== undefined) {                                              // sidste skud: egen figur skjules når kameraet når øjnene

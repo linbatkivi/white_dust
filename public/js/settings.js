@@ -4,6 +4,7 @@
 //   Alt gemmes i localStorage ('wd_settings') og anvendes i realtid (HUD-crosshair, pointer-lock-bevægelse, lyd).
 //   Åbnes fra hovedmenuen og fra pause-menuen (Esc). createSettings({ onChange }) -> { get, open, close, isOpen, drawCrosshair, sensRad }
 // ==========================================================================
+import { LANGS, getLang, setLang, onLang } from '/js/i18n.js';
 export function createSettings(opts) {
   const o = opts || {};
   const KEY = 'wd_settings';
@@ -78,6 +79,8 @@ export function createSettings(opts) {
         <div class="st-head"><h2>INDSTILLINGER</h2><button class="btn btn-tiny" id="stClose">LUK  [ESC]</button></div>
         <div class="st-body">
           <section class="st-col">
+            <h3>SPROG</h3>
+            <div class="st-row"><label for="stLang">Sprog / Language</label><select id="stLang" class="st-sel"></select></div>
             <h3>CROSSHAIR</h3>
             ${slider('stLen', 'Længde', 'len', 'xh')}
             ${slider('stThick', 'Tykkelse', 'thick', 'xh')}
@@ -111,6 +114,7 @@ export function createSettings(opts) {
           </section>
         </div>
       </div>`;
+    { const sel = $('stLang'); if (sel) { sel.innerHTML = LANGS.map(([c, n]) => `<option value="${c}">${n}</option>`).join(''); sel.value = getLang(); sel.addEventListener('change', e => setLang(e.target.value)); onLang(l => { sel.value = l; }); } }   // v26.7: sprogvalg
     root.addEventListener('mousedown', e => { if (e.target === root) close(); });
     root.querySelectorAll('input[type=range]').forEach(inp => inp.addEventListener('input', () => {
       const k = inp.dataset.key, v = clampTo(k, inp.value); if (v === null) return;

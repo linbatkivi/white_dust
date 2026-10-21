@@ -1,11 +1,12 @@
 // ==========================================================================
-// DE_WHITE_DUST — klient (v9 · v12: servertids-interpolation + præcis lag-kompensation, CS-bevægelse, kniv, rundeslut, bombe-kamera, plant-zoner)
+// WHITE DUST — klient (v9 · v12: servertids-interpolation + præcis lag-kompensation, CS-bevægelse, kniv, rundeslut, bombe-kamera, plant-zoner)
 // Bruger samme fysik/kort-modul som serveren (window.WD, indlæst via <script> før dette modul),
 // så lokal bevægelses-prædiktion altid matcher serverens regler.
 // Rendering: visuals.js (bane, PBR, bagt lys), post.js (SSAO, bloom, FXAA, tonemapping), fx.js (røg/ild/flash-partikler),
 //            characters.js (spillere), weapons.js (våben/hold-finish), audio.js (lyd), settings.js (crosshair, mus, volumen).
 // ==========================================================================
 import * as THREE from '/vendor/three.module.min.js';
+import { LANGS, getLang, setLang, onLang, tr } from '/js/i18n.js';   // v26.7: sprogvalg (engelsk standard)
 import { createVisuals } from '/js/visuals.js';
 import { createThemes } from '/js/themes.js';
 import { createCharacters } from '/js/characters.js';
@@ -79,13 +80,16 @@ applySettings(Settings.get());
 const _el = {};
 const $ = id => _el[id] || (_el[id] = document.getElementById(id));   // cachede opslag (kaldes mange gange pr. frame)
 const _txt = new Map();
-function setText(id, v) { v = String(v); if (_txt.get(id) !== v) { _txt.set(id, v); $(id).textContent = v; } }   // rør kun DOM ved ændring
+function setText(id, v) { v = String(v); const el = $(id); if (!el) { _txt.delete(id); return; } if (_txt.get(id) !== v || el._wdTxt !== v) { _txt.set(id, v); el._wdTxt = v; el.textContent = v; } }   // v26.7: null-sikker (manglende element stoppede hele HUD-loopet → timeren stod stille) og følger det faktiske element   // rør kun DOM ved ændring
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 const lerp = (a, b, t) => a + (b - a) * t;
 const lerpAngle = (a, b, t) => { let d = ((b - a + Math.PI) % (Math.PI * 2)) - Math.PI; if (d < -Math.PI) d += Math.PI * 2; return a + d * t; };
 const fmtTime = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
 const smooth = t => t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
 // v26.6: profil & karriere (XP, levels, ranks, titler, profilkort – senere missioner, trofæer, mastery …)
+// v26.7: sprogvalg i menuen (samme valg som i indstillingerne)
+onLang(() => { try { if (typeof Profile !== 'undefined' && Profile.isOpen()) Profile.render(); } catch (e) {} });
+{ const sel = document.getElementById('langSel'); if (sel) { sel.innerHTML = LANGS.map(([c, n]) => `<option value="${c}">${n}</option>`).join(''); sel.value = getLang(); sel.addEventListener('change', e => setLang(e.target.value)); onLang(l => { sel.value = l; }); } }
 const Profile = createProfile({ $, Audio, esc: escapeHtml, mastery: () => Mastery.packed(), onLevel: () => { if (Net.connected) Net.send({ t: 'prof', p: Profile.summary() }); }, name: () => ($('nameInput') && $('nameInput').value.trim()) || loadName() || 'Spiller' });
 const Missions = createMissions({ Profile, esc: escapeHtml, toast: (a, b, c) => Profile.toast(a, b, c) });   // v26.6: daglige/ugentlige/sæson
 const Trophies = createTrophies({ Profile, esc: escapeHtml });   // v26.6: trofæer
@@ -425,7 +429,7 @@ function drawBoxLayer(c, L, S, ox, oz, top, Wm) {
   c.fillStyle = 'rgba(40,42,44,.9)';
   for (const b of Wm.boxes) if (b.kind === 'wall' && b.y1 > L.yb + 1 && b.y1 - Math.max(b.y0, L.yb) > 0.8 && (top ? b.y1 > 0.5 : b.y0 > -12 && b.y1 < 0.5 && b.y1 > L.yb + 1)) c.fillRect(b.x0 * S + ox, b.z0 * S + oz, (b.x1 - b.x0) * S + 0.4, (b.z1 - b.z0) * S + 0.4);
 }
-/* ---- v26.6: SÆSONKORTET – radar af de_bureau farvet efter hvilken fraktion der kontrollerer bydelen ---- */
+/* ---- v26.6: SÆSONKORTET – radar af bureau farvet efter hvilken fraktion der kontrollerer bydelen ---- */
 function drawFactionMap(cv, AREA, dist) {
   const RI = radarImages('bureau', () => { if (cv.isConnected) drawFactionMap(cv, AREA, dist); });
   const Wm = WD.buildWorld('bureau'), c = cv.getContext('2d'), b = Wm.bounds, S = Math.min(cv.width / (b.x1 - b.x0), cv.height / (b.z1 - b.z0)) * 0.94;
@@ -442,9 +446,9 @@ function drawFactionMap(cv, AREA, dist) {
   c.drawImage(m, 0, 0); c.globalCompositeOperation = 'multiply'; c.drawImage(col, 0, 0); c.globalCompositeOperation = 'source-over'; c.globalAlpha = 0.28; c.drawImage(col, 0, 0); c.globalAlpha = 1;
   c.textAlign = 'center'; c.font = '700 15px "JetBrains Mono", monospace';
   for (const d of dist) { const L = Wm.labels.filter(l => d.areas.includes(l.text)); if (!L.length) continue;
-    const x = L.reduce((a, l) => a + l.x, 0) / L.length * S + ox, z = L.reduce((a, l) => a + l.z, 0) / L.length * S + oz, w = c.measureText(d.name).width + 14;
+    const x = L.reduce((a, l) => a + l.x, 0) / L.length * S + ox, z = L.reduce((a, l) => a + l.z, 0) / L.length * S + oz, w = c.measureText(tr(d.name)).width + 14;
     c.fillStyle = '#0a0a0a'; c.fillRect(x - w / 2, z - 12, w, 22); if (d.col) { c.fillStyle = d.col; c.fillRect(x - w / 2, z + 8, w, 4); }
-    c.fillStyle = '#f4f4f2'; c.fillText(d.name, x, z + 4); }
+    c.fillStyle = '#f4f4f2'; c.fillText(tr(d.name), x, z + 4); }
 }
 /* ---- map pool: kort med radar-forhåndsvisning (tegnet fra banens geometri) ---- */
 /* ---- v16: rene radarbilleder (tools/radar/ – nåbare flader, lige kanter, højdeniveauer; Canals bruger den rigtige CS-radar) ---- */
@@ -703,10 +707,10 @@ Net.on('round', m => {
 /* v22: titelkort under intro-cutscenen (forsidens stil) */
 const IntroCard = {
   show() {
-    const el = $('introCard'), swat = Game.side !== 'hij', map = 'de_' + (W && W.id ? W.id : '');
+    const el = $('introCard'), swat = Game.side !== 'hij', map = (W && (W.name || W.id) ? String(W.name || W.id).toUpperCase() : '');
     el.className = 'intro-card ' + (swat ? 'swat' : 'hij');
     el.innerHTML = `<div class="ic-k"><b>${swat ? 'SWAT' : 'HIJACKERS'}</b><span>${escapeHtml(map)}</span></div>
-      <div class="ic-t">${(swat ? 'INDSATSEN BEGYNDER' : 'VI ER PÅ PLADS').split('').map((c, i) => `<span style="--i:${i}">${c === ' ' ? '&nbsp;' : c}</span>`).join('')}</div>
+      <div class="ic-t">${tr(swat ? 'INDSATSEN BEGYNDER' : 'VI ER PÅ PLADS').split('').map((c, i) => `<span style="--i:${i}">${c === ' ' ? '&nbsp;' : c}</span>`).join('')}</div>
       <div class="ic-s">${swat ? 'Forsvar bombepladserne · desarmér hvis den bliver plantet' : 'Plant bomben på A eller B · eliminér SWAT'}</div>`;
     $('introBars').classList.remove('hidden'); el.classList.remove('hidden');
   },
@@ -742,13 +746,13 @@ function showLoadWait() {
     $('loadingMap').classList.remove('wait');
     // v21: startede runden mens banen stadig bygges (serverens tidsgrænse), skal indlæsningsskærmen blive – ellers sort skærm
     if (!inited3d || Renderer.mapReady()) $('loadingMap').classList.add('hidden');
-    else { $('loadingMap').querySelector('.lm-title').textContent = 'INDLÆSER BANEN'; $('loadingMapName').textContent = 'de_' + W.id + ' · kampen er startet – du er med om et øjeblik'; }
+    else { $('loadingMap').querySelector('.lm-title').textContent = 'INDLÆSER BANEN'; $('loadingMapName').textContent = String(W.name || W.id).toUpperCase() + ' · kampen er startet – du er med om et øjeblik'; }
     return;
   }
   const n = Game.loadN || 1, k = Math.min(n, (Game.loadReady || []).length);
   $('loadingMap').classList.remove('hidden'); $('loadingMap').classList.add('wait');
   $('loadingMap').querySelector('.lm-title').textContent = Game.loadAcked ? 'VENTER PÅ SPILLERE' : 'INDLÆSER BANEN';
-  $('loadingMapName').textContent = 'de_' + W.id + ' · ' + k + ' / ' + n + ' klar' + (Game.loadAcked ? ' – kampen starter når alle har indlæst banen' : '');
+  $('loadingMapName').textContent = String(W.name || W.id).toUpperCase() + ' · ' + k + ' / ' + n + ' klar' + (Game.loadAcked ? ' – kampen starter når alle har indlæst banen' : '');
   $('loadingMap').style.setProperty('--lm-p', (k / n).toFixed(3));
 }
 function tryLoadAck() {
@@ -1389,7 +1393,7 @@ const BuyMenu = {
     $('bwTimer').textContent = 'Køb lukker om ' + fmtTime(this.left()) + (Game.phase === 'live' ? ' · kun i spawn' : '');
     if (this._ecoSig !== JSON.stringify(Game.eco) + Game.self.money) this.renderEco();
   },
-  /* v12: holdets økonomi + 'Loss/Win Predictor': samlet/gennemsnitlige penge, hvad næste runde giver ved sejr og tab, og en købsanbefaling */
+  /* v12: holdets økonomi + 'Rundeprognose': samlet/gennemsnitlige penge, hvad næste runde giver ved sejr og tab, og en købsanbefaling */
   renderEco() {
     const e = Game.eco, box = $('bwEco'); if (!box) return;
     this._ecoSig = JSON.stringify(e) + Game.self.money;
@@ -1399,7 +1403,7 @@ const BuyMenu = {
     const tot = rows.reduce((a, r) => a + r.money, 0), avg = Math.round(tot / rows.length);
     const lossNext = WD.lossBonus(Math.min(E.loss.length, (e.streak || 0) + 1));
     const full = 3700, force = 2000;     // rifle (~2700-3100) + granater ≈ 3700 pr. spiller
-    const rec = avg >= full ? ['FULL BUY', 'full', 'Alle kan købe rifle + granater'] : avg >= force ? ['FORCE BUY', 'force', 'Pistoler/SMG/billige rifler – eller spar sammen'] : ['ECO', 'eco', 'Spar pengene – køb højst en pistol'];
+    const rec = avg >= full ? ['FULD UDRUSTNING', 'full', 'Alle kan købe rifle + granater'] : avg >= force ? ['TVUNGET KØB', 'force', 'Pistoler/SMG/billige rifler – eller spar sammen'] : ['SPAR OP', 'eco', 'Spar pengene – køb højst en pistol'];
     const bar = r => `<i class="eco-bar" style="width:${Math.min(100, r.money / 60)}%"></i>`;
     box.innerHTML = `<div class="eco-rec eco-${rec[1]}"><b>${rec[0]}</b><span>${rec[2]}</span></div>
       <ul class="eco-list">${rows.map(r => `<li class="${r.alive ? '' : 'dead'}${r.id === Game.meId ? ' me' : ''}"><span>${escapeHtml(r.name)}</span><em>${r.prim ? r.prim.name : '—'}</em><b>$${r.money}</b>${bar(r)}</li>`).join('')}</ul>
@@ -1527,7 +1531,7 @@ const HUD = {
   updateSelf() {
     const s = Game.self;
     if (!s.alive || !(WEAPONS[s.cur] && WEAPONS[s.cur].scope)) Game.scoped = false;
-    if (s.alive && s.cur === 'awp' && !Game._awpHint) { Game._awpHint = true; UI.toast('AWP: tryk F eller højreklik for scope', 3500); }
+    if (s.alive && s.cur === 'awp' && !Game._awpHint) { Game._awpHint = true; UI.toast('SR-50: tryk F eller højreklik for scope', 3500); }
     if (!s.alive) Game.reloading = null;
     else if (Game.reloading) { const rw = WEAPONS[s.cur], ra = s.ammo && s.ammo[s.cur]; if (rw && ra && ra.mag >= rw.mag) Game.reloading = null; }
     $('hpFill').style.width = clamp(s.hp, 0, 100) + '%';
@@ -1832,7 +1836,7 @@ const Renderer = (() => {
   /* ---------------- bane: bygges bag en indlæsningsskærm (bagt lys + PBR-maps tager et øjeblik) ---------------- */
   function loadMap() {
     if (loading) return;                                   // doLoad tjekker til sidst om banen er skiftet imens
-    loading = true; $('loadingMap').classList.remove('hidden'); $('loadingMapName').textContent = 'de_' + W.id + ' — beregner lys, skygger og materialer…';
+    loading = true; $('loadingMap').classList.remove('hidden'); $('loadingMapName').textContent = String(W.name || W.id).toUpperCase() + ' — beregner lys, skygger og materialer…';
     // v11: fotoscannede teksturer + HDRI hentes først (caches efter første gang); fejler de, bygges banen med procedurale materialer
     setTimeout(() => {
       const want = W.id;
@@ -2992,7 +2996,7 @@ const Renderer = (() => {
     } catch (e) { console.warn('[ikon]', e); iconQ = []; }
     if (iconQ.length) setTimeout(drainIcons, 16); else { iconBusy = false; if (BuyMenu.open) { BuyMenu._iconTick = (BuyMenu._iconTick || 0) + 1; BuyMenu.render(); } }
   }
-  const api = { setEvent, event: () => EV.cur, intro: () => (ensureChars(), Intro), bombCine: () => BombCine, deferEnd: (m, info) => { if (BombCine && BombCine.active) { pendingEnd = m; return true; }
+  const api = { setEvent, event: () => EV.cur, get camera() { return camera; }, intro: () => (ensureChars(), Intro), bombCine: () => BombCine, deferEnd: (m, info) => { if (BombCine && BombCine.active) { pendingEnd = m; return true; }
       if (info && RoundCine && !Game.cineFull) { try { if (RoundCine.start(info)) { pendingEnd = m; m._cine = true; return true; } } catch (e) { console.warn('rundefilm', e); } } return false; },
     roundCine: () => RoundCine, introReady: () => introLoaded, setQuality, gunIcon, get gfx() { return gfxName; }, get pr() { return prCur; }, get perf() { return perf; }, chars: () => (ensureChars(), Chars), weap: () => (ensureChars(), Weap), onCosmetics, mapReady: () => !loading && mapId === W.id, cosReady: () => COS.ready, setCine, init, loadMap, flinchAim, onRoundStart, onShotFx, inspect, onRemoteMelee, onMeleeWall, onPlant, onExplode, onBoom, onSmokePop, onFlashPop, onFirePop, onFireOut, onRemoteThrow, onThrowLocal, onPinPull, onWeaponChange, mouseDelta, shake, skinName, get mapId() { return mapId; } };
   if (DEV) {   // v14: kontaktark over førstepersonsvåben (kun dev) – hvert våben renderes alene på neutral baggrund

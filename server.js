@@ -1,6 +1,6 @@
 'use strict';
 /* ==========================================================================
-   DE_WHITE_DUST – server
+   WHITE DUST – server
    Én Node-proces: serverer klienten (HTTP) og kører spillet (WebSocket på /ws).
    Kør:  node server.js      (port 3000, eller PORT=xxxx)
    I desktop-appen kører værten denne server selv (desktop/main.js) – vennerne forbinder peer-to-peer.
@@ -842,7 +842,7 @@ function onShoot(room, p, m) {
   room.bcast({ t: 'ev', k: 'shot', i: p.id, w: p.cur, o: [r2(o[0]), r2(o[1]), r2(o[2])], e, h: best ? 1 : 0, n: (best || noWallHit) ? 0 : [r2(nrm.nx), r2(nrm.ny), r2(nrm.nz)] }, p);
   if (best) {
     const hs = best.part === 'head';
-    const dmg = Math.round(w.dmg * WD.HIT_MUL[best.part]);
+    const dmg = Math.round(w.dmg * WD.hitMul(w, best.part));
     const killed = damage(room, victim, dmg, p, p.cur, hs);
     sendP(p, { t: 'ev', k: 'hit', hs, dmg, kill: killed, v: victim.id });
     if (victim.connected) sendP(victim, { t: 'ev', k: 'hurt', dx: r2(p.x - victim.x), dz: r2(p.z - victim.z), dmg, hs });
@@ -1269,7 +1269,7 @@ server.listen(PORT, HOST, () => {
   const ips = [];
   const ifs = os.networkInterfaces();
   for (const k in ifs) for (const a of ifs[k]) if (a.family === 'IPv4' && !a.internal) ips.push(a.address);
-  console.log('\n  DE_WHITE_DUST kører!\n');
+  console.log('\n  WHITE DUST kører!\n');
   console.log('  Tilstand:       ' + (WEB ? 'browser + app' : 'kun desktop-app') + ' · udgave ' + BUILD);
   console.log('  Lokalt:         http://localhost:' + PORT);
   ips.forEach(ip => console.log('  På dit netværk: http://' + ip + ':' + PORT));

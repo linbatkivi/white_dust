@@ -1,4 +1,4 @@
-# de_bureau · modellernes mål målt i Blender med samme import som build.py (transformer anvendt) → gen/data/model_dims.json
+# bureau · modellernes mål målt i Blender med samme import som build.py (transformer anvendt) → gen/data/model_dims.json
 #   blender -b --factory-startup -P tools/bureau/gen/modeldims_blender.py
 #   Spil-koordinater: x = Blender x, y (op) = Blender z, z (frem) = −Blender y.
 import bpy, os, json, glob

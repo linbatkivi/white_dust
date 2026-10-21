@@ -139,7 +139,7 @@ const fs = require('fs'), os = require('os'), path = require('path'), url = requ
         const v = Weap.viewmodel(id, team), w = Weap.worldModel(id, null, team); let c = 0, nan = 0;
         v.traverse(o => { if (o.isMesh) { c++; for (const x of o.geometry.attributes.position.array) if (!Number.isFinite(x)) nan++; } });
         const wt = WD.WEAPONS[id].team, fin = Weap.skinName(id, team);
-        if (team === 'swat' || wt === undefined) ok(c >= 5 && !!w && nan === 0 && (WD.WEAPONS[id].kind !== 'gun' || fin === (wt ? (wt === 'hij' ? 'Worn Factory' : 'Tactical Graphite') : (team === 'hij' ? 'Worn Factory' : 'Tactical Graphite'))), `våben ${id} (${team}): førsteperson (${c} dele) + 3.-person${fin ? ' · finish «' + fin + '»' : ''}`);
+        if (team === 'swat' || wt === undefined) ok(c >= 5 && !!w && nan === 0 && (WD.WEAPONS[id].kind !== 'gun' || fin === (wt ? (wt === 'hij' ? 'Slidt fabrik' : 'Taktisk grafit') : (team === 'hij' ? 'Slidt fabrik' : 'Taktisk grafit'))), `våben ${id} (${team}): førsteperson (${c} dele) + 3.-person${fin ? ' · finish «' + fin + '»' : ''}`);
         if (WD.WEAPONS[id].kind === 'nade') ok(!!(v.userData.meta.ring || v.userData.meta.wick), `granat ${id}: sikringsring/klud til opladnings-animationen`);
       }
     }

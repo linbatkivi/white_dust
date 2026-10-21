@@ -1,4 +1,4 @@
-# de_bureau · trappe-/rampekontrol: hver ende skal munde ud i gulv i samme højde over mindst 1,2 m bredde (ikke ind i en mur)
+# bureau · trappe-/rampekontrol: hver ende skal munde ud i gulv i samme højde over mindst 1,2 m bredde (ikke ind i en mur)
 #   python3 tools/bureau/gen/stairqa.py   (bruges også af test/mapqa-lignende tjek)
 import io, contextlib, sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

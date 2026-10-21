@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# de_bureau – materialernes teksturer → KTX2 (basisu) til spillet: public/assets/bureau/tex/<id>_{d,n,a}.ktx2
+# bureau – materialernes teksturer → KTX2 (basisu) til spillet: public/assets/bureau/tex/<id>_{d,n,a}.ktx2
 #   Læser world.json (materialer med 'files': albedo/normal/ORM – også modellernes egne teksturer). Springer eksisterende filer over.
 import json, os, subprocess, concurrent.futures as cf
 from PIL import Image
