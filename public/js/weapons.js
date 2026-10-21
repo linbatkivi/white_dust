@@ -700,7 +700,7 @@ export function createWeapons(THREE, WD, opts) {
       for (let i = 0; i < 2600; i++) { c.strokeStyle = `rgba(20,12,6,${0.2 + R() * 0.3})`; c.lineWidth = 0.6; c.beginPath(); const x = R() * w, y = R() * h; c.moveTo(x, y); c.lineTo(x + R() * 14 - 7, y + R() * 14 - 7); c.stroke(); }
       for (let i = 0; i < 16; i++) { const x = R() * w, y = R() * h, r = 12 + R() * 40, g = c.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, 'rgba(150,110,70,.3)'); g.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g; c.fillRect(x - r, y - r, r * 2, r * 2); }
     } else {                                                // sort Nomex: fin strik-struktur
-      c.fillStyle = '#1b1c1f'; c.fillRect(0, 0, w, h);
+      c.fillStyle = '#26292e'; c.fillRect(0, 0, w, h);
       for (let y = 0; y < h; y += 2) for (let x = (y % 4); x < w; x += 4) { c.fillStyle = 'rgba(255,255,255,.035)'; c.fillRect(x, y, 2, 1); }
       for (let i = 0; i < 40000; i++) { c.fillStyle = `rgba(0,0,0,${R() * 0.25})`; c.fillRect(R() * w, R() * h, 2, 2); }
       c.strokeStyle = 'rgba(120,124,132,.35)'; c.setLineDash([6, 5]); c.lineWidth = 2;               // v26.5: syninger og forstærkede paneler
@@ -728,7 +728,7 @@ export function createWeapons(THREE, WD, opts) {
       metal: mk({ color: 0x9a9da2, roughness: 0.3, metalness: 0.9 }),
       nail: mk({ color: 0xd8b8a4, roughness: 0.28, metalness: 0 }),
       cord: mk({ color: 0x6b2a1c, roughness: 0.8, metalness: 0 }),
-      dial: (() => { const m = mk({ color: 0x0b1a10, roughness: 0.2, metalness: 0.1 }); m.emissive = new THREE.Color(0x2bd46a); m.emissiveIntensity = 0.12; return m; })()
+      dial: (() => { const m = mk({ color: 0x06100a, roughness: 0.25, metalness: 0.1 }); m.emissive = new THREE.Color(0x1c8a4a); m.emissiveIntensity = 0.012; return m; })()
     });
   }
   const capsule = (r, len) => new THREE.CapsuleGeometry(r, Math.max(0.0005, len), 8, 22);   // v26.5: runde fingre (før 4 × 10 – kantede)
@@ -752,6 +752,10 @@ export function createWeapons(THREE, WD, opts) {
       // fire fingre om en cylinder (grebet) med radius rg langs Z: knoen på håndryggen, derefter tre led der krummer rundt
       const Z = [0.031, 0.0105, -0.0105, -0.03], FR = [0.0094, 0.0098, 0.0092, 0.0082], LEN = [[0.042, 0.026, 0.021], [0.046, 0.028, 0.022], [0.043, 0.027, 0.021], [0.034, 0.021, 0.018]];
       const curl = opt.curl === undefined ? 1 : opt.curl;
+      let fingerRig = null;
+      if (o.hands) {                                        // v26.7: glatte, skinnede fingre + loftet håndryg/-flade
+        const H = o.hands.buildFingers({ rg, curl, T, hij, FR, Z, LEN }); for (const m of H.meshes) hand.add(m); hand.add(o.hands.buildPalm({ rg, T, hij })); fingerRig = H;
+      } else {
       for (let f = 0; f < 4; f++) {
         const R = rg + FR[f], z = Z[f]; let ang = 200 * Math.PI / 180, prev = [Math.cos(ang) * R, Math.sin(ang) * R, z];
         for (let k = 0; k < 3; k++) {
@@ -774,8 +778,10 @@ export function createWeapons(THREE, WD, opts) {
       // tommelfinger: fra håndroden på pegefingersiden, hen over grebet (modsat fingrene)
       const tz = 0.046, tR = rg + 0.01, ta = [-0.032, 0.05, 0.036], tb = [Math.cos(2.4) * tR, Math.sin(2.4) * tR, tz], tc = [Math.cos(1.45) * tR, Math.sin(1.45) * tR, tz + 0.002], td = [Math.cos(0.75) * tR, Math.sin(0.75) * tR, tz];
       seg(hand, ta, tb, 0.0115, T.glove); seg(hand, tb, tc, 0.0102, T.glove); seg(hand, tc, td, 0.0095, hij ? T.skin : T.glove);
+      }
+
       if (!hij) {                                           // SWAT: knobeskytter i kulfiber over knoerne + velcro-strop ved håndleddet
-        const kp = new THREE.Mesh(rbox(0.078, 0.022, 0.012, 0.005), T.armor); kp.rotation.y = Math.PI / 2; kp.position.set(-(rg + 0.03), -0.004, 0); hand.add(kp);
+        if (!o.hands) { const kp = new THREE.Mesh(rbox(0.078, 0.022, 0.012, 0.005), T.armor); kp.rotation.y = Math.PI / 2; kp.position.set(-(rg + 0.03), -0.004, 0); hand.add(kp); }
         const st = new THREE.Mesh(rbox(0.07, 0.016, 0.034, 0.006), T.strap); st.rotation.y = Math.PI / 2; st.position.set(-(rg + 0.006), 0.07, 0); hand.add(st);
       } else {                                              // Hijackers: syning over håndryggen
         const st = new THREE.Mesh(rbox(0.004, 0.06, 0.03, 0.0015), T.strap); st.rotation.y = Math.PI / 2; st.position.set(-(rg + 0.026), 0.04, 0.0); hand.add(st);
@@ -791,8 +797,8 @@ export function createWeapons(THREE, WD, opts) {
       const hem = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.006, 12, 48), T.sleeve); hem.rotation.x = Math.PI / 2; hem.position.y = 0.028; wrist.add(hem);
       if (!hij) {                                           // SWAT: taktisk ur på håndleddet (rem + kasse + lysende urskive)
         const wt = new THREE.Mesh(prof([[0.001, 0], [0.036, 0], [0.037, 0.016], [0.001, 0.016]], 16), T.strap); wt.position.y = 0.0; wrist.add(wt);
-        const cs = new THREE.Mesh(new THREE.CylinderGeometry(0.0135, 0.0145, 0.0075, 32), T.armor); cs.rotation.z = Math.PI / 2; cs.position.set(-0.0395, 0.008, 0); wrist.add(cs);
-        const dl = new THREE.Mesh(new THREE.CircleGeometry(0.0108, 32), T.dial); dl.rotation.y = -Math.PI / 2; dl.position.set(-0.0436, 0.008, 0); wrist.add(dl);
+        const cs = new THREE.Mesh(new THREE.CylinderGeometry(0.0105, 0.0115, 0.0065, 32), T.armor); cs.rotation.z = Math.PI / 2; cs.position.set(-0.0395, 0.008, 0); wrist.add(cs);
+        const dl = new THREE.Mesh(new THREE.CircleGeometry(0.0074, 32), T.dial); dl.rotation.y = -Math.PI / 2; dl.position.set(-0.0436, 0.008, 0); wrist.add(dl);
       } else {                                              // Hijackers: flettet paracord-armbånd
         const pc = new THREE.Mesh(new THREE.TorusGeometry(0.037, 0.0042, 10, 48), T.cord); pc.rotation.x = Math.PI / 2; pc.position.y = 0.006; wrist.add(pc);
       }
@@ -808,7 +814,7 @@ export function createWeapons(THREE, WD, opts) {
         wrist.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), f);
         return arm;
       };
-      return { arm, point, wrist, mats: Object.values(T) };
+      return { arm, point, wrist, mats: Object.values(T), fingers: fingerRig && fingerRig.fingers, thumb: fingerRig && fingerRig.thumb };
     };
   }
 
@@ -1096,7 +1102,7 @@ export function createWeapons(THREE, WD, opts) {
       const side = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.09), flash.material); side.rotation.y = Math.PI / 2; side.position.z = -0.08; flash.add(side);
     }
     meta.charm = addCharm(body, meta, tier, M);                                         // v26.6: mastery-charm
-    g.userData = { id, meta, body, flash, parts: body.children.filter(c => c !== right.arm && c !== left.arm && c !== flash && c !== meta.wickFlame), mats: allMats, leftArm: left.arm, leftBase: left.arm.position.clone(), leftQuat: left.arm.quaternion.clone(), leftWrist: left.wrist, leftPose, rightArm: right.arm, rightBase: right.arm.position.clone(), skin: glb ? glb.userData.skin : skinName(id, team), glb: !!glb };
+    g.userData = { id, meta, body, flash, parts: body.children.filter(c => c !== right.arm && c !== left.arm && c !== flash && c !== meta.wickFlame), mats: allMats, rightHand: right, leftHand: left, leftArm: left.arm, leftBase: left.arm.position.clone(), leftQuat: left.arm.quaternion.clone(), leftWrist: left.wrist, leftPose, rightArm: right.arm, rightBase: right.arm.position.clone(), skin: glb ? glb.userData.skin : skinName(id, team), glb: !!glb };
     return g;
   }
   let _wickTex = null;
@@ -1176,5 +1182,5 @@ export function createWeapons(THREE, WD, opts) {
     g.userData = { id: 'c4', c4, rightArm: r.arm, mats: [] }; g.traverse(n => { if (!n.isMesh) return; for (const m of (Array.isArray(n.material) ? n.material : [n.material])) if (m && !g.userData.mats.includes(m)) g.userData.mats.push(m); });   // v26: materiale-arrays foldes ud (ellers sort skærm under plantning)
     return g;
   }
-  return { viewmodel, worldModel, c4Model, c4View, SKIN_NAME, skinName, MODELS: Object.keys(B), SKINS: (o.skinList || []), reloadStyle: id => RELOAD[id] || null };
+  return { setGrip: (h, k, th) => { if (o.hands && h && h.fingers) o.hands.setGrip(h, k, th); }, viewmodel, worldModel, c4Model, c4View, SKIN_NAME, skinName, MODELS: Object.keys(B), SKINS: (o.skinList || []), reloadStyle: id => RELOAD[id] || null };
 }

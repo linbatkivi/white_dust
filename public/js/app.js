@@ -11,6 +11,7 @@ import { createVisuals } from '/js/visuals.js';
 import { createThemes } from '/js/themes.js';
 import { createCharacters } from '/js/characters.js';
 import { createWeapons } from '/js/weapons.js';
+import { createHands } from '/js/hands.js';
 import { createAudio } from '/js/audio.js';
 import { createPost } from '/js/post.js';
 import { createFx } from '/js/fx.js';
@@ -2086,7 +2087,7 @@ const Renderer = (() => {
       onStart: () => { document.body.classList.add('intro'); $('introBars').classList.remove('hidden'); BuyMenu.hide(); Game.intro = true; Game.firing = false; },
       onEnd: () => { document.body.classList.remove('intro'); $('introBars').classList.add('hidden'); Game.intro = false; MouseIn.x = MouseIn.y = 0;
         if (pendingEnd) { const m = pendingEnd; pendingEnd = null; HUD.roundEnd(m); } } });
-    Weap = createWeapons(THREE, WD, { canvasTexture, derivePBR, dynMat: mkDyn, withBake: (m, d) => V ? V.withBake(m, d) : m,
+    Weap = createWeapons(THREE, WD, { hands: createHands(THREE), canvasTexture, derivePBR, dynMat: mkDyn, withBake: (m, d) => V ? V.withBake(m, d) : m,
       gunTemplate: (id, team) => { const f = SK.GUN_FILE[id], n = f && typeof f === 'object' ? f[team === 'hij' ? 'hij' : 'swat'] : f; return n ? COS.guns[n] || null : null; },
       skinGun: (g, skinId, team, mk) => SK.skinGun(THREE, g, skinId, team, mk), knifeTemplate: m => COS.knives[m] || null });
     loadCosmetics();
@@ -2807,6 +2808,13 @@ const Renderer = (() => {
       kx -= up * 0.06; ky += up * 0.035; kz += up * 0.07; kry += up * (0.75 * Math.sin(q * Math.PI)); krz += up * 0.55 - up * 0.9 * smooth((q - 0.45) / 0.3);
       if (gold) krx += Math.PI * 2 * smooth((q - 0.3) / 0.35);
     }
+    { const rh = g.userData.rightHand, lh = g.userData.leftHand;                          // v26.7: levende fingre – vejrtrækning, skydefinger, fastere greb under hug og fingerspil ved inspect
+      if (rh && rh.fingers && Weap.setGrip) {
+        const rec = Math.min(1, (K.r || 0) * 2.2), mt = vm.meleeT < 1 ? Math.sin(vm.meleeT * Math.PI) : 0, idle = Math.sin(t * 1.4) * 0.03, wig = vm.inspT < 1 ? Math.max(0, Math.sin(vm.inspT * Math.PI * 7)) * 0.28 * Math.sin(vm.inspT * Math.PI) : 0;
+        const base = kind === 'knife' ? 0.04 + mt * 0.4 : 0;
+        Weap.setGrip(rh, [base + idle + rec * 0.7 + wig * 0.5, base + idle * 0.8 + wig, base + idle * 0.6 + wig * 1.2, base + idle * 0.5 + wig * 1.4], base * 0.5 + rec * 0.12 - wig * 0.3);
+      }
+      if (lh && lh.fingers && Weap.setGrip) { const lo = Math.sin(t * 1.3 + 1) * 0.035 + (vm.rlT !== undefined && vm.rlT < 1 ? 0.1 : 0); Weap.setGrip(lh, [lo, lo * 0.9, lo * 0.8, lo * 0.7], lo * 0.4); } }
     if (meta.charm) { meta.charm.rotation.z = Math.sin(t * 2.3) * 0.25 - S.x * 3; meta.charm.rotation.x = Math.sin(t * 1.7) * 0.15 + (K.r || 0) * 0.3; }   // charm svinger med bevægelsen
     const ax = Math.min(1, vmCam.aspect / 1.6);                // smalle skærme (4:3): træk våbnet ind mod midten
     g.position.set(base[0] * ax + bobX - S.x * 0.6 + RA.x + nx + kx, base[1] - bobY + S.y * 0.6 - draw * 0.28 + RA.y - K.r * 0.004 + ny + ky, base[2] + K.z * 0.03 + RA.z + nz + kz);

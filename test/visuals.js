@@ -16,6 +16,7 @@ const fs = require('fs'), os = require('os'), path = require('path'), url = requ
   const { createThemes } = await imp('themes.js');
   const { createCharacters } = await imp('characters.js');
   const { createWeapons } = await imp('weapons.js');
+  const { createHands } = await imp('hands.js');
   const WD = require('../shared/wd.js');
   const mkProxy = () => { const p = new Proxy(function () {}, { get: (t, k) => k === 'then' ? undefined : (k in t ? t[k] : (typeof k === 'symbol' ? undefined : () => p)), set: (t, k, v) => { t[k] = v; return true; }, apply: () => p }); return p; };
   const ctx = mkProxy(), ct = (d, w, h) => { d(ctx, w, h); return new THREE.Texture(); };
@@ -118,7 +119,7 @@ const fs = require('fs'), os = require('os'), path = require('path'), url = requ
     if (ins.length > 5 && out.length > 5) ok(avg(ins) < avg(out) * 0.6, `indendørs (${avg(ins).toFixed(2)}) er markant mørkere end udendørs (${avg(out).toFixed(2)})`);
     // spillermodeller + våben
     const Chars = createCharacters(THREE, WD, { canvasTexture: ct, dynMat: V.dynMat });
-    const Weap = createWeapons(THREE, WD, { canvasTexture: ct, dynMat: V.dynMat, withBake: V.withBake });
+    const Weap = createWeapons(THREE, WD, { hands: createHands(THREE), canvasTexture: ct, dynMat: V.dynMat, withBake: V.withBake });
     for (const side of ['swat', 'hij']) {
       const h = Chars.buildHuman(side); let badPose = 0;
       const codes = Object.values(WD.WEAPONS).filter(w => w.kind !== 'bomb').map(w => w.code);
