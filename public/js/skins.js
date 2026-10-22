@@ -42,22 +42,22 @@ export const AGENTS = {
     ] }
   ],
   hij: [
-    // v26.11: NYE hijackere (tools/chars/hij_raid.py) – mere individuelle figurer med hætte, respirator, patronbælte, rygsæk og beskyttere
+    // v26.11: NYE hijackere (tools/chars/hij_face.py) – MakeHuman-hoveder med rigtige ansigter, hår, skæg og individuel hovedbeklædning
     { id: 'hij4', name: 'Raider', model: 'hij4', variants: [
-      { id: 'ash', name: 'Askegrå hætte', rarity: 'base', col: {} },
-      { id: 'night', name: 'Nat', rarity: 'mil', col: { Top: 0x232529, Pants: 0x2b2f3a, Hood: 0x24262a, Scarf: 0x3a3a3e, Pack: 0x3a3b36 } },
-      { id: 'desert', name: 'Ørken', rarity: 'cls', col: { Top: 0x8a7a5c, Pants: 0x6f6448, Hood: 0x9a8a68, Scarf: 0x2d3a52, Pack: 0x7a6a4a } },
-      { id: 'crimson', name: 'Karmosinrød hætte', rarity: 'gold', col: { Hood: 0x7a2420, Scarf: 0x1c1c1e, Top: 0x2a2b2e } }
+      { id: 'olive', name: 'Oliven feltjakke', rarity: 'base', col: {} },
+      { id: 'night', name: 'Nat', rarity: 'mil', col: { Top: 0x232529, Pants: 0x2b2f3a, Vest: 0x3a3b36, Band: 0x1c1c1e, Pack: 0x3a3b36 } },
+      { id: 'desert', name: 'Ørken', rarity: 'cls', col: { Top: 0x8a7a5c, Pants: 0x6f6448, Vest: 0x8a7a5a, Band: 0x2d3a52, Pack: 0x7a6a4a } },
+      { id: 'crimson', name: 'Karmosinrødt pandebånd', rarity: 'gold', col: { Band: 0x7a2420, Top: 0x2a2b2e, Pants: 0x2b2c30 } }
     ] },
     { id: 'hij5', name: 'Sprængmester', model: 'hij5', variants: [
       { id: 'rust', name: 'Rustbrun lærred', rarity: 'base', col: {} },
       { id: 'olive', name: 'Oliven', rarity: 'res', col: { Top: 0x4e5a3c, Pants: 0x3f432e, Vest: 0x555a44 } },
-      { id: 'black', name: 'Sort', rarity: 'cov', col: { Top: 0x2d2e30, Pants: 0x34363a, Vest: 0x2f3033, Pauldron: 0x2a2a2c, Rubber: 0x1d1f20, Filter: 0x45483a } }
+      { id: 'black', name: 'Sort', rarity: 'cov', col: { Top: 0x2d2e30, Pants: 0x34363a, Vest: 0x2f3033, Rubber: 0x1d1f20, Filter: 0x45483a, Gloves: 0x2a2a2c } }
     ] },
     { id: 'hij6', name: 'Spejder', model: 'hij6', variants: [
-      { id: 'sand', name: 'Ørkencamo', rarity: 'mil', col: {} },
-      { id: 'jungle', name: 'Jungle', rarity: 'res', col: { Top: 0x5f6b4a, Pants: 0x555f3f, Boonie: 0x4f5a3b } },
-      { id: 'snow', name: 'Sne', rarity: 'gold', col: { Top: 0xcfd2d0, Pants: 0xbfc3c0, Boonie: 0xdde0dc, NeckScarf: 0x40434a, Strap: 0x6a5a48 } }
+      { id: 'sand', name: 'Sandfarvet skjorte', rarity: 'mil', col: {} },
+      { id: 'jungle', name: 'Jungle', rarity: 'res', col: { Top: 0x5f6b4a, Pants: 0x555f3f, Boonie: 0x4f5a3b, Scarf: 0x6a6f4c } },
+      { id: 'snow', name: 'Sne', rarity: 'gold', col: { Top: 0xcfd2d0, Pants: 0xbfc3c0, Boonie: 0xdde0dc, Scarf: 0x40434a, Strap: 0x6a5a48 } }
     ] },
     // v22: bygget på samme krop som SWAT (tools/chars/hij_cgt.py) – materialer: Top Pants Mask Gloves Boots Vest Mag Shemagh Beanie Armband Skin
     { id: 'hij', name: 'Hijacker', model: 'hij', variants: [
@@ -83,7 +83,7 @@ export const GUNS = ['ak47', 'm4a1', 'famas', 'galil', 'mac10', 'mp9', 'mp7', 'u
 // model-fil pr. våben (fiveseven deler Glock-modellen; granater har hold-varianter)
 export const GUN_FILE = { ak47: 'ak47', m4a1: 'm4a1', famas: 'famas', galil: 'galil', tec9: 'tec9', mp5: 'mp5', mac10: 'mac10', mp9: 'mp9', mp7: 'mp7', ump45: 'ump45', p90: 'p90', awp: 'awp', usp: 'usp', glock: 'glock', fiveseven: 'glock', deagle: 'deagle',
   he: { hij: 'he_east', swat: 'he_west' }, smoke: { hij: 'smoke_east', swat: 'smoke_west' }, flash: 'flash', incgren: 'incgren', molotov: 'molotov' };
-export const defaultAgent = side => side === 'hij' ? 'hij4:ash' : 'swat:navy';
+export const defaultAgent = side => side === 'hij' ? 'hij4:olive' : 'swat:navy';
 
 /* ---- v26.5: KNIVE – brugerens færdige modeller med deres egne teksturer (tools/knives/import.py → assets/weapons/knives/knife_<id>.glb).
    Hver kniv har sin egen finish (teksturen). Valget gemmes som '<id>_std' i inv.skins.knife (gamle '<model>_<finish>'-valg falder tilbage til standard) ---- */

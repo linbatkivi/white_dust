@@ -49,5 +49,8 @@ Venner og fraktioner udveksler data direkte mellem spillerne via PeerJS (ingen n
 - **Karakterer**: kantlys/'subsurface'-glød på hud og stofsheen, skarpere øjne. Nye modeller (fotorealistiske ansigter) kræver rigtige 3D-assets og er ikke lavet.
 
 ## v26.11 – nye hijacker-modeller
-- `tools/chars/hij_raid.py` bygger tre nye hijackere på samme krop/rig (SWAT-basen): **Raider** (hætte, tørklæde over munden, briller, patronbælte, rygsæk med sovepose, knæbeskyttere), **Sprængmester** (halvmaske-respirator, briller, brystrig, læderskulderpude, knæbeskyttere), **Spejder** (boonie-hat, sort/hvidt halstørklæde, patronbælte, skulderpude, camo). 9 farvevarianter. Raider er ny standard-hijacker (`hij4:ash`); de gamle tre kan stadig vælges i inventaret.
-- Kør: `blender -b -P tools/chars/hij_raid.py -- [hij4 hij5 hij6] [--render DIR]`.
+- Første forsøg (CGTrader-base med balaclava-hoved, `hij_raid.py`) blev afvist: ansigt og hoved var for dårlige. Filerne ligger i `~/Projekter/wd-arkiv/kilder/figurer-afvist-v26.11/`.
+- `tools/chars/hij_face.py` (MakeHuman/MPFB, CC0) bygger tre nye hijackere med **rigtige, synlige ansigter**: **Raider** (pandebånd, skægstubbe, feltjakke, brystrig, rygsæk), **Sprængmester** (fuldskæg, beskyttelsesbriller i panden, respirator om halsen, kedeldragt, brystrig), **Spejder** (boonie, tørklæde, patronbælte, skjorte). 10 farvevarianter.
+- Pr. figur: egne ansigtsformer (MakeHuman-targets: næse, kæbe, pande, kindben, øjenposer …), hudtone, 2048-hudtekstur med skæg malet ind efter læber/hage/kæbelinje, omfarvet iris, hår-/brynfarve, eget hår (short01/03/04) med alfa-maske.
+- Kør: `blender -b -P tools/chars/hij_face.py -- [hij4 hij5 hij6] [--render DIR] [--noexport]`. Materialer til varianter: Top, Pants, Vest, Gloves, Pads, Band, Pack, Roll · Rubber, Filter, Lens · Boonie, HatBand, Scarf, Strap, Shell.
+- Begrænsning: ansigterne er MakeHuman-kvalitet (pæne spilfigurer, ikke fotoscanninger); huden har kun diffuse-tekstur.

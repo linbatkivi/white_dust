@@ -5733,6 +5733,20 @@ export const DICT = {
 "Schnee",
 "雪地"
 ],
+"Karmosinrødt pandebånd": [
+"Crimson headband",
+"Bandeau cramoisi",
+"Cinta carmesí",
+"Purpurrotes Stirnband",
+"深红头带"
+],
+"Sandfarvet skjorte": [
+"Sand-coloured shirt",
+"Chemise couleur sable",
+"Camisa color arena",
+"Sandfarbenes Hemd",
+"沙色衬衫"
+],
 "Grøn {0}": [
 "Green {0}",
 "Vert {0}",
