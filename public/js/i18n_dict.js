@@ -5670,6 +5670,69 @@ export const DICT = {
 "Replay lässt sich öffnen, wenn du tot bist oder die Runde vorbei ist (F9)",
 "阵亡或回合结束后可打开回放 (F9)"
 ],
+"Raider": [
+"Raider",
+"Pillard",
+"Asaltante",
+"Plünderer",
+"突袭者"
+],
+"Sprængmester": [
+"Demolitions expert",
+"Expert en démolition",
+"Experto en demoliciones",
+"Sprengmeister",
+"爆破手"
+],
+"Spejder": [
+"Scout",
+"Éclaireur",
+"Explorador",
+"Späher",
+"侦察兵"
+],
+"Askegrå hætte": [
+"Ash-grey hood",
+"Capuche gris cendre",
+"Capucha gris ceniza",
+"Aschgraue Kapuze",
+"灰烬色兜帽"
+],
+"Karmosinrød hætte": [
+"Crimson hood",
+"Capuche cramoisie",
+"Capucha carmesí",
+"Purpurrote Kapuze",
+"深红兜帽"
+],
+"Rustbrun lærred": [
+"Rust-brown canvas",
+"Toile brun rouille",
+"Lona marrón óxido",
+"Rostbraune Leinwand",
+"锈褐色帆布"
+],
+"Ørkencamo": [
+"Desert camo",
+"Camouflage désert",
+"Camuflaje desértico",
+"Wüstentarn",
+"沙漠迷彩"
+],
+"Jungle": [
+"Jungle",
+"Jungle",
+"Selva",
+"Dschungel",
+"丛林"
+],
+"Sne": [
+"Snow",
+"Neige",
+"Nieve",
+"Schnee",
+"雪地"
+],
 "Grøn {0}": [
 "Green {0}",
 "Vert {0}",

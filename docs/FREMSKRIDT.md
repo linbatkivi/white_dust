@@ -47,3 +47,7 @@ Venner og fraktioner udveksler data direkte mellem spillerne via PeerJS (ingen n
 - **Replay + fri kamera** (F9 / pausemenu, når man er død eller runden er slut): de seneste runder afspilles med tidslinje, hastighed, fri/følg/orbit-kamera, billede (PNG) og 10 s-klip (WebM).
 - **Dynamisk glas**: vinduer revner ved første skud (kan ikke ses tydeligt igennem) og knuses ved andet (lyden høres over hele banen); HE knuser glas i nærheden. Valkyrie har to (B Window, A Balcony). Serveren styrer stadierne.
 - **Karakterer**: kantlys/'subsurface'-glød på hud og stofsheen, skarpere øjne. Nye modeller (fotorealistiske ansigter) kræver rigtige 3D-assets og er ikke lavet.
+
+## v26.11 – nye hijacker-modeller
+- `tools/chars/hij_raid.py` bygger tre nye hijackere på samme krop/rig (SWAT-basen): **Raider** (hætte, tørklæde over munden, briller, patronbælte, rygsæk med sovepose, knæbeskyttere), **Sprængmester** (halvmaske-respirator, briller, brystrig, læderskulderpude, knæbeskyttere), **Spejder** (boonie-hat, sort/hvidt halstørklæde, patronbælte, skulderpude, camo). 9 farvevarianter. Raider er ny standard-hijacker (`hij4:ash`); de gamle tre kan stadig vælges i inventaret.
+- Kør: `blender -b -P tools/chars/hij_raid.py -- [hij4 hij5 hij6] [--render DIR]`.

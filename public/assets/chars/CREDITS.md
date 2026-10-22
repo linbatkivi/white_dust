@@ -12,3 +12,5 @@ Alle fire figurer bygges på brugerens CGTrader-model "SWAT Operator" (Mixamo-ri
 - Fælles kode: `tools/chars/cgt_base.py`. Kør fx `blender -b -P tools/chars/hij_cgt.py -- hij2 --render /tmp/r`.
 - Farvevarianter laves i spillet ved at farve materialerne (Top, Pants, Vest, Helmet, Gloves, Mask, Shemagh, Beanie, Armband …) – ingen ekstra filer.
 - Rig: Mixamo, omdøbt til spillets navne (pelvis/spine_01/spine_03/upperarm_r …; `head_end` markerer Mixamo-fingerakser i characters.js).
+
+| `hij4.glb` `hij5.glb` `hij6.glb` | `tools/chars/hij_raid.py` (v26.11) | Raider (hætte, tørklæde, briller, patronbælte, rygsæk, knæbeskyttere) · Sprængmester (respirator, briller, brystrig, skulderpude) · Spejder (boonie, halstørklæde, patronbælte) – samme krop/rig som de øvrige |
