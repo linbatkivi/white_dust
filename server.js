@@ -349,6 +349,7 @@ function handle(ws, m) {
         if (m.money !== undefined) { p.money = +m.money; sendSelf(p); }
         if (m.hp !== undefined) { p.hp = +m.hp; sendSelf(p); }
         if (m.strip) { const bomb = p.inv.bomb; resetLoadout(p); p.inv.bomb = bomb; sendSelf(p); }
+        if (m.kill && p.alive && room.phase === 'live') damage(room, p, 999, room.players.get(m.by | 0) || null, m.w || 'usp', !!m.hs);
         if (m.give) { const g = WEAPONS[m.give]; if (g && g.kind === 'gear') p.inv[m.give] = true; else if (g && g.kind === 'nade') p.inv[m.give] = (p.inv[m.give] || 0) + 1; sendSelf(p); }
       }
       break;
@@ -857,7 +858,7 @@ function onShoot(room, p, m) {
   const ts = room.sensors && room.sensors.length ? sensorShot(room, p, o, d, tEnd, w.dmg) : null;
   if (ts !== null && ts < tEnd) { tEnd = ts; best = null; victim = null; }
   const e = [r2(o[0] + d[0] * tEnd), r2(o[1] + d[1] * tEnd), r2(o[2] + d[2] * tEnd)];
-  room.bcast({ t: 'ev', k: 'shot', i: p.id, w: p.cur, o: [r2(o[0]), r2(o[1]), r2(o[2])], e, h: best ? 1 : 0, n: (best || noWallHit) ? 0 : [r2(nrm.nx), r2(nrm.ny), r2(nrm.nz)] }, p);
+  room.bcast({ t: 'ev', k: 'shot', i: p.id, w: p.cur, o: [r2(o[0]), r2(o[1]), r2(o[2])], e, h: best ? 1 : 0, hs: best && best.part === 'head' ? 1 : 0, n: (best || noWallHit) ? 0 : [r2(nrm.nx), r2(nrm.ny), r2(nrm.nz)] }, p);
   if (best) {
     const hs = best.part === 'head';
     const dmg = Math.round(w.dmg * WD.hitMul(w, best.part));

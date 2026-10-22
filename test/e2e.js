@@ -69,6 +69,17 @@ async function main() {
     await A.evaluate(id => __wd.deathCard({ a: id, v: __wd.Game.meId, w: 'usp', hs: true, ah: 42, ad: 12.4, ac: 1 }), bid); await sleep(300);
     ok(await A.isVisible('#deathCard') && await A.$eval('#deathCard', el => /42 HP/.test(el.textContent)), 'Dræber-postkort vises med navn, våben og tilbageværende HP');
 
+    console.log('\n== v26.10: replay & fri kamera ==');
+    await A.evaluate(() => __wd.Net.send({ t: 'dbg', kill: 1, w: 'usp', by: 0 })); await sleep(900);
+    ok(await A.evaluate(() => !__wd.Game.self.alive), 'Spilleren er død (replay kan åbnes)');
+    await A.keyboard.press('F9'); await sleep(900);
+    ok(await A.isVisible('#replayBar') && await A.evaluate(() => __wd.Renderer.replayActive), 'F9 åbner replay-linjen');
+    await A.click('[data-rp="m-follow"]'); await sleep(300); await A.click('[data-rp="sp2"]'); await sleep(900);
+    ok(await A.$eval('#rpTime', el => /\d+:\d\d \/ \d+:\d\d/.test(el.textContent)), 'Tidslinjen kører (afspilning, 2× fart)');
+    await A.screenshot({ path: path.join(__dirname, '..', 'docs', 'qa', 'e2e_replay.jpg'), type: 'jpeg', quality: 70 });
+    await A.click('[data-rp="close"]'); await sleep(300);
+    ok(await A.evaluate(() => !__wd.Renderer.replayActive), 'Replay lukkes igen');
+
     console.log('\n== Ingen JS-fejl ==');
     const relevant = arr => arr.filter(e => !/fonts\.googleapis|fonts\.gstatic|status of 403|pointer lock/i.test(e));
     ok(relevant(consoleErrors.A).length === 0, 'Ingen konsolfejl hos Alice' + (relevant(consoleErrors.A).length ? ':\n    ' + relevant(consoleErrors.A).slice(0, 5).join('\n    ') : ''));

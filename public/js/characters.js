@@ -419,6 +419,7 @@ export function createCharacters(THREE, WD, opts) {
     const f = alive ? 0 : 1 - Math.pow(1 - Math.min(1, h.dead / 0.55), 2);
     h.body.rotation.x = 1.45 * f; h.body.rotation.z = h.roll * f; h.body.position.y = 0.12 * f; h.body.position.z = 0.25 * f;
     if (!alive) { ez(B.shinL.rotation, 'x', -0.5 * f, 6); ez(B.shinR.rotation, 'x', -0.2 * f, 6); ez(B.hips.position, 'y', 0.98 - 0.2 * f, 6); }
+    if (!alive) ragdoll(h, dt, first); else if (h.rag) h.rag = null;
     if (h.label) h.label.visible = alive && h.labelOn !== false;
     h._alive = alive;
     if (h.agent) retarget(h);
@@ -530,8 +531,38 @@ export function createCharacters(THREE, WD, opts) {
     const lo = A.lodOn ? dist > 14 : dist > 16; if (lo === A.lodOn) return;
     A.lodOn = lo; for (const x of A.lodHi) x.visible = !lo; for (const x of A.lodLo) x.visible = lo;
   }
+  /* ================= v26.10: RAGDOLL (let) – døden som fysik: skuddets impuls skubber kroppen (glidning med friktion, let hop), kroppen vælter/drejer
+     i retning af slaget, og lemmerne er masse-fjeder-led, der svinger efter og falder til ro i en afslappet pose (arme ud, ben spredt).
+     Impulsen sættes af Chars.hit(h, dx, dz, power, headshot) lige før/efter dødsfaldet. ================= */
+  const LIMB = [['uarmR', 'x', -0.3, 14], ['uarmR', 'z', 0.9, 14], ['uarmL', 'x', -0.3, 14], ['uarmL', 'z', -0.9, 14], ['farmR', 'x', -0.5, 18], ['farmL', 'x', -0.5, 18],
+    ['thighR', 'x', 0.1, 20], ['thighR', 'z', 0.25, 20], ['thighL', 'x', 0.05, 20], ['thighL', 'z', -0.25, 20], ['shinR', 'x', -0.35, 24], ['shinL', 'x', -0.55, 24], ['neck', 'x', 0.25, 26], ['head', 'x', 0.15, 26]];
+  function hit(h, dx, dz, power, hs) {
+    const l = Math.hypot(dx, dz) || 1; h.imp = { dx: dx / l, dz: dz / l, p: power || 3, hs: !!hs };
+    if (h.rag) { h.rag.vx += h.imp.dx * h.imp.p * 0.5; h.rag.vz += h.imp.dz * h.imp.p * 0.5; }      // slag mod en allerede liggende krop
+  }
+  function ragdoll(h, dt, first) {
+    const B = h.B;
+    if (!h.rag) {
+      const im = h.imp || { dx: -Math.sin(h.group.rotation.y) * -1, dz: -Math.cos(h.group.rotation.y) * -1, p: 1.5, hs: false }, p = first ? 0 : im.p;
+      h.rag = { vx: im.dx * p * 0.9, vy: first ? 0 : 1.0 + Math.min(2.2, p * 0.22), vz: im.dz * p * 0.9, ox: 0, oy: 0, oz: 0, spin: (Math.random() - 0.5) * 2 * (im.hs ? 2.4 : 1.2) * (first ? 0 : 1), limbs: {}, rest: first, t: 0 };
+      for (const [n, ax, rest, k] of LIMB) { const key = n + ax; h.rag.limbs[key] = { a: B[n].rotation[ax], w: first ? 0 : (Math.random() - 0.5) * 9 * (im.hs && (n === 'head' || n === 'neck') ? 3 : 1), rest, k }; }
+      h.imp = null;
+    }
+    const R = h.rag; R.t += dt;
+    // legemets glidning (planen): friktion + let hop på gulvet
+    R.vy -= 9.8 * dt; R.ox += R.vx * dt; R.oy += R.vy * dt; R.oz += R.vz * dt;
+    if (R.oy < 0) { R.oy = 0; if (R.vy < -1.2) { R.vy = -R.vy * 0.22; R.vx *= 0.6; R.vz *= 0.6; } else R.vy = 0; }
+    if (R.oy === 0) { const fr = Math.exp(-4.2 * dt); R.vx *= fr; R.vz *= fr; }
+    h.group.position.x += R.ox; h.group.position.y += R.oy; h.group.position.z += R.oz;
+    h.group.rotation.y += R.spin * Math.min(1, R.t / 0.3) * (R.oy > 0.02 ? 1 : 0.25) * 0.35 * Math.exp(-R.t * 1.4);
+    // lemmer: fjeder mod hvile-pose, startet med tilfældig vinkelhastighed
+    for (const key in R.limbs) {
+      const L = R.limbs[key], n = key.slice(0, -1), ax = key.slice(-1);
+      const a = B[n].rotation[ax]; L.w += (-L.k * (a - L.rest) - 4.5 * L.w) * dt * (R.rest ? 0.2 : 1); L.a = a + L.w * dt; B[n].rotation[ax] = L.a;
+    }
+  }
   function fire(h) { h.rec = 1; h.flashT = 0.05; }
   function flinch(h) { h.fl = 1; }
   function throwNade(h, under) { h.thr = 0; h.thrU = !!under; }
-  return { buildHuman, animateHuman, setBake, setWeapon, setLod, fire, flinch, throwNade, TEAM, BONES };
+  return { buildHuman, animateHuman, setBake, setWeapon, setLod, fire, flinch, hit, throwNade, TEAM, BONES };
 }

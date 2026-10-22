@@ -5544,6 +5544,132 @@ export const DICT = {
 "Visuelle Geräuschanzeigen (Barrierefreiheit: zeigt die Richtung von Schüssen, Schritten und Explosionen auf dem Bildschirm)",
 "视觉声音提示（无障碍：在屏幕上显示枪声、脚步和爆炸的方向）"
 ],
+"REPLAY & FRI KAMERA": [
+"REPLAY & FREE CAMERA",
+"REPLAY & CAMÉRA LIBRE",
+"REPETICIÓN Y CÁMARA LIBRE",
+"REPLAY & FREIE KAMERA",
+"回放与自由镜头"
+],
+"se de seneste runder igen · tag billeder og klip": [
+"watch the latest rounds again · take pictures and clips",
+"revoir les dernières manches · prenez des photos et des clips",
+"mira las últimas rondas otra vez · haz capturas y clips",
+"sieh dir die letzten Runden nochmal an · mach Bilder und Clips",
+"重看最近几个回合 · 拍摄截图和视频"
+],
+"REPLAY": [
+"REPLAY",
+"REPLAY",
+"REPETICIÓN",
+"REPLAY",
+"回放"
+],
+"FRI KAMERA": [
+"FREE CAMERA",
+"CAMÉRA LIBRE",
+"CÁMARA LIBRE",
+"FREIE KAMERA",
+"自由镜头"
+],
+"✕ LUK": [
+"✕ CLOSE",
+"✕ FERMER",
+"✕ CERRAR",
+"✕ SCHLIESSEN",
+"✕ 关闭"
+],
+"◀ RUNDE": [
+"◀ ROUND",
+"◀ MANCHE",
+"◀ RONDA",
+"◀ RUNDE",
+"◀ 回合"
+],
+"RUNDE ▶": [
+"ROUND ▶",
+"MANCHE ▶",
+"RONDA ▶",
+"RUNDE ▶",
+"回合 ▶"
+],
+"FRI": [
+"FREE",
+"LIBRE",
+"LIBRE",
+"FREI",
+"自由"
+],
+"FØLG": [
+"FOLLOW",
+"SUIVRE",
+"SEGUIR",
+"FOLGEN",
+"跟随"
+],
+"📷 BILLEDE": [
+"📷 PHOTO",
+"📷 PHOTO",
+"📷 FOTO",
+"📷 BILD",
+"📷 截图"
+],
+"🎬 KLIP (10 s)": [
+"🎬 CLIP (10 s)",
+"🎬 CLIP (10 s)",
+"🎬 CLIP (10 s)",
+"🎬 CLIP (10 s)",
+"🎬 视频 (10 秒)"
+],
+"● OPTAGER": [
+"● RECORDING",
+"● ENREGISTREMENT",
+"● GRABANDO",
+"● AUFNAHME",
+"● 录制中"
+],
+"Hold venstre museknap og træk for at kigge · WASD flyv · MELLEMRUM/E op · C ned · SHIFT hurtig · hjul = flyvefart/afstand · P = pause · Esc = luk": [
+"Hold the left mouse button and drag to look · WASD fly · SPACE/E up · C down · SHIFT fast · wheel = fly speed/distance · P = pause · Esc = close",
+"Maintenez le clic gauche et glissez pour regarder · WASD voler · ESPACE/E monter · C descendre · MAJ rapide · molette = vitesse/distance · P = pause · Échap = fermer",
+"Mantén el botón izquierdo y arrastra para mirar · WASD volar · ESPACIO/E subir · C bajar · MAYÚS rápido · rueda = velocidad/distancia · P = pausa · Esc = cerrar",
+"Linke Maustaste halten und ziehen zum Umsehen · WASD fliegen · LEERTASTE/E hoch · C runter · UMSCHALT schnell · Rad = Flugtempo/Abstand · P = Pause · Esc = schließen",
+"按住鼠标左键拖动视角 · WASD 飞行 · 空格/E 上升 · C 下降 · SHIFT 加速 · 滚轮 = 飞行速度/距离 · P = 暂停 · Esc = 关闭"
+],
+"Blod og ragdoll-effekter": [
+"Blood and ragdoll effects",
+"Effets de sang et de ragdoll",
+"Efectos de sangre y ragdoll",
+"Blut- und Ragdoll-Effekte",
+"血液与布娃娃效果"
+],
+"Billede gemt": [
+"Picture saved",
+"Image enregistrée",
+"Imagen guardada",
+"Bild gespeichert",
+"截图已保存"
+],
+"Klip gemt": [
+"Clip saved",
+"Clip enregistré",
+"Clip guardado",
+"Clip gespeichert",
+"视频已保存"
+],
+"Ingen runder at afspille endnu": [
+"No rounds to replay yet",
+"Aucune manche à rejouer pour l'instant",
+"Aún no hay rondas que reproducir",
+"Noch keine Runden zum Abspielen",
+"还没有可回放的回合"
+],
+"Replay kan åbnes, når du er død eller runden er slut (F9)": [
+"Replay can be opened when you are dead or the round is over (F9)",
+"Le replay s'ouvre quand vous êtes mort ou la manche est terminée (F9)",
+"La repetición se abre cuando estás muerto o la ronda termina (F9)",
+"Replay lässt sich öffnen, wenn du tot bist oder die Runde vorbei ist (F9)",
+"阵亡或回合结束后可打开回放 (F9)"
+],
 "Grøn {0}": [
 "Green {0}",
 "Vert {0}",

@@ -596,6 +596,13 @@ function fillPause() {
 }
 confirmBtn('btnRestart', () => { Net.send({ t: 'restart' }); lockPointer(); });
 confirmBtn('btnEndGame', () => Net.send({ t: 'endgame' }));
+function tryReplay() {
+  if (Renderer.replayActive) { Renderer.replayStop(); return; }
+  if (!Renderer.replayAvailable()) { UI.toast('Ingen runder at afspille endnu'); return; }
+  if (Game.self.alive && Game.phase === 'live') { UI.toast('Replay kan åbnes, når du er død eller runden er slut (F9)'); return; }
+  Renderer.replayStart();
+}
+$('btnReplay').addEventListener('click', e => { e.stopPropagation(); tryReplay(); });
 confirmBtn('btnLeaveGame', () => { clearSession(); location.reload(); });
 // tilbage til venteværelset (slut på kamp / værten afsluttede)
 function leaveGameView() {
@@ -727,6 +734,7 @@ Net.on('lobby', m => {
    ========================================================================== */
 Net.on('round', m => {
   try { hideDeathCard(); } catch (e) {}
+  if (!Rec.cur || Rec.cur.n !== m.n) recRound(m.n, m.map);
   try { Renderer.setEvent(m.ev || null); EventHud.show(m.ev || null, m.ph); } catch (e) { console.warn('[event]', e); }   // v26.6: dynamiske events
   if (m.map) setMap(m.map);
   if (Game.state !== 'game') enterGame();
@@ -838,7 +846,7 @@ Net.on('ev', m => {
     case 'bclaim': Bounty.claim(m); break;
     case 'rf': Profile.onRound(m); break;                                        // v26.6: rundens fakta → XP
     case 'mf': Profile.onMatch(m); setTimeout(sendPub, 500); break;
-    case 'kill': HUD.killfeed(m); noteKill(m); if (m.v === Game.meId) { HUD.showDead(); Game.nade = null; Game.firing = false; try { showDeathCard(m); } catch (e) { console.warn('[dødskort]', e); } } break;
+    case 'kill': HUD.killfeed(m); noteKill(m); try { Renderer.onKillFx(m); } catch (e) {} if (m.v === Game.meId) { HUD.showDead(); Game.nade = null; Game.firing = false; try { showDeathCard(m); } catch (e) { console.warn('[dødskort]', e); } } break;
     case 'end': m._rx = performance.now(); if (!Renderer.deferEnd(m, roundCineInfo(m))) HUD.roundEnd(m); break;   // v26: bombe-filmen · v26.3: rundeslut-filmen – rundeslut/MVP bagefter
     case 'pay': HUD.pay(m); break;
     case 'over': startVictory(m); break;
@@ -870,6 +878,18 @@ Net.on('ev', m => {
 });
 
 /* ---- snapshot ---- */
+/* ---- v26.10: REPLAY – de seneste runder optages (snapshots + hændelser) og kan afspilles med fri kamera ---- */
+const Rec = { cur: null, rounds: [], lastSt: 0 };
+const REC_EV = new Set(['shot', 'throw', 'smoke', 'flash', 'boom', 'explode', 'fire', 'fireout', 'bounce', 'plant', 'kill', 'melee', 'sensor', 'sensorbreak', 'defuse']);
+function recRound(n, map) {
+  if (Rec.cur && Rec.cur.frames.length > 20) { Rec.rounds.push(Rec.cur); while (Rec.rounds.length > 5) Rec.rounds.shift(); }
+  Rec.cur = { n, map, frames: [], ev: [] };
+}
+Net.on('s', m => {
+  Rec.lastSt = m.st;
+  if (Rec.cur && Rec.cur.frames.length < 4400 && m.ph !== 'lobby') Rec.cur.frames.push({ st: m.st, p: m.p, g: m.g, sm: m.sm, f: m.f || [], b: m.b, ph: m.ph });
+});
+Net.on('ev', m => { if (Rec.cur && REC_EV.has(m.k) && Rec.cur.ev.length < 4000) Rec.cur.ev.push({ st: Rec.lastSt, m }); });
 Net.on('s', m => {
   // v12: servertids-offset (min-filter: forsinkede pakker trækker ikke uret) → interpolation på servertid i stedet for modtagetid
   const pn = performance.now(), off = m.st - pn;
@@ -881,8 +901,7 @@ Net.on('s', m => {
   Game.bomb = { state: m.b[0], x: m.b[1], y: m.b[2], z: m.b[3], msLeft: m.b[4], carrier: m.b[5], defFrac: m.b[6] };
   Game.drops = m.d || [];
   Game.buyEnd = performance.now() + (m.bw || 0);
-  Game.snapBuf.push({ recv: performance.now(), st: m.st, p: m.p, g: m.g, sm: m.sm, f: m.f || [] });
-  while (Game.snapBuf.length > 12) Game.snapBuf.shift();
+  if (!Game.replay) { Game.snapBuf.push({ recv: performance.now(), st: m.st, p: m.p, g: m.g, sm: m.sm, f: m.f || [] }); while (Game.snapBuf.length > 12) Game.snapBuf.shift(); }
 });
 
 /* ==========================================================================
@@ -963,6 +982,7 @@ const Input = {
     KEY[k] = down;
     if (!down) return;
     if (Game.state !== 'game') return;
+    if (k === 'F9') { e.preventDefault(); tryReplay(); return; }
     if (!Game.self.alive && Game.phase !== 'buy') { if (k === 'Space' || k === 'ArrowRight') cycleSpec(1); else if (k === 'ArrowLeft') cycleSpec(-1); return; }
     if (k === 'KeyR') startReloadLocal();
     if (k === 'KeyF') { if (Game.self.cur === 'awp') toggleScope(); else Renderer.inspect(); }   // F: scope (AWP) / inspicér (kniv og våben – mastery 10: snurres rundt)
@@ -2211,6 +2231,11 @@ const Renderer = (() => {
     addTracer(sp, m.e, false);
     muzzleStrobe(sp, false);
     if (rm) Chars.fire(rm);
+    if (m.h) {                                       // v26.10: blod + impuls til ragdoll hos den ramte
+      const sx = m.e[0] - sp[0], sz = m.e[2] - sp[2], sl = Math.hypot(sx, sz) || 1, wd = WEAPONS[m.w] ? WEAPONS[m.w].dmg : 30;
+      if (fxs && Settings.get().blood !== false) fxs.blood(m.e[0], m.e[1], m.e[2], sx / sl, 0.15, sz / sl, m.hs ? 14 : 8, !!m.hs);
+      for (const [id, o] of remoteModels) { const dx0 = o.group.position.x - m.e[0], dz0 = o.group.position.z - m.e[2]; if (dx0 * dx0 + dz0 * dz0 < 2.2) { Chars.hit(o, sx, sz, Math.min(7, 1.5 + wd / 14), !!m.hs); break; } }
+    }
     if (m.h) for (const [id, o] of remoteModels) {   // skud-reaktion hos ramt spiller
       if (id === m.i) continue;
       const dx = o.group.position.x - m.e[0], dy = o.group.position.y + 1 - m.e[1], dz = o.group.position.z - m.e[2];
@@ -2489,6 +2514,12 @@ const Renderer = (() => {
     for (let y = 0; y < Hd; y++) im.data.set(buf.subarray((Hd - 1 - y) * Wd * 4, (Hd - y) * Wd * 4), y * Wd * 4);
     c2.putImageData(im, 0, 0); return cv.toDataURL('image/jpeg', 0.85);
   }
+  function onKillFx(m) {                                                        // v26.10: blodpøl under liget (vokser over 3 sekunder)
+    if (!fxs || Settings.get().blood === false) return; const r = Game.remotes.get(m.v), p = m.v === Game.meId ? Game.body : r && { x: r.rx, y: r.ry, z: r.rz }; if (!p) return;
+    const gy = WD.groundAt(W, p.x, p.z, p.y + 0.5, 1.5); if (gy === -Infinity) return;
+    setTimeout(() => { if (fxs) fxs.pool(p.x + (Math.random() - 0.5) * 0.3, gy, p.z + (Math.random() - 0.5) * 0.3, 0.55 + Math.random() * 0.4); }, 350);
+    if (m.hs) fxs.blood(p.x, p.y + 1.7, p.z, 0, 0.3, 0, 10, true);
+  }
   function nadeMesh(type) {
     const id = WD.NADE_BY_TYPE[type] || 'he';
     const wm = Weap.worldModel(id) || new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), V.dynMat({ color: 0x4a5a32 }));
@@ -2634,7 +2665,141 @@ const Renderer = (() => {
     _ro.roll = rig.roll + Math.sin(rig.breathe * 0.5) * 0.0012 * still;
     return _ro;
   }
+  /* ================= v26.10: REPLAY & FRI KAMERA ================= */
+  const Rep = { active: false, R: null, ri: 0, t: 0, dur: 0, t0: 0, speed: 1, paused: false, mode: 'free', follow: 0, cam: { x: 0, y: 2, z: 0 }, yaw: 0, pitch: -0.2, odist: 3.4, ei: 0, pi: 0, seek: true, bar: null, drag: false, fly: 7, shotReq: false, rec: null, saved: null, lastFov: 0 };
+  const repRounds = () => { const l = Rec.rounds.slice(); if (Rec.cur && Rec.cur.frames.length > 60) l.push(Rec.cur); return l; };
+  function replayAvailable() { return repRounds().length > 0; }
+  function replayStart(idx) {
+    const rounds = repRounds(); if (!rounds.length) { UI.toast('Ingen runder at afspille endnu'); return; }
+    if (Rep.active) return;
+    Rep.saved = { meId: Game.meId, phase: Game.phase, fov: camera.fov }; Game.replay = true; Game.meId = -999; Rep.active = true;
+    exitPointerLock(); document.body.classList.add('replay'); $('clickToPlay').classList.add('hidden'); BuyMenu.hide();
+    replayLoad(idx === undefined ? rounds.length - 1 : idx);
+    replayUI(true);
+  }
+  function replayLoad(ri) {
+    const rounds = repRounds(); Rep.ri = clamp(ri, 0, rounds.length - 1); const R = Rep.R = rounds[Rep.ri];
+    Rep.t0 = R.frames[0].st; Rep.dur = Math.max(1000, R.frames[R.frames.length - 1].st - Rep.t0); Rep.t = 0; Rep.paused = false; Rep.seek = true; Game.snapBuf.length = 0;
+    for (const [, r] of remoteModels) { dropRemote(r); } remoteModels.clear(); Game.remotes.clear(); if (fxs) fxs.clear();
+    for (const [, o] of Game.grenadesFly) scene.remove(o.mesh); Game.grenadesFly.clear(); for (const [, s] of smokeSys) s.remove(); smokeSys.clear(); for (const [, f] of fireSys) f.remove(); fireSys.clear();
+    resetGear();
+    const row = R.frames[0].p.find(p => (p[6] & 1)) || R.frames[0].p[0]; if (row) { Rep.cam = { x: row[1] + 3, y: row[2] + 3.2, z: row[3] + 3 }; Rep.yaw = Math.atan2(-(row[1] - Rep.cam.x), -(row[3] - Rep.cam.z)); Rep.pitch = -0.4; }
+    Rep.follow = (R.frames[0].p.find(p => (p[6] & 1)) || [0])[0] || 0;
+    replayUI(true); replayTicks();
+  }
+  function replayStop() {
+    if (!Rep.active) return; Rep.active = false; Game.replay = false; Game.meId = Rep.saved ? Rep.saved.meId : Game.meId; camera.fov = Rep.saved ? Rep.saved.fov : camera.fov; camera.updateProjectionMatrix();
+    Game.snapBuf.length = 0; Game.clk = null; for (const [, r] of remoteModels) { dropRemote(r); } remoteModels.clear(); Game.remotes.clear(); if (fxs) fxs.clear();
+    for (const [, o] of Game.grenadesFly) scene.remove(o.mesh); Game.grenadesFly.clear(); for (const [, s] of smokeSys) s.remove(); smokeSys.clear(); for (const [, f] of fireSys) f.remove(); fireSys.clear();
+    resetGear(); document.body.classList.remove('replay'); replayUI(false); if (Rep.rec) clipStop();
+    if (Game.state === 'game') $('clickToPlay').classList.remove('hidden');
+  }
+  function repEv(m) {
+    switch (m.k) {
+      case 'shot': onShotFx(m); break; case 'throw': onRemoteThrow(m); break; case 'smoke': onSmokePop(m); break; case 'flash': onFlashPop(m); break;
+      case 'boom': onBoom(m); break; case 'explode': onExplode(m); break; case 'fire': onFirePop(m); break; case 'fireout': onFireOut(m); break;
+      case 'bounce': Audio.bounce({ x: m.x, y: m.y, z: m.z }, m.w); break; case 'plant': onPlant(m); break; case 'kill': onKillFx(m); break; case 'melee': onRemoteMelee(m); break;
+      case 'sensor': onSensor(m); break; case 'sensorbreak': onSensorBreak(m); break;
+    }
+  }
+  function replayStep(dt) {
+    const R = Rep.R; if (!R) return;
+    if (!Rep.paused) { Rep.t += dt * 1000 * Rep.speed; if (Rep.t >= Rep.dur) { Rep.t = Rep.dur; Rep.paused = true; replayUI(true); } }
+    const target = Rep.t0 + Rep.t, now = performance.now(), fr = R.frames; Game.clk = target - now + 100; Game.phase = 'live';
+    if (Rep.seek) {
+      Game.snapBuf.length = 0; let lo = 0, hi = fr.length - 1; while (lo < hi) { const mid = (lo + hi) >> 1; if (fr[mid].st < target - 450) lo = mid + 1; else hi = mid; } Rep.pi = lo;
+      lo = 0; hi = R.ev.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (R.ev[mid].st < target) lo = mid + 1; else hi = mid; } Rep.ei = lo; Rep.seek = false;
+      for (const [, r] of remoteModels) { dropRemote(r); } remoteModels.clear();
+      if (fxs) fxs.clear(); for (const [, s] of smokeSys) s.remove(); smokeSys.clear(); for (const [, f] of fireSys) f.remove(); fireSys.clear();
+    }
+    while (Rep.pi < fr.length && fr[Rep.pi].st <= target + 250) { const f = fr[Rep.pi++]; Game.snapBuf.push({ recv: now, st: f.st, p: f.p, g: f.g, sm: f.sm, f: f.f }); if (f.b) Game.bomb = { state: f.b[0], x: f.b[1], y: f.b[2], z: f.b[3], msLeft: f.b[4], carrier: f.b[5], defFrac: f.b[6] }; }
+    while (Game.snapBuf.length > 12) Game.snapBuf.shift();
+    if (!Rep.paused || Rep.stepEv) while (Rep.ei < R.ev.length && R.ev[Rep.ei].st <= target) { try { repEv(R.ev[Rep.ei].m); } catch (e) {} Rep.ei++; }
+    Rep.stepEv = false;
+    // kamera
+    const mx = MouseIn.x, my = MouseIn.y; MouseIn.x = MouseIn.y = 0;
+    if (Rep.drag) { Rep.yaw -= mx * 0.0032; Rep.pitch = clamp(Rep.pitch - my * 0.0032, -1.5, 1.5); }
+    const r = Rep.follow && Game.remotes.get(Rep.follow);
+    if (Rep.mode === 'follow' && r) { applyCam(r.rx, r.ry + (r.crouch ? PL.EYEC : PL.EYE), r.rz, r.yaw, r.pitch); }
+    else if (Rep.mode === 'orbit' && r) {
+      const cp = Math.cos(Rep.pitch), dx = Math.sin(Rep.yaw) * cp, dy = -Math.sin(Rep.pitch), dz = Math.cos(Rep.yaw) * cp, cx = r.rx, cy = r.ry + 1.4, cz = r.rz;
+      const d = Math.min(Rep.odist, WD.raycastWorld(W, cx, cy, cz, -dx, -dy, -dz, Rep.odist, _bc) - 0.2);
+      applyCam(cx - dx * Math.max(0.4, d), cy - dy * Math.max(0.4, d), cz - dz * Math.max(0.4, d), Rep.yaw, Rep.pitch);
+    } else {
+      const sp = Rep.fly * (KEY.ShiftLeft ? 3.5 : 1) * (KEY.ControlLeft ? 0.3 : 1) * dt, cp = Math.cos(Rep.pitch), fx = -Math.sin(Rep.yaw) * cp, fy = Math.sin(Rep.pitch), fz = -Math.cos(Rep.yaw) * cp;
+      const f = (KEY.KeyW ? 1 : 0) - (KEY.KeyS ? 1 : 0), s = (KEY.KeyD ? 1 : 0) - (KEY.KeyA ? 1 : 0), u = (KEY.Space || KEY.KeyE ? 1 : 0) - (KEY.KeyC || KEY.KeyQ ? 1 : 0);
+      Rep.cam.x += (fx * f + Math.cos(Rep.yaw) * s) * sp; Rep.cam.y += (fy * f + u) * sp; Rep.cam.z += (fz * f - Math.sin(Rep.yaw) * s) * sp;
+      applyCam(Rep.cam.x, Rep.cam.y, Rep.cam.z, Rep.yaw, Rep.pitch);
+    }
+    camera.fov = Rep.mode === 'follow' ? 78 : 70; camera.updateProjectionMatrix();
+    const tEl = $('rpTime'); if (tEl) tEl.textContent = fmtT(Rep.t) + ' / ' + fmtT(Rep.dur);
+    const sk = $('rpSeek'); if (sk && !Rep.scrub) sk.value = Math.round(Rep.t / Rep.dur * 1000);
+  }
+  const fmtT = ms => { const s = Math.round(ms / 1000); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+  function replayPost() { if (Rep.mode === 'follow' && Rep.follow) { const r = remoteModels.get(Rep.follow); if (r) r.group.visible = false; } }
+  function replayCycle(d) {
+    const ids = [...Game.remotes.keys()].filter(id => Game.remotes.get(id).alive); if (!ids.length) return;
+    Rep.follow = ids[(Math.max(0, ids.indexOf(Rep.follow)) + d + ids.length) % ids.length]; replayUI(true);
+  }
+  function replayTicks() {
+    const el = $('rpTicks'); if (!el || !Rep.R) return; let h = '';
+    for (const e of Rep.R.ev) if (e.m.k === 'kill') h += `<i class="k" style="left:${((e.st - Rep.t0) / Rep.dur * 100).toFixed(2)}%"></i>`; else if (e.m.k === 'plant' || e.m.k === 'defuse') h += `<i class="b" style="left:${((e.st - Rep.t0) / Rep.dur * 100).toFixed(2)}%"></i>`;
+    el.innerHTML = h;
+  }
+  function replayUI(on) {
+    let bar = Rep.bar;
+    if (!on) { if (bar) bar.classList.add('hidden'); return; }
+    if (!bar) {
+      bar = Rep.bar = document.createElement('div'); bar.id = 'replayBar'; bar.className = 'replay-bar'; bar.setAttribute('translate', 'no'); document.body.appendChild(bar);
+      bar.innerHTML = `<div class="rp-top"><b>REPLAY</b><span id="rpRound"></span><span id="rpTime">0:00 / 0:00</span><span id="rpCam"></span><em id="rpRec" class="hidden">● OPTAGER</em><button data-rp="close">✕ LUK</button></div>
+        <div class="rp-line"><input type="range" id="rpSeek" min="0" max="1000" value="0"><div id="rpTicks"></div></div>
+        <div class="rp-btns"><button data-rp="rprev" title="forrige runde">◀ RUNDE</button><button data-rp="back">⏪ 5s</button><button data-rp="play" id="rpPlay">⏸</button><button data-rp="fwd">5s ⏩</button><button data-rp="rnext" title="næste runde">RUNDE ▶</button>
+          <span class="rp-sep"></span><button data-rp="sp0.25">¼×</button><button data-rp="sp0.5">½×</button><button data-rp="sp1">1×</button><button data-rp="sp2">2×</button><button data-rp="sp4">4×</button>
+          <span class="rp-sep"></span><button data-rp="m-free">FRI</button><button data-rp="m-follow">FØLG</button><button data-rp="m-orbit">ORBIT</button><button data-rp="pprev">◀</button><button data-rp="pnext">▶</button>
+          <span class="rp-sep"></span><button data-rp="shot">📷 BILLEDE</button><button data-rp="clip">🎬 KLIP (10 s)</button></div>
+        <div class="rp-hint">Hold venstre museknap og træk for at kigge · WASD flyv · MELLEMRUM/E op · C ned · SHIFT hurtig · hjul = flyvefart/afstand · P = pause · Esc = luk</div>`;
+      bar.addEventListener('click', e => { const b = e.target.closest('[data-rp]'); if (b) replayCmd(b.dataset.rp); });
+      const sk = bar.querySelector('#rpSeek'); sk.addEventListener('input', () => { Rep.scrub = true; Rep.t = sk.value / 1000 * Rep.dur; Rep.seek = true; });
+      sk.addEventListener('change', () => { Rep.scrub = false; });
+      const gl = renderer.domElement;
+      gl.addEventListener('mousedown', e => { if (Rep.active && e.button === 0) { Rep.drag = true; } });
+      window.addEventListener('mouseup', () => { Rep.drag = false; });
+      window.addEventListener('mousemove', e => { if (Rep.active && Rep.drag) { MouseIn.x += e.movementX; MouseIn.y += e.movementY; } });
+      gl.addEventListener('wheel', e => { if (!Rep.active) return; e.preventDefault(); if (Rep.mode === 'orbit') Rep.odist = clamp(Rep.odist * (e.deltaY > 0 ? 1.1 : 0.9), 0.8, 14); else Rep.fly = clamp(Rep.fly * (e.deltaY > 0 ? 0.88 : 1.14), 1, 60); }, { passive: false });
+      window.addEventListener('keydown', e => { if (!Rep.active) return; if (e.code === 'KeyP' || (e.code === 'Space' && Rep.mode !== 'free')) { replayCmd('play'); e.preventDefault(); } else if (e.code === 'Escape') { replayStop(); e.preventDefault(); } else if (e.code === 'ArrowLeft') replayCmd('back'); else if (e.code === 'ArrowRight') replayCmd('fwd'); });
+    }
+    bar.classList.remove('hidden');
+    const q = id => bar.querySelector(id); q('#rpRound').textContent = 'RUNDE ' + (Rep.R ? Rep.R.n : '') + ' · ' + (Rep.ri + 1) + '/' + repRounds().length; q('#rpPlay').textContent = Rep.paused ? '▶' : '⏸';
+    const pl = Rep.follow && Game.players.get(Rep.follow); q('#rpCam').textContent = Rep.mode === 'free' ? 'FRI KAMERA' : (Rep.mode === 'follow' ? 'FØLGER ' : 'ORBIT ') + (pl ? pl.name : '');
+    for (const b of bar.querySelectorAll('[data-rp^="m-"]')) b.classList.toggle('on', b.dataset.rp === 'm-' + Rep.mode);
+    for (const b of bar.querySelectorAll('[data-rp^="sp"]')) b.classList.toggle('on', +b.dataset.rp.slice(2) === Rep.speed);
+  }
+  function replayCmd(c) {
+    if (c === 'close') return replayStop();
+    if (c === 'play') { if (Rep.t >= Rep.dur - 1) { Rep.t = 0; Rep.seek = true; } Rep.paused = !Rep.paused; }
+    else if (c === 'back') { Rep.t = Math.max(0, Rep.t - 5000); Rep.seek = true; } else if (c === 'fwd') { Rep.t = Math.min(Rep.dur, Rep.t + 5000); Rep.seek = true; }
+    else if (c === 'rprev') replayLoad(Rep.ri - 1); else if (c === 'rnext') replayLoad(Rep.ri + 1);
+    else if (c.startsWith('sp')) Rep.speed = +c.slice(2);
+    else if (c.startsWith('m-')) { Rep.mode = c.slice(2); if (Rep.mode !== 'free' && !Rep.follow) replayCycle(1); if (Rep.mode === 'orbit') { Rep.yaw = (Game.remotes.get(Rep.follow) || {}).yaw || Rep.yaw; Rep.pitch = 0.25; } }
+    else if (c === 'pprev') replayCycle(-1); else if (c === 'pnext') replayCycle(1);
+    else if (c === 'shot') Rep.shotReq = true; else if (c === 'clip') { if (Rep.rec) clipStop(); else clipStart(10); }
+    replayUI(true);
+  }
+  function replayShot() {                                                           // kaldes lige efter at billedet er tegnet
+    Rep.shotReq = false; renderer.domElement.toBlob(b => { if (!b) return; const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'white-dust-' + Date.now() + '.png'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); UI.toast('Billede gemt'); }, 'image/png');
+  }
+  function clipStart(sec) {
+    try {
+      const stream = renderer.domElement.captureStream(30), at = Audio.tap && Audio.tap(); if (at) for (const t of at.getAudioTracks()) stream.addTrack(t);
+      const mime = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'].find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m));
+      const mr = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8e6 }), chunks = []; mr.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+      mr.onstop = () => { const blob = new Blob(chunks, { type: 'video/webm' }), a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'white-dust-klip-' + Date.now() + '.webm'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 8000); UI.toast('Klip gemt'); };
+      mr.start(500); Rep.rec = { mr, t: setTimeout(clipStop, sec * 1000) }; const el = $('rpRec'); if (el) el.classList.remove('hidden');
+    } catch (e) { UI.toast('Optagelse understøttes ikke i denne browser'); }
+  }
+  function clipStop() { if (!Rep.rec) return; clearTimeout(Rep.rec.t); try { Rep.rec.mr.stop(); } catch (e) {} Rep.rec = null; const el = $('rpRec'); if (el) el.classList.add('hidden'); }
   function updateLocal(dt) {
+    if (Rep.active) { replayStep(dt); return; }
     applyMouse(dt);
     if (!Game.self.alive && Game.phase !== 'buy') {   // SPECTATOR: kun holdkammerater (aldrig fjender, aldrig fri kamera)
       if (!specList().includes(Game.specId)) cycleSpec(1);
@@ -3146,7 +3311,8 @@ const Renderer = (() => {
       syncDrops(dt);
       updateLocal(dt);
       sampleRemotes(dt);
-      vmOn = updateViewmodel(dt);
+      if (Rep.active) replayPost();
+      vmOn = Rep.active ? false : updateViewmodel(dt);
       animateFx(dt);
       drawMinimapDyn();
       if (siteMarks && siteMarks.userData.assist) siteMarks.visible = !!(Game.self.alive && Game.side === 'hij' && Game.self.inv && Game.self.inv.bomb);
@@ -3182,6 +3348,7 @@ const Renderer = (() => {
     }
     if (trailerDir && trailerDir.active) { drawTrOverlay(trNow()); renderer.clearDepth(); renderer.render(trOv.scene, trOv.cam); }   // v26.7: trailerens titler ovenpå
     placeNameTags();
+    if (Rep.shotReq) replayShot();
     if (Game.flash && Game.flash.cap) { Game.flash.cap = false; captureAfterimage(); }   // flashbang: frys det sidste billede (efterbillede)
   }
   function captureAfterimage() {
@@ -3220,7 +3387,7 @@ const Renderer = (() => {
   }
   const api = { canvas: () => renderer.domElement, setEvent, event: () => EV.cur, get camera() { return camera; }, intro: () => (ensureChars(), Intro), bombCine: () => BombCine, deferEnd: (m, info) => { if (BombCine && BombCine.active) { pendingEnd = m; return true; }
       if (info && RoundCine && !Game.cineFull) { try { if (RoundCine.start(info)) { pendingEnd = m; m._cine = true; return true; } } catch (e) { console.warn('rundefilm', e); } } return false; },
-    roundCine: () => RoundCine, introReady: () => introLoaded, setQuality, gunIcon, get gfx() { return gfxName; }, get pr() { return prCur; }, get perf() { return perf; }, chars: () => (ensureChars(), Chars), weap: () => (ensureChars(), Weap), onCosmetics, mapReady: () => !loading && mapId === W.id, cosReady: () => COS.ready, setCine, init, loadMap, flinchAim, onRoundStart, onShotFx, inspect, onRemoteMelee, onMeleeWall, onPlant, onExplode, onBoom, onSmokePop, onFlashPop, onFirePop, onFireOut, onSensor, onSensorBreak, onSense, onSbeep, toggleThermal, ping, onPing, snapKiller, fpStep, onRemoteThrow, onThrowLocal, onPinPull, onWeaponChange, mouseDelta, shake, skinName, get mapId() { return mapId; } };
+    roundCine: () => RoundCine, introReady: () => introLoaded, setQuality, gunIcon, get gfx() { return gfxName; }, get pr() { return prCur; }, get perf() { return perf; }, chars: () => (ensureChars(), Chars), weap: () => (ensureChars(), Weap), onCosmetics, mapReady: () => !loading && mapId === W.id, cosReady: () => COS.ready, setCine, init, loadMap, flinchAim, onRoundStart, onShotFx, inspect, onRemoteMelee, onMeleeWall, onPlant, onExplode, onBoom, onSmokePop, onFlashPop, onFirePop, onFireOut, onSensor, onSensorBreak, onSense, onSbeep, toggleThermal, ping, onPing, snapKiller, fpStep, onKillFx, replayStart, replayStop, replayAvailable, get replayActive() { return Rep.active; }, onRemoteThrow, onThrowLocal, onPinPull, onWeaponChange, mouseDelta, shake, skinName, get mapId() { return mapId; } };
   if (DEV) {   // v14: kontaktark over førstepersonsvåben (kun dev) – hvert våben renderes alene på neutral baggrund
     const sideCam = new THREE.PerspectiveCamera(30, 1.6, 0.01, 10);
     api.vmSheet = (ids, cols, tw, th, side) => {

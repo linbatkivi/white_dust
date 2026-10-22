@@ -198,10 +198,34 @@ export function createFx(THREE, o) {
     for (let i = 0; i < 3; i++) imps.push({ k: 1, x: x + nx * 0.05, y: y + ny * 0.05, z: z + nz * 0.05, vx: (nx + (Math.random() - 0.5) * 0.6) * (0.5 + i * 0.35), vy: (ny + 0.25) * (0.5 + i * 0.3), vz: (nz + (Math.random() - 0.5) * 0.6) * (0.5 + i * 0.35), t: 0, life: 0.55 + Math.random() * 0.35, r: lr, g: lg, b: lb, rot: Math.random() * 6 });
     if (imps.length > 360) imps.splice(0, imps.length - 360);
   }
+  /* ---------------- v26.10: BLOD – sprøjt ved træf (partikler med tyngdekraft), stænk og pøle på gulvet ---------------- */
+  const bloodTex = tex((c, w, h) => {
+    const R = rnd(31); const g = c.createRadialGradient(w / 2, h / 2, 2, w / 2, h / 2, w / 2); g.addColorStop(0, 'rgba(120,6,6,.95)'); g.addColorStop(0.6, 'rgba(92,4,4,.9)'); g.addColorStop(1, 'rgba(70,2,2,0)'); c.fillStyle = g; c.fillRect(0, 0, w, h);
+    for (let i = 0; i < 26; i++) { const a = R() * 6.28, d = w * (0.28 + R() * 0.2), r = w * (0.02 + R() * 0.06); c.fillStyle = 'rgba(88,3,3,.9)'; c.beginPath(); c.arc(w / 2 + Math.cos(a) * d, h / 2 + Math.sin(a) * d, r, 0, 7); c.fill(); }
+  }, 128);
+  const poolGeo = new THREE.PlaneGeometry(1, 1); poolGeo.rotateX(-Math.PI / 2); const pools = [];
+  function pool(x, y, z, r) {
+    const m = new THREE.Mesh(poolGeo, new THREE.MeshBasicMaterial({ map: bloodTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, opacity: 0.94, color: 0xb31414 }));
+    m.position.set(x, y + 0.014 + pools.length * 0.0003, z); m.rotation.y = Math.random() * 6.28; m.scale.set(r * 0.4, 1, r * 0.4); m.renderOrder = 2; scene.add(m);
+    pools.push({ m, r, t: 0 }); if (pools.length > 80) { const q = pools.shift(); scene.remove(q.m); q.m.material.dispose(); }
+  }
+  function blood(x, y, z, dx, dy, dz, n, big) {
+    for (let i = 0; i < n; i++) {
+      const sp = 1.2 + Math.random() * (big ? 5 : 3.2);
+      imps.push({ k: 2, x, y, z, vx: dx * sp + (Math.random() - 0.5) * 2.2, vy: dy * sp + Math.random() * 1.6, vz: dz * sp + (Math.random() - 0.5) * 2.2, t: 0, life: 0.5 + Math.random() * 0.6, s: 0.02 + Math.random() * 0.03 });
+    }
+    if (imps.length > 420) imps.splice(0, imps.length - 420);
+  }
   function stepImpacts(dt) {
     for (let i = imps.length - 1; i >= 0; i--) {
       const p = imps[i]; p.t += dt; if (p.t > p.life) { imps.splice(i, 1); continue; }
       const a = p.t / p.life;
+      if (p.k === 2) {                                                  // blod: bue under tyngdekraft, lander som stænk
+        p.vy -= 9.8 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
+        const gy = WD.groundAt(o.getW ? o.getW() : null, p.x, p.z, p.y + 0.4, 1.6);
+        if (gy !== -Infinity && p.y <= gy + 0.02) { if (Math.random() < 0.4) pool(p.x, gy, p.z, 0.05 + Math.random() * 0.09); imps.splice(i, 1); continue; }
+        LDot.push(p.x, p.y, p.z, p.s, 0.42, 0.02, 0.02, 1 - a * 0.5, 0); continue;
+      }
       if (p.k === 0) { p.vy -= 9.8 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; LDot.push(p.x, p.y, p.z, 0.035 * (1 - a * 0.6), 6, 3.6, 1.4, 1 - a, 0); }
       else { const d = Math.exp(-4 * dt); p.vx *= d; p.vy *= d; p.vz *= d; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; LSmoke.push(p.x, p.y, p.z, 0.16 + a * 0.55, p.r, p.g, p.b, 0.55 * (1 - a) * (1 - a), p.rot + a); }
     }
@@ -211,10 +235,11 @@ export function createFx(THREE, o) {
     LSmoke.begin(); LFire.begin(); LDot.begin(); LGlow.begin();
     for (const s of systems) s.draw(dt);
     stepImpacts(dt);
+    for (const q of pools) if (q.t < 3) { q.t += dt; const s = q.r * (0.4 + 0.6 * smooth(q.t / 3)); q.m.scale.set(s, 1, s); }
     for (let i = pops.length - 1; i >= 0; i--) { const p = pops[i]; p.t += dt; if (p.t > 0.35) { pops.splice(i, 1); continue; } const k = 1 - p.t / 0.35; LGlow.push(p.x, p.y, p.z, 2.5 + p.t * 18, 8 * k, 8 * k, 8 * k, k, 0); }
     for (let i = trail.length - 1; i >= 0; i--) { const p = trail[i]; p.t += dt; if (p.t > p.life) { trail.splice(i, 1); continue; } const a = p.t / p.life; LFire.push(p.x, p.y + a * 0.12, p.z, 0.2 * (1 - a * 0.5), 1.6, 0.6, 0.12, 0.8 * (1 - a), p.rot); }
     LSmoke.end(cam); LFire.end(cam); LDot.end(cam); LGlow.end(cam);
   }
-  function clear() { for (const s of [...systems]) s.remove(); pops.length = 0; trail.length = 0; imps.length = 0; }
-  return { smoke, fire, flashPop, trailFlame, impact, update, clear, setThermal };
+  function clear() { for (const s of [...systems]) s.remove(); pops.length = 0; trail.length = 0; imps.length = 0; for (const q of pools) { scene.remove(q.m); q.m.material.dispose(); } pools.length = 0; }
+  return { smoke, fire, flashPop, trailFlame, impact, blood, pool, update, clear, setThermal };
 }

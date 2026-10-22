@@ -1780,3 +1780,16 @@ body.lang-zh, body.lang-zh * { font-family: 'PingFang SC', 'Microsoft YaHei', 'N
 .death-card .dc-w { display: flex; align-items: center; gap: 6px; font: 700 12px 'Space Mono', monospace; } .death-card .dc-w img { height: 22px; max-width: 74px; object-fit: contain; filter: invert(1) brightness(.4); }
 .death-card .dc-hp { position: relative; height: 14px; margin: 8px 0 4px; background: rgba(0,0,0,.14); } .death-card .dc-hp i { position: absolute; inset: 0; width: var(--v); background: #2ea44f; } .death-card .dc-hp em { position: absolute; right: 4px; top: -1px; font: 700 11px/14px 'Space Mono', monospace; font-style: normal; color: #000; }
 .death-card .dc-m { font: 700 11px 'Space Mono', monospace; color: #5a564c; letter-spacing: .06em; }
+
+/* v26.10: replay & fri kamera */
+body.replay #xpFeed, body.replay .mission-toast, body.replay #hud > *:not(#replayBar), body.replay #nameTags, body.replay #crosshair, body.replay #crosshairHit, body.replay #sndHud, body.replay #thermHud, body.replay .death-card { display: none !important; }
+.replay-bar { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); width: min(980px, 94vw); z-index: 60; background: rgba(9,11,14,.86); border: 1px solid rgba(255,255,255,.16); border-radius: 4px; padding: 10px 14px 8px; color: #e8ecf1; font: 700 12px 'Space Mono', monospace; backdrop-filter: blur(6px); user-select: none; }
+.replay-bar .rp-top { display: flex; align-items: center; gap: 14px; margin-bottom: 6px; letter-spacing: .1em; } .replay-bar .rp-top b { color: #ff4b3a; font-family: 'Archivo Black', sans-serif; font-size: 15px; letter-spacing: .14em; }
+.replay-bar .rp-top em { color: #ff4b3a; font-style: normal; animation: rpblink 1s steps(2) infinite; } .replay-bar .rp-top button { margin-left: auto; }
+@keyframes rpblink { 50% { opacity: .2; } }
+.replay-bar .rp-line { position: relative; height: 22px; } .replay-bar #rpSeek { width: 100%; margin: 0; accent-color: #ff4b3a; position: relative; z-index: 2; background: transparent; }
+.replay-bar #rpTicks { position: absolute; left: 6px; right: 6px; top: 3px; height: 16px; pointer-events: none; z-index: 1; } .replay-bar #rpTicks i { position: absolute; top: 0; width: 3px; height: 16px; background: #ff4b3a; } .replay-bar #rpTicks i.b { background: #ffd23a; }
+.replay-bar .rp-btns { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 4px; }
+.replay-bar button { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.2); color: #e8ecf1; padding: 5px 9px; font: 700 11px 'Space Mono', monospace; letter-spacing: .06em; cursor: pointer; border-radius: 2px; }
+.replay-bar button:hover { background: rgba(255,255,255,.18); } .replay-bar button.on { background: #ff4b3a; border-color: #ff4b3a; color: #fff; }
+.replay-bar .rp-sep { width: 1px; height: 18px; background: rgba(255,255,255,.2); margin: 0 4px; } .replay-bar .rp-hint { margin-top: 6px; color: #8a95a3; font-weight: 400; font-size: 10px; letter-spacing: .04em; }
