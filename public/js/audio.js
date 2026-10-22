@@ -34,9 +34,46 @@ export function createAudio() {
     verbBuf = ctx.createBuffer(1, ctx.sampleRate * 0.55 | 0, ctx.sampleRate);    // v12.1: mono + 0,55 s (konvolution er dyr på Mac)
     for (let ch = 0; ch < 1; ch++) { const v = verbBuf.getChannelData(ch); for (let i = 0; i < v.length; i++) v[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / v.length, 3.2) * (i < 80 ? i / 80 : 1); }
     verb = ctx.createConvolver(); verb.buffer = verbBuf; const vg = ctx.createGain(); vg.gain.value = 0.32; verb.connect(vg); vg.connect(sfx);
+    buildRoomVerb();
     if (pendingAmb) { const a = pendingAmb; pendingAmb = null; ambience(a); }
     decodeAll();
   }
+  /* ---------------- v26.10: RUM-EKKO (akustisk udbredelse) ----------------
+     Lytterens omgivelser måles af spillet (stråler i alle retninger: størrelse, åbenhed, himmel) og sendes hertil som setRoom({ size, open, wet }).
+     To konvolutioner: KORT (0,5 s – gyder, slap-back mod stenvægge) og LANG (2,2 s – haller, kældre, kamre). Hver lyd har en send; sendens
+     størrelse følger rummet, og højdæmpning (damp) følger rummets absorption. Åbent land → næsten ingen efterklang, kun et fjernt ekko. */
+  let rvIn = null, rvShortG = null, rvLongG = null, rvDamp = null, roomNow = { wet: 0.25, long: 0.0, damp: 9000 }, longConv = null;
+  function mkIR(len, decay, bright, early) {
+    const n = (ctx.sampleRate * len) | 0, b = ctx.createBuffer(1, n, ctx.sampleRate), v = b.getChannelData(0); let lp = 0;
+    for (let i = 0; i < n; i++) {
+      const x = i / n, env = Math.pow(1 - x, decay) * (i < 60 ? i / 60 : 1); lp += (((Math.random() * 2 - 1) - lp) * (bright * (1 - 0.75 * x)));   // højfrekvenserne dør hurtigere (luft/sten)
+      v[i] = lp * env * 1.7;
+    }
+    for (const [tm, a] of early) { const k = (tm * ctx.sampleRate) | 0; if (k < n) v[k] += a; }                                    // tidlige refleksioner (vægge)
+    return b;
+  }
+  function buildRoomVerb() {
+    if (!ctx || rvIn) return;
+    rvIn = ctx.createGain(); rvIn.gain.value = 1;
+    const sh = ctx.createConvolver(); sh.buffer = mkIR(0.5, 3.0, 0.9, [[0.011, 0.5], [0.019, 0.38], [0.031, 0.26]]);
+    longConv = ctx.createConvolver(); longConv.buffer = mkIR(2.2, 2.6, 0.55, [[0.021, 0.4], [0.043, 0.3], [0.067, 0.22], [0.11, 0.16]]);
+    rvShortG = ctx.createGain(); rvShortG.gain.value = 0.25; rvLongG = ctx.createGain(); rvLongG.gain.value = 0.0;
+    rvDamp = ctx.createBiquadFilter(); rvDamp.type = 'lowpass'; rvDamp.frequency.value = 9000;
+    rvIn.connect(sh); sh.connect(rvShortG); rvShortG.connect(rvDamp); rvIn.connect(longConv); longConv.connect(rvLongG); rvLongG.connect(rvDamp); rvDamp.connect(sfx);
+  }
+  function setRoom(r) {
+    if (!ctx || !rvIn) return; const t = ctx.currentTime;
+    roomNow = { wet: r.wet, long: r.long, damp: r.damp };
+    rvShortG.gain.setTargetAtTime(r.wet, t, 0.25); rvLongG.gain.setTargetAtTime(r.long, t, 0.35); rvDamp.frequency.setTargetAtTime(r.damp, t, 0.3);
+  }
+  const roomSend = pos => {                           // lyde langt væk fra lytteren bærer mere rum (direkte lyd falder, efterklang gør ikke)
+    const d = pos ? Math.min(40, Math.hypot(pos.x - listener.x, pos.z - listener.z)) : 2; return 0.45 + 0.012 * d;
+  };
+
+  /* ---------------- v26.10: HÆNDELSER (retningsbestemte lydindikatorer på HUD'en) ---------------- */
+  let onEvent = null;
+  function emit(pos, kind, loud) { if (onEvent && pos) try { onEvent(pos, kind, loud); } catch (e) {} }
+
   /* ---------------- v20: LYDFILER (public/assets/sounds, tools/sounds/prep.py) ----------------
      Hentes straks ved sideindlæsning (fetch med genforsøg), afkodes i en suspenderet AudioContext før første klik,
      så de altid er klar. Mangler en fil, bruges den syntetiske lyd som reserve. Musik streames via <audio>-elementer. */
@@ -147,7 +184,8 @@ export function createAudio() {
   // v12.1: HRTF (dyr konvolution pr. lyd) kun til skud og fodtrin – alt andet bruger billig 'equalpower'-panorering
   function out(pos, ref, maxD, hq) {
     const g = ctx.createGain();
-    if (!pos) { g.connect(sfx); return g; }
+    if (!pos) { g.connect(sfx); if (rvIn) { const sn = ctx.createGain(); sn.gain.value = 0.3; g.connect(sn); sn.connect(rvIn); } return g; }
+    if (rvIn) { const sn = ctx.createGain(); sn.gain.value = roomSend(pos); g.connect(sn); sn.connect(rvIn); }
     const p = ctx.createPanner(); p.panningModel = hq ? 'HRTF' : 'equalpower'; p.distanceModel = 'inverse'; p.refDistance = ref || 3; p.maxDistance = maxD || 120; p.rolloffFactor = 1.1;
     if (p.positionX) { p.positionX.value = pos.x; p.positionY.value = pos.y; p.positionZ.value = pos.z; } else p.setPosition(pos.x, pos.y, pos.z);
     g.connect(p); p.connect(sfx); return g;
@@ -156,9 +194,12 @@ export function createAudio() {
   // v12.1: stemme-loft – højst ~10 rumlige lyde startet pr. 100 ms (fuld automatild + nedslag + fodtrin kan ellers kvæle lydtråden)
   let bT = 0, bN = 0;
   const busy = pos => { if (!pos || !ctx) return false; const t = ctx.currentTime; if (t - bT > 0.1) { bT = t; bN = 0; } return ++bN > 10; };
-  function impact(pos, metal) {                          // kugle-nedslag: kort klik/smæld uden HRTF
+  function impact(pos, metal, surf) {                    // kugle-nedslag: klik/smæld pr. materiale (metal, sten, jord/blade, vand)
     if (!ok() || far(pos, 30) || busy(pos)) return; const t = ctx.currentTime, d = out(pos, 2, 30);
+    if (surf === 'water' && !metal) { noise(d, t, 0.2, 1500, 0.6, 'bandpass', 0.32, 0.18); tone(d, t, 0.08, 1200, 500, 'sine', 0.1); return; }
+    if (!metal && (surf === 'dirt' || surf === 'leaf')) { noise(d, t, 0.07, 700, 0.9, 'lowpass', 0.3, 0.06); noise(d, t + 0.01, 0.05, 2500, 1, 'bandpass', 0.08, 0.04); return; }
     noise(d, t, 0.05, metal ? 3800 : 1600, metal ? 3 : 1.2, 'bandpass', metal ? 0.35 : 0.28, 0.04);
+    if (!metal) { noise(d, t + 0.015, 0.04, 3200, 2.2, 'bandpass', 0.1, 0.03); if (Math.random() < 0.6) noise(d, t + 0.08 + Math.random() * 0.1, 0.03, 2400, 2, 'bandpass', 0.06, 0.025); }     // stenskår, der triller
   }
   function noise(dst, t0, dur, f, q, type, vol, decay) {
     const s = ctx.createBufferSource(); s.buffer = noiseBuf; s.playbackRate.value = 0.8 + Math.random() * 0.4;
@@ -232,6 +273,7 @@ export function createAudio() {
   }
   function shot(id, pos, local) {
     if (!ok()) return;
+    if (!local && pos) emit(pos, 'shot', 1);
     if (PISTOL[id]) return pistolShot(id, pos, local);
     const P = GUN[id] || GUN.ak47, t = ctx.currentTime + 0.002, d = out(local ? null : pos, 6, 160, true);
     d.gain.value = local ? 0.7 : 1;
@@ -253,15 +295,53 @@ export function createAudio() {
     if (!local && pos) { const dist = Math.hypot(pos.x - listener.x, pos.z - listener.z); if (dist > 25) noise(d, t + 0.05, P.tail * 1.5, 400, 0.5, 'lowpass', P.vol * 0.3, P.tail * 1.5); }   // ekko på afstand
   }
   // v12: fodtrin markant højere og med længere rækkevidde (taktisk lyd): hæl-thud + sål-skrab (+ metalklang på gitre/trapper)
-  function step(pos, soft, metal) {
+  const SURF_STEP = {
+    // surf: [hælens båndpas f, Q, sålens f, tyngde Hz, hæl-vol, sål-vol, 'ekstra']
+    stone: [330, 1.1, 1500, 110, 0.95, 0.42], dirt: [190, 0.9, 700, 85, 0.7, 0.5, 'crunch'], leaf: [220, 0.8, 2400, 80, 0.5, 0.7, 'leaf'], wood: [260, 1.6, 900, 150, 0.9, 0.3, 'knock'],
+    metal: [1700, 2.5, 3600, 340, 0.95, 0.42, 'ring'], water: [420, 0.7, 2200, 70, 0.55, 0.65, 'splash'], cave: [250, 1.0, 1100, 95, 0.9, 0.4]
+  };
+  let lastStepKey = 0;
+  function step(pos, soft, metal, surf) {
     if (!ok() || far(pos, 42) || busy(pos)) return; const t = ctx.currentTime, d = out(pos, 4.5, 42, !!pos), v = soft ? 0.32 : 1.0;
-    noise(d, t, 0.06, metal ? 1700 : 260, metal ? 2.5 : 1.1, 'bandpass', 0.95 * v, 0.055);                 // hæl
-    noise(d, t + 0.025, 0.07, metal ? 3600 : 1250, 1.6, 'bandpass', 0.42 * v, 0.06);                      // sål/grus
-    tone(d, t, 0.045, metal ? 340 : 120, metal ? 260 : 75, 'sine', 0.45 * v);                             // tyngde
-    if (metal) { tone(d, t, 0.09, 940, 880, 'triangle', 0.16 * v); tone(d, t, 0.07, 1530, 1490, 'sine', 0.08 * v); }
+    const S = SURF_STEP[metal ? 'metal' : (surf || 'stone')] || SURF_STEP.stone, jit = 0.85 + Math.random() * 0.3;
+    noise(d, t, 0.06, S[0] * jit, S[1], 'bandpass', S[4] * v, 0.055);                                      // hæl
+    noise(d, t + 0.025, 0.07, S[2] * jit, 1.6, 'bandpass', S[5] * 0.85 * v, 0.06);                           // sål/grus
+    tone(d, t, 0.045, S[3] * 1.6, S[3] * 0.65, 'sine', 0.45 * v);                                           // tyngde
+    const ex = S[6];
+    if (ex === 'ring') { tone(d, t, 0.09, 940, 880, 'triangle', 0.16 * v); tone(d, t, 0.07, 1530, 1490, 'sine', 0.08 * v); }
+    else if (ex === 'crunch') for (let k = 0; k < 3; k++) noise(d, t + 0.01 + k * 0.022, 0.03, 1800 + Math.random() * 1800, 2, 'bandpass', 0.16 * v, 0.02);        // grus/småsten
+    else if (ex === 'leaf') for (let k = 0; k < 5; k++) noise(d, t + 0.008 + k * 0.018 + Math.random() * 0.01, 0.04, 3200 + Math.random() * 2600, 1.3, 'bandpass', 0.2 * v, 0.03);   // blade, der knitrer
+    else if (ex === 'knock') tone(d, t, 0.12, 190 + Math.random() * 30, 140, 'triangle', 0.22 * v);
+    else if (ex === 'splash') { noise(d, t, 0.22, 1100, 0.5, 'bandpass', 0.35 * v, 0.2); for (let k = 0; k < 4; k++) tone(d, t + 0.02 + k * 0.035, 0.06, 900 + Math.random() * 1400, 400, 'sine', 0.06 * v); }
+    if (pos && !soft) { if (t - lastStepKey > 0.05) emit(pos, 'step', 0.35); lastStepKey = t; }
+    if (!soft && pos === null) return;
+    // foley: lidt udstyr (karabinhager/rem) og stof ved hvert fjerde trin
+    if (Math.random() < 0.28) noise(d, t + 0.03, 0.05, 5200, 3, 'bandpass', 0.05 * v, 0.04);
+  }
+  /* små detaljer: vanddryp, frøer, fuglekald, vind i løv, knirken – bruges af ambient-systemet og af gameplay */
+  function detail(kind, pos) {
+    if (!ok() || (pos && far(pos, 55))) return; const t = ctx.currentTime, d = out(pos, 3, 55);
+    if (kind === 'drip') { const f = 1200 + Math.random() * 1100; tone(d, t, 0.1, f, f * 0.4, 'sine', 0.16); noise(d, t, 0.03, 4200, 3, 'bandpass', 0.05, 0.02); if (Math.random() < 0.5) tone(d, t + 0.09, 0.08, f * 0.8, f * 0.35, 'sine', 0.05); }
+    else if (kind === 'frog') { const n = 2 + (Math.random() * 3 | 0); for (let i = 0; i < n; i++) { const f = 360 + Math.random() * 90; tone(d, t + i * 0.13, 0.1, f, f * 0.8, 'sawtooth', 0.06); noise(d, t + i * 0.13, 0.08, 900, 4, 'bandpass', 0.04, 0.07); } }
+    else if (kind === 'bird') { const f0 = 2600 + Math.random() * 1800, n = 3 + (Math.random() * 5 | 0); for (let i = 0; i < n; i++) tone(d, t + i * 0.11, 0.08, f0 * (1 + 0.25 * Math.sin(i * 1.7)), f0 * (1.2 + 0.15 * Math.random()), 'sine', 0.1); }
+    else if (kind === 'owl') { tone(d, t, 0.35, 420, 380, 'sine', 0.12); tone(d, t + 0.5, 0.45, 400, 330, 'sine', 0.12); }
+    else if (kind === 'monkey') { for (let i = 0; i < 6; i++) tone(d, t + i * 0.09, 0.07, 700 + Math.random() * 500, 1200, 'sawtooth', 0.045); }
+    else if (kind === 'rustle') { const dur = 0.7 + Math.random() * 1.2; noise(d, t, dur, 3000, 0.4, 'bandpass', 0.07, dur); noise(d, t + 0.2, dur, 6500, 0.5, 'highpass', 0.03, dur); }
+    else if (kind === 'creak') { const os = ctx.createOscillator(); os.type = 'sawtooth'; os.frequency.setValueAtTime(160, t); os.frequency.linearRampToValueAtTime(230 + Math.random() * 60, t + 0.5); const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 600; bp.Q.value = 5; const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.05, t + 0.15); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.7); os.connect(bp); bp.connect(g); g.connect(d); os.start(t); os.stop(t + 0.75); }
+    else if (kind === 'stonefall') { noise(d, t, 0.05, 1500, 1.2, 'bandpass', 0.2, 0.04); noise(d, t + 0.12, 0.04, 2300, 1.5, 'bandpass', 0.12, 0.03); noise(d, t + 0.19, 0.03, 3000, 2, 'bandpass', 0.08, 0.025); }
+    else if (kind === 'splash') { noise(d, t, 0.25, 1300, 0.5, 'bandpass', 0.3, 0.22); for (let k = 0; k < 5; k++) tone(d, t + 0.02 + k * 0.03, 0.06, 800 + Math.random() * 1500, 380, 'sine', 0.07); }
+  }
+  // faste lydkilder i banen (vandbassiner osv.): [{ x, y, z, kinds:[navn…], rate: pr. sekund }] – et lille planlægnings-løb sørger for tilfældige hændelser
+  let emitters = [], emTimer = null;
+  function setEmitters(list) {
+    emitters = list || []; if (emTimer) { clearInterval(emTimer); emTimer = null; } if (!emitters.length) return;
+    emTimer = setInterval(() => {
+      if (!ok()) return;
+      for (const e of emitters) { if (Math.hypot(e.x - listener.x, e.z - listener.z) > 50) continue; if (Math.random() < (e.rate || 0.3) * 0.25) detail(e.kinds[Math.random() * e.kinds.length | 0], e); }
+    }, 250);
   }
   function door(kind, pos) {
-    if (!ok() || far(pos, 45)) return; const t = ctx.currentTime, d = out(pos, 3, 45);
+    if (!ok() || far(pos, 45)) return; if (pos) emit(pos, 'door', 0.5); const t = ctx.currentTime, d = out(pos, 3, 45);
     if (kind === 'squeaky') {                         // tydeligt, langt knirk: savtand med vaklende tonehøjde gennem båndpas
       const os = ctx.createOscillator(); os.type = 'sawtooth'; const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1400; bp.Q.value = 6;
       const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.5, t + 0.05); g.gain.setValueAtTime(0.5, t + 0.55); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.9);
@@ -271,8 +351,9 @@ export function createAudio() {
     } else if (kind === 'metal') { tone(d, t, 0.25, 140, 90, 'triangle', 0.3); noise(d, t, 0.12, 900, 2, 'bandpass', 0.25, 0.1); }
     else { tone(d, t, 0.12, 180, 120, 'sine', 0.25); noise(d, t, 0.08, 600, 1.5, 'bandpass', 0.2, 0.07); }
   }
-  function beep(pos, hi) { if (!ok()) return; const t = ctx.currentTime, d = out(pos, 4, 70); tone(d, t, 0.09, hi ? 3100 : 2400, null, 'sine', 0.35); }
+  function beep(pos, hi) { if (!ok()) return; if (pos) emit(pos, 'beep', 0.4); const t = ctx.currentTime, d = out(pos, 4, 70); tone(d, t, 0.09, hi ? 3100 : 2400, null, 'sine', 0.35); }
   function boom(pos, big) {
+    if (pos) emit(pos, 'boom', 1);
     if (!ok()) return; const t = ctx.currentTime, d = out(pos, big ? 12 : 6, 250);
     tone(d, t, big ? 1.6 : 0.9, 90, 30, 'sine', big ? 1.4 : 1.0); noise(d, t, big ? 2.2 : 1.2, 700, 0.6, 'lowpass', big ? 1.3 : 0.9, big ? 2.0 : 1.0); noise(d, t, 0.15, 3000, 0.5, 'highpass', 0.6, 0.12);
   }
@@ -330,7 +411,7 @@ export function createAudio() {
     const sg = sfx.gain; sg.cancelScheduledValues(t); sg.setValueAtTime(Math.max(0.0001, sg.value), t); sg.exponentialRampToValueAtTime(duck, t + 0.06);
     sg.setValueAtTime(duck, t + Math.min(D * 0.35, 1.4)); sg.exponentialRampToValueAtTime(1, t + D);
   }
-  function glass(pos) { if (!ok()) return; const t = ctx.currentTime, d = out(pos, 4, 60); for (let i = 0; i < 5; i++) tone(d, t + i * 0.025, 0.12, 2800 + Math.random() * 3000, 1800, 'triangle', 0.12); noise(d, t, 0.25, 5000, 1.5, 'highpass', 0.5, 0.2); }
+  function glass(pos) { if (!ok()) return; if (pos) emit(pos, 'glass', 0.9); const t = ctx.currentTime, d = out(pos, 4, 60); for (let i = 0; i < 5; i++) tone(d, t + i * 0.025, 0.12, 2800 + Math.random() * 3000, 1800, 'triangle', 0.12); noise(d, t, 0.25, 5000, 1.5, 'highpass', 0.5, 0.2); }
   function ignite(pos) { if (!ok()) return; const t = ctx.currentTime, d = out(pos, 6, 80); noise(d, t, 0.9, 400, 0.6, 'lowpass', 0.9, 0.8); noise(d, t, 0.4, 1800, 0.8, 'bandpass', 0.5, 0.35); }
   function fizzle(pos) { if (!ok()) return; const t = ctx.currentTime, d = out(pos, 4, 40); noise(d, t, 0.6, 3000, 0.8, 'highpass', 0.25, 0.55); }
   // ild-løkke (knitren) i 3D: returnerer stop()
@@ -450,5 +531,5 @@ export function createAudio() {
   // v26.7: lyd-udtag til videooptagelse (MediaRecorder): hele mixet efter kompressoren
   let tapDest = null;
   function tap() { if (!ctx) build(); if (!ctx) return null; if (!tapDest) { tapDest = ctx.createMediaStreamDestination(); comp.connect(tapDest); } return tapDest.stream; }
-  return { tap, duck, loaded, cine, cinePreload, playMusic, stopMusic, musicTime, musicPlaying, init, setListener, shot, step, impact, door, beep, boom, hiss, click, pin, throwSnd, bounce, flashbang, tinnitus, glass, ignite, fizzle, fireLoop, setVolume, setVolumes, music, ambience, stopAmbience, announce, get ready() { return ok(); }, set enabled(v) { enabled = v; } };
+  return { tap, duck, loaded, cine, cinePreload, playMusic, stopMusic, musicTime, musicPlaying, init, setListener, setRoom, setEmitters, detail, emit, set onEvent(f) { onEvent = f; }, shot, step, impact, door, beep, boom, hiss, click, pin, throwSnd, bounce, flashbang, tinnitus, glass, ignite, fizzle, fireLoop, setVolume, setVolumes, music, ambience, stopAmbience, announce, get ready() { return ok(); }, set enabled(v) { enabled = v; } };
 }

@@ -19,7 +19,7 @@ const PORT = parseInt(process.env.PORT, 10) || 3000;
 const FAST = !!process.env.WD_FAST;   // kun til automatiske tests
 const TIMES = FAST
   ? { buy: 2, grace: 3, round: 14, end: 1.2, plant: 0.6, defuse: 1.0, bomb: 6, over: 2, load: 5, intro: 0, mvp: 0, rcine: 0, bpost: 0 }
-  : { buy: 12, grace: 10, round: 100, end: 5, plant: 3.2, defuse: 6, bomb: 40, over: 42, load: 90, intro: 13, mvp: 8, rcine: 4.8, bpost: 6.5 };   // v22: intro = cutscenen ved kampstart · mvp = ekstra tid til MVP-filmen   // grace: købe i spawn de første 10 s · over: sejrs-sekvensen (musikken) · load: maks. ventetid på at alle har indlæst banen
+  : { buy: 12, grace: 10, round: 100, end: 5, plant: 3.2, defuse: 10, bomb: 40, over: 42, load: 90, intro: 13, mvp: 8, rcine: 4.8, bpost: 6.5 };   // v22: intro = cutscenen ved kampstart · mvp = ekstra tid til MVP-filmen   // grace: købe i spawn de første 10 s · over: sejrs-sekvensen (musikken) · load: maks. ventetid på at alle har indlæst banen
 const MAX_PLAYERS = 10, WIN_ROUNDS = 7, HALF = 6, START_MONEY = WD.ECON.start, MAX_MONEY = WD.ECON.max;
 const GRACE_GAME = 25000, GRACE_LOBBY = 8000;
 const SNAP_MS = 50;
@@ -166,6 +166,7 @@ class Room {
     for (const p of this.players.values()) if (p !== except) sendP(p, s);
   }
 }
+const defNeed = q => TIMES.defuse * (q && q.inv && q.inv.kit ? 0.5 : 1);                    // v26.10: 10 s uden sæt, 5 s med desarmeringssæt
 function newBomb() { return { state: 0, carrier: 0, x: 0, y: 0, z: 0, timer: 0, defuser: 0, defT: 0 }; }
 
 function cleanName(n) {
@@ -194,7 +195,7 @@ function makePlayer(room, ws, name) {
 }
 function resetLoadout(p) {
   const pistol = WD.sidePistol(p.side);      // SWAT: USP-S, Hijackers: Glock-18
-  p.inv = { primary: null, pistol, knife: true, he: 0, smoke: 0, flash: 0, molotov: 0, incgren: 0, bomb: false };
+  p.inv = { primary: null, pistol, knife: true, he: 0, smoke: 0, flash: 0, molotov: 0, incgren: 0, sensor: 0, kit: false, thermal: false, bomb: false };
   p.ammo = { [pistol]: { mag: WEAPONS[pistol].mag, res: WEAPONS[pistol].res } };
   p.cur = pistol; p.reloadEnd = 0;
 }
@@ -348,8 +349,17 @@ function handle(ws, m) {
         if (m.money !== undefined) { p.money = +m.money; sendSelf(p); }
         if (m.hp !== undefined) { p.hp = +m.hp; sendSelf(p); }
         if (m.strip) { const bomb = p.inv.bomb; resetLoadout(p); p.inv.bomb = bomb; sendSelf(p); }
+        if (m.give) { const g = WEAPONS[m.give]; if (g && g.kind === 'gear') p.inv[m.give] = true; else if (g && g.kind === 'nade') p.inv[m.give] = (p.inv[m.give] || 0) + 1; sendSelf(p); }
       }
       break;
+    case 'mark': {      // v26.10: 3D-ping – markør i verdenen, kun til egne holdkammerater
+      if (!p.alive || !p.side || room.phase === 'lobby' || room.phase === 'loading') break;
+      const t0 = now(); if (t0 - (p.lastPing || 0) < 350) break; p.lastPing = t0;
+      const px = +m.x, py = +m.y, pz = +m.z; if (![px, py, pz].every(Number.isFinite) || Math.hypot(px - p.x, pz - p.z) > 400) break;
+      const pk = ['point', 'enemy', 'danger'].includes(m.k) ? m.k : 'point';
+      for (const q of room.players.values()) if (q.side === p.side && q.connected) sendP(q, { t: 'ev', k: 'ping', i: p.id, x: r2(px), y: r2(py), z: r2(pz), pk });
+      break;
+    }
     case 'kick': {   // v20: kun værten (party leader) kan smide en spiller ud
       const q = room.players.get(m.id | 0);
       if (p.id !== room.hostId || !q || q.id === p.id) break;
@@ -482,7 +492,7 @@ function newRound(room) {
   // v22: kampens første runde starter med intro-cutscenen (holdene ankommer) – købsfasen forlænges, og der kan ikke købes imens
   room.introEnd = room.round === 1 && TIMES.intro > 0 ? t + TIMES.intro * 1000 : 0;
   if (room.introEnd) room.phaseEnd += TIMES.intro * 1000;
-  room.grenades = []; room.smokes = []; room.fires = []; room.bomb = newBomb(); room.drops = []; room.requests = [];
+  room.grenades = []; room.smokes = []; room.fires = []; room.sensors = []; room.bomb = newBomb(); room.drops = []; room.requests = [];
   room.planter = 0; room.defuser = 0; room.snapHist = [];
   const idx = { swat: 0, hij: 0 };
   const hijs = [];
@@ -587,7 +597,7 @@ function afterRoundEnd(room) {
 
 function backToLobby(room) {
   room.veto = null; for (const q of room.players.values()) q.vside = null;
-  room.phase = 'lobby'; room.grenades = []; room.smokes = []; room.fires = []; room.bomb = newBomb(); room.drops = [];
+  room.phase = 'lobby'; room.grenades = []; room.smokes = []; room.fires = []; room.sensors = []; room.bomb = newBomb(); room.drops = [];
   for (const p of [...room.players.values()]) {
     if (!p.connected) { removePlayer(room, p); continue; }
     p.side = null; p.alive = false; p.act = null;
@@ -711,6 +721,9 @@ function giveItem(room, p, item) {
   } else if (w.kind === 'nade') {
     if (!WD.canTakeNade(p.inv, item)) return false;
     p.inv[item] = (p.inv[item] || 0) + 1;
+  } else if (w.kind === 'gear') {
+    if (p.inv[item]) return false;
+    p.inv[item] = true;                                               // desarmeringssæt / termisk kikkert (mistes ved død)
   } else return false;
   return true;
 }
@@ -739,6 +752,9 @@ function onSell(room, p, item) {
   } else if (w.kind === 'nade') {
     if (!(p.inv[item] > 0)) return;
     p.inv[item]--;
+  } else if (w.kind === 'gear') {
+    if (!p.inv[item]) return;
+    p.inv[item] = false;
   } else return;
   if (p.cur === item && !(w.kind === 'nade' && p.inv[item] > 0)) p.cur = p.inv.primary || p.inv.pistol;
   p.reloadEnd = 0; p.bought.splice(k, 1); p.money = Math.min(MAX_MONEY, p.money + w.price);
@@ -837,7 +853,9 @@ function onShoot(room, p, m) {
     const h = WD.rayPlayer(o[0], o[1], o[2], d[0], d[1], d[2], pos.x, pos.y, pos.z, pos.c, Math.min(tw, range));
     if (h && (!best || h.t < best.t)) { best = h; victim = q; }
   }
-  const tEnd = best ? best.t : tw;
+  let tEnd = best ? best.t : tw;
+  const ts = room.sensors && room.sensors.length ? sensorShot(room, p, o, d, tEnd, w.dmg) : null;
+  if (ts !== null && ts < tEnd) { tEnd = ts; best = null; victim = null; }
   const e = [r2(o[0] + d[0] * tEnd), r2(o[1] + d[1] * tEnd), r2(o[2] + d[2] * tEnd)];
   room.bcast({ t: 'ev', k: 'shot', i: p.id, w: p.cur, o: [r2(o[0]), r2(o[1]), r2(o[2])], e, h: best ? 1 : 0, n: (best || noWallHit) ? 0 : [r2(nrm.nx), r2(nrm.ny), r2(nrm.nz)] }, p);
   if (best) {
@@ -914,7 +932,8 @@ function damage(room, victim, dmg, attacker, weapon, hs) {
   victim.use = false; victim.reloadEnd = 0;
   if (victim.inv.bomb) dropBomb(room, victim);
   dropLoot(room, victim);
-  room.bcast({ t: 'ev', k: 'kill', a: attacker ? attacker.id : 0, v: victim.id, w: weapon, hs: !!hs });
+  room.bcast({ t: 'ev', k: 'kill', a: attacker ? attacker.id : 0, v: victim.id, w: weapon, hs: !!hs,
+    ah: attacker ? Math.max(0, Math.round(attacker.hp)) : 0, ad: attacker ? r2(Math.hypot(attacker.x - victim.x, attacker.z - victim.z)) : 0, ac: attacker && attacker.crouch ? 1 : 0, ag: attacker && attacker.alive && !attacker.ground ? 1 : 0 });
   sendSelf(victim);
   return true;
 }
@@ -990,7 +1009,7 @@ function dropBomb(room, p) {
 }
 function startAct(room, p, kind) {
   p.act = kind; p.actT = 0; p.actX = p.x; p.actZ = p.z;
-  sendP(p, { t: 'act', k: kind, dur: kind === 'plant' ? TIMES.plant : TIMES.defuse });
+  sendP(p, { t: 'act', k: kind, dur: kind === 'plant' ? TIMES.plant : defNeed(p) });
 }
 function cancelAct(room, p) {
   if (p.act === 'defuse' && room.bomb.defuser === p.id) { room.bomb.defuser = 0; room.bomb.defT = 0; }
@@ -1014,7 +1033,7 @@ function updateActions(room, p, dt) {
     const ok = p.use && p.alive && b.state === 2 && b.defuser === p.id && Math.hypot(p.x - b.x, p.z - b.z) < 2.8;
     if (!ok) return cancelAct(room, p);
     p.actT += dt; b.defT = p.actT;
-    if (p.actT >= TIMES.defuse) {
+    if (p.actT >= defNeed(p)) {
       b.state = 3; p.act = null; b.defuser = 0; addMoney(p, ECON.defuse); room.defuser = p.id; (p.rf = p.rf || newRF()).defuse = 1; p.rf.site = b.site || null;
       sendP(p, { t: 'act', k: null }); sendP(p, { t: 'ev', k: 'pay', amt: ECON.defuse, why: 'defuse' }); sendSelf(p);
       room.bcast({ t: 'ev', k: 'defuse', by: p.id });
@@ -1038,9 +1057,9 @@ function checkDoom(room) {
   const b = room.bomb, left = b.timer;
   for (const q of room.players.values()) {
     if (!q.alive || q.side !== 'swat') continue;
-    if (b.defuser === q.id && TIMES.defuse - b.defT < left - 0.05) return;           // kan nå at gøre den færdig
+    if (b.defuser === q.id && defNeed(q) - b.defT < left - 0.05) return;           // kan nå at gøre den færdig
     const d = Math.max(0, Math.hypot(q.x - b.x, q.z - b.z) - 2.4);                   // vandret: et fald kan være hurtigere end løb
-    if (d / DOOM_VMAX + TIMES.defuse < left - 0.05) return;                         // kan måske nå hen og desarmere
+    if (d / DOOM_VMAX + defNeed(q) < left - 0.05) return;                         // kan måske nå hen og desarmere
   }
   b.doom = true;
   if (b.timer > DOOM_CINE) b.timer = DOOM_CINE;
@@ -1079,6 +1098,44 @@ function onThrow(room, p, m) {
   room.grenades.push({ id: room.nextEnt++, type, owner: p.id, side: p.side, x: o[0], y: o[1], z: o[2], vx: v[0] + fy * sp * 1.2, vy: v[1], vz: v[2] + fz * sp * 1.2, fuse: w.fuse, rest: 0, hit: 0 });
   room.bcast({ t: 'ev', k: 'throw', i: p.id, w: type, u: under ? 1 : 0 });
   sendSelf(p);
+}
+/* ---- v26.10: BEVÆGELSESSENSORER – kastes på en flade, sidder fast og bipper på holdets minikort, når en modstander løber forbi (ikke når man sniger/hugger).
+   Kan skydes ned af modstanderne (25 HP). ---- */
+const SENSOR_R = 9.5, SENSOR_HP = 25;
+function placeSensor(room, g, t) {
+  if (g.lost) return;
+  const s = { id: room.nextEnt++, owner: g.owner, side: g.side, x: g.x, y: g.y, z: g.z, hp: SENSOR_HP, lastBeep: 0, born: t };
+  room.sensors.push(s);
+  room.bcast({ t: 'ev', k: 'sensor', id: s.id, x: r2(s.x), y: r2(s.y), z: r2(s.z), s: s.side, o: s.owner });
+}
+function tickSensors(room, t) {
+  for (const s of room.sensors) {
+    if (t - s.born < 700 || t - s.lastBeep < 1400) continue;
+    for (const q of room.players.values()) {
+      if (!q.alive || q.side === s.side || q.speed < 1.8 || q.crouch) continue;
+      const d = Math.hypot(q.x - s.x, q.y + 0.9 - s.y, q.z - s.z);
+      if (d > SENSOR_R || !WD.losClear(room.W, s.x, s.y + 0.05, s.z, q.x, q.y + 0.9, q.z)) continue;
+      s.lastBeep = t;
+      for (const m of room.players.values()) if (m.connected && m.side === s.side) sendP(m, { t: 'ev', k: 'sense', id: s.id, x: r2(q.x), z: r2(q.z) });
+      room.bcast({ t: 'ev', k: 'sbeep', x: r2(s.x), y: r2(s.y), z: r2(s.z) });
+      break;
+    }
+  }
+}
+function sensorShot(room, p, o, d, tMax, dmg) {      // skud mod sensorer: returnerer afstanden til det ramte, ellers null
+  let best = null, hit = null;
+  for (const s of room.sensors) {
+    if (s.side === p.side) continue;
+    const ox = s.x - o[0], oy = s.y + 0.04 - o[1], oz = s.z - o[2], tc = ox * d[0] + oy * d[1] + oz * d[2];
+    if (tc < 0 || tc > tMax) continue;
+    const d2 = ox * ox + oy * oy + oz * oz - tc * tc;
+    if (d2 > 0.22 * 0.22 || (best !== null && tc >= best)) continue;
+    best = tc; hit = s;
+  }
+  if (!hit) return null;
+  hit.hp -= dmg;
+  if (hit.hp <= 0) { room.sensors = room.sensors.filter(q => q !== hit); room.bcast({ t: 'ev', k: 'sensorbreak', id: hit.id, x: r2(hit.x), y: r2(hit.y), z: r2(hit.z) }); }
+  return best;
 }
 function stepGrenade(room, g, dt) {
   g.fuse -= dt;
@@ -1133,9 +1190,10 @@ function updateProjectiles(room, t, dt) {
     const g = room.grenades[i];
     stepGrenade(room, g, dt);
     const fire = WEAPONS[g.type].fire;
-    const pop = g.type === 'smoke' ? (g.fuse <= 0 || g.rest > 0.35) : fire ? (g.fuse <= 0 || g.hit > 0) : g.fuse <= 0;
+    const pop = g.type === 'sensor' ? (g.hit > 0 || g.rest > 0.1 || g.fuse <= 0) : g.type === 'smoke' ? (g.fuse <= 0 || g.rest > 0.35) : fire ? (g.fuse <= 0 || g.hit > 0) : g.fuse <= 0;
     if (!pop) continue;
     room.grenades.splice(i, 1);
+    if (g.type === 'sensor') { placeSensor(room, g, t); continue; }
     if (g.type === 'he') {
       room.bcast({ t: 'ev', k: 'boom', x: r2(g.x), y: r2(g.y), z: r2(g.z) });
       const owner = room.players.get(g.owner);
@@ -1206,6 +1264,7 @@ function tickRoom(room, t, dt) {
       if (p.reloadEnd && t >= p.reloadEnd) finishReload(p);
       updateActions(room, p, dt);
     }
+    tickSensors(room, t);
     const b = room.bomb;
     if (b.state === 1) {
       for (const p of room.players.values()) {
@@ -1248,7 +1307,7 @@ function sendSnap(room, t) {
     f: room.fires.map(f => [f.id, WD.NADE_TYPE[f.type], r2(f.x), r2(f.y), r2(f.z), Math.max(0, Math.round(f.end - t)), Math.round(t - f.born)]),
     d: room.drops.map(d => [d.id, WEAPONS[d.item].code, r2(d.x), r2(d.y), r2(d.z)]),
     sm: room.smokes.map(s => [s.id, r2(s.x), r2(s.y), r2(s.z), Math.round(s.end - t), Math.round(t - s.born)]),
-    b: [b.state, r2(b.x), r2(b.y), r2(b.z), b.state === 2 ? Math.max(0, Math.round(b.timer * 1000)) : 0, b.carrier, b.state === 2 && b.defuser ? r2(b.defT / TIMES.defuse) : 0]
+    b: [b.state, r2(b.x), r2(b.y), r2(b.z), b.state === 2 ? Math.max(0, Math.round(b.timer * 1000)) : 0, b.carrier, b.state === 2 && b.defuser ? r2(b.defT / defNeed(room.players.get(b.defuser))) : 0]
   });
   for (const p of room.players.values()) {
     if (p.ws && p.ws.bufferedAmount < 262144) send(p.ws, msg);

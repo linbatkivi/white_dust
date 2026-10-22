@@ -395,6 +395,34 @@ export function createWeapons(THREE, WD, opts) {
     spoon(g, M, 0.019, 0.075, -0.02, 0.09);
     return { nade: true, ring: ring(g, M, -0.017, 0.121, -0.02) };
   };
+  B.sensor = (g, M) => {                                 // bevægelsessensor (v26.10): flad, mørk 'hockeypuck' med magnetring, LED og kort antenne
+    const add = (geo, m, x, y, z) => { const me = new THREE.Mesh(geo, m); me.position.set(x || 0, y || 0, z || 0); g.add(me); return me; };
+    add(new THREE.CylinderGeometry(0.036, 0.04, 0.026, 24), nadeMat('senBody', 0x23272b, 0.45, 0.5), 0, 0.02, -0.02);
+    add(new THREE.CylinderGeometry(0.041, 0.041, 0.006, 24), nadeMat('senRing', 0x8a9298, 0.3, 0.85), 0, 0.006, -0.02);
+    add(new THREE.CylinderGeometry(0.026, 0.028, 0.004, 20), nadeMat('senTop', 0x14171a, 0.3, 0.6), 0, 0.036, -0.02);
+    const led = add(new THREE.SphereGeometry(0.006, 8, 6), nadeMat('senLed', 0xff3a1c, 0.3, 0), 0.016, 0.039, -0.02); led.material = mats.senLedE || (mats.senLedE = new THREE.MeshBasicMaterial({ color: 0xff3a1c }));
+    add(new THREE.CylinderGeometry(0.0018, 0.0018, 0.05, 6), M.metal, -0.018, 0.062, -0.02);
+    const sg = new THREE.Group(); sg.position.set(0.0, 0.06, 0.0); g.userData.led = led;
+    return { nade: true, ring: sg, led };
+  };
+  B.kit = (g, M) => {                                     // desarmeringssæt: robust rød kasse med hvidt kors og sort håndtag + tang
+    const add = (geo, m, x, y, z) => { const me = new THREE.Mesh(geo, m); me.position.set(x || 0, y || 0, z || 0); g.add(me); return me; };
+    add(new THREE.BoxGeometry(0.12, 0.06, 0.08), nadeMat('kitRed', 0xb3261e, 0.45, 0.2), 0, 0.03, -0.02);
+    add(new THREE.BoxGeometry(0.122, 0.006, 0.082), nadeMat('kitRim', 0x222426, 0.4, 0.5), 0, 0.058, -0.02);
+    add(new THREE.BoxGeometry(0.032, 0.0015, 0.008), nadeMat('kitWhite', 0xf2f2ee, 0.5, 0), 0, 0.0625, -0.02); add(new THREE.BoxGeometry(0.008, 0.0015, 0.032), nadeMat('kitWhite', 0xf2f2ee, 0.5, 0), 0, 0.0625, -0.02);
+    const h = add(new THREE.TorusGeometry(0.026, 0.004, 6, 14, Math.PI), nadeMat('kitHandle', 0x1b1d1f, 0.5, 0.3), 0, 0.062, -0.02); h.rotation.set(0, 0, 0);
+    for (const x of [-0.045, 0.045]) add(new THREE.CylinderGeometry(0.004, 0.004, 0.012, 6), M.metal, x, 0.002, -0.02);
+    return { nade: true, ring: new THREE.Group() };
+  };
+  B.thermal = (g, M) => {                                 // termisk kikkert: to linsetuber med glødende orange glas og brede skumfoer
+    const add = (geo, m, x, y, z) => { const me = new THREE.Mesh(geo, m); me.position.set(x || 0, y || 0, z || 0); g.add(me); return me; };
+    const body = nadeMat('thBody', 0x2a2e30, 0.5, 0.3), lens = mats.thLens || (mats.thLens = new THREE.MeshStandardMaterial({ color: 0x331200, emissive: 0xff7a1a, emissiveIntensity: 0.9, roughness: 0.1, metalness: 0.2 }));
+    for (const x of [-0.03, 0.03]) { const t = add(new THREE.CylinderGeometry(0.022, 0.025, 0.09, 16), body, x, 0.04, -0.02); t.rotation.x = Math.PI / 2; add(new THREE.CylinderGeometry(0.019, 0.019, 0.004, 16), lens, x, 0.04, -0.066).rotation.x = Math.PI / 2; }
+    add(new THREE.BoxGeometry(0.1, 0.03, 0.04), body, 0, 0.04, 0.012);
+    add(new THREE.BoxGeometry(0.11, 0.012, 0.02), nadeMat('thFoam', 0x141516, 0.9, 0), 0, 0.04, 0.036);
+    add(new THREE.BoxGeometry(0.1, 0.004, 0.015), nadeMat('thStrap', 0x3d4a36, 0.8, 0), 0, 0.06, 0.0);
+    return { nade: true, ring: new THREE.Group() };
+  };
   B.incgren = (g, M) => {                                 // brandgranat (SWAT): oliven cylinder med rødt bånd og "INC"-markering
     const add = (geo, m, x, y, z) => { const me = new THREE.Mesh(geo, m); me.position.set(x || 0, y || 0, z || 0); g.add(me); return me; };
     add(new THREE.CylinderGeometry(0.029, 0.029, 0.11, 18), nadeMat('incBody', 0x4d5038, 0.55, 0.3), 0, 0.05, -0.02);

@@ -17,7 +17,7 @@ export function createPost(THREE, renderer) {
   const supported = !!hdrOk;
   const cfg = { ao: true, aoStrength: 0.85, aoRadius: 0.55, bloom: true, bloomStrength: 0.16, bloomThreshold: 1.0, exposure: 1.0, shafts: true };
   const LOOK0 = { sat: 1, contrast: 1, gamma: 1, lift: [0, 0, 0], gain: [1, 1, 1], shadowTint: [1, 1, 1], highTint: [1, 1, 1], vignette: 0.18, sharpen: 0.18, shafts: 0, shaftCol: [1, 0.9, 0.75], mie: 0, mieCol: [1, 0.85, 0.65], mieDist: 120 };
-  if (!supported) return { supported: false, enabled: false, cfg, setSize() {}, render() { return false; }, setLook() {}, setSun() {}, dispose() {} };
+  if (!supported) return { supported: false, enabled: false, cfg, setSize() {}, render() { return false; }, setLook() {}, setThermal() {}, setSun() {}, dispose() {} };
 
   const mkRT = (w, h, o) => new THREE.WebGLRenderTarget(w, h, Object.assign({ type: THREE.HalfFloatType, format: THREE.RGBAFormat, depthBuffer: false, stencilBuffer: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, generateMipmaps: false }, o || {}));
   const depthTex = new THREE.DepthTexture(4, 4); depthTex.type = THREE.UnsignedIntType; depthTex.format = THREE.DepthFormat;
@@ -156,7 +156,7 @@ export function createPost(THREE, renderer) {
   /* ---------------- slut: FXAA + bloom + ACES + sRGB ---------------- */
   const finalMat = sm(`
     varying vec2 vUv; uniform sampler2D tColor; uniform sampler2D tBloom; uniform sampler2D tShaft; uniform vec2 uTexel; uniform float uExp, uBloom;
-    uniform float uSat, uCon, uGam, uVig, uSharp, uShaft; uniform vec3 uLift, uGain, uShT, uHiT, uShaftCol;
+    uniform float uTh; uniform float uSat, uCon, uGam, uVig, uSharp, uShaft; uniform vec3 uLift, uGain, uShT, uHiT, uShaftCol;
     float luma(vec3 c) { c = c / (1.0 + c); return dot(c, vec3(0.299, 0.587, 0.114)); }
     vec4 fxaa(vec2 uv) {
       vec4 M = texture2D(tColor, uv);
@@ -199,11 +199,17 @@ export function createPost(THREE, renderer) {
       vec3 L = c.a > 0.5 ? aces(c.rgb + b) : lin(c.rgb) + aces(b);
       L += uShaftCol * texture2D(tShaft, vUv).x * uShaft;
       L = grade(L);
+      if (uTh > 0.5) {                                                          // v26.10: termisk kikkert – kolde farver til verden, glødende gul/orange til kroppe (de tegnes i HDR-lys)
+        float hl = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722)), hot = smoothstep(5.5, 10.0, hl), cool = pow(clamp(1.0 - exp(-hl * 2.2), 0.0, 1.0), 0.65);
+        vec3 cc = mix(vec3(0.0, 0.015, 0.07), vec3(0.05, 0.2, 0.62), smoothstep(0.0, 0.45, cool)); cc = mix(cc, vec3(0.5, 0.16, 0.62), smoothstep(0.4, 0.95, cool));
+        vec3 hc = mix(vec3(0.95, 0.3, 0.02), vec3(1.0, 0.92, 0.45), smoothstep(8.0, 12.0, hl));
+        L = mix(cc, hc, hot); L *= 0.92 + 0.08 * sin(gl_FragCoord.y * 1.4);
+      }
       vec2 dv = (vUv - 0.5) * vec2(1.0, 0.82); L *= 1.0 - uVig * smoothstep(0.08, 0.5, dot(dv, dv) * 2.0);
       vec3 o = srgb(L) + (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
       gl_FragColor = vec4(o, 1.0);
     }`, { tColor: { value: rtB.texture }, tBloom: { value: bl[0].texture }, tShaft: { value: rtS2.texture }, uTexel: { value: new THREE.Vector2() }, uExp: { value: 1 }, uBloom: { value: cfg.bloomStrength },
-      uSat: { value: 1 }, uCon: { value: 1 }, uGam: { value: 1 }, uVig: { value: 0.18 }, uSharp: { value: 0.18 }, uShaft: { value: 0 }, uLift: { value: new THREE.Vector3() }, uGain: { value: new THREE.Vector3(1, 1, 1) },
+      uTh: { value: 0 }, uSat: { value: 1 }, uCon: { value: 1 }, uGam: { value: 1 }, uVig: { value: 0.18 }, uSharp: { value: 0.18 }, uShaft: { value: 0 }, uLift: { value: new THREE.Vector3() }, uGain: { value: new THREE.Vector3(1, 1, 1) },
       uShT: { value: new THREE.Vector3(1, 1, 1) }, uHiT: { value: new THREE.Vector3(1, 1, 1) }, uShaftCol: { value: new THREE.Vector3(1, 0.9, 0.75) } });
   // banens 'look' (temaets post-blok) -> uniforms
   const look = Object.assign({}, LOOK0);
@@ -281,5 +287,5 @@ export function createPost(THREE, renderer) {
     renderer.setClearAlpha(prevClearA);
     return true;
   }
-  return { supported: true, cfg, setSize, render, setLook, setSun(v) { sunW.copy(v).normalize(); }, look, get enabled() { return state.enabled; }, set enabled(v) { state.enabled = !!v; }, depthTexture: depthTex };
+  return { supported: true, cfg, setSize, render, setLook, setThermal(on) { finalMat.uniforms.uTh.value = on ? 1 : 0; }, setSun(v) { sunW.copy(v).normalize(); }, look, get enabled() { return state.enabled; }, set enabled(v) { state.enabled = !!v; }, depthTexture: depthTex };
 }

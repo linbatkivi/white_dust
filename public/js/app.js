@@ -45,8 +45,14 @@ import { loadGLB, cloneSkinned, bakeStatic } from '/js/models.js';
 
 const WD = window.WD;
 let W = WD.buildWorld('bureau');          // aktiv bane (skiftes via setMap når serveren melder en anden)
+function emittersFor(Wm) {                                     // v26.10: små, faste lydkilder (dryp, frøer, fugle, løv) – det der gør en bane levende
+  const d = Wm.data, out = []; if (!d || !d.surf) return out;
+  for (const r of d.water || []) out.push({ x: (r[0] + r[2]) / 2, y: r[4] + 0.3, z: (r[1] + r[3]) / 2, kinds: ['drip', 'drip', 'frog', 'splash'], rate: 0.9 });
+  for (const l of d.labels || []) out.push({ x: l[1], y: (l[3] || 0) + 2.5, z: l[2], kinds: ['bird', 'rustle', 'monkey', 'creak', 'stonefall', 'drip', 'bird'], rate: 0.14 });
+  return out;
+}
 function setMap(id) {
-  if (W.id !== id) { W = WD.buildWorld(id); Game.mapId = W.id; }
+  if (W.id !== id) { W = WD.buildWorld(id); Game.mapId = W.id; try { Audio.setEmitters(emittersFor(W)); } catch (e) {} }
   if (inited3d && Renderer.mapId !== W.id) Renderer.loadMap();       // loadMap samler gentagne kald mens banen bygges
 }
 const { PL, WEAPONS } = WD;
@@ -431,6 +437,30 @@ function drawBoxLayer(c, L, S, ox, oz, top, Wm) {
   c.fillStyle = 'rgba(40,42,44,.9)';
   for (const b of Wm.boxes) if (b.kind === 'wall' && b.y1 > L.yb + 1 && b.y1 - Math.max(b.y0, L.yb) > 0.8 && (top ? b.y1 > 0.5 : b.y0 > -12 && b.y1 < 0.5 && b.y1 > L.yb + 1)) c.fillRect(b.x0 * S + ox, b.z0 * S + oz, (b.x1 - b.x0) * S + 0.4, (b.z1 - b.z0) * S + 0.4);
 }
+/* ---- v26.10: RUM-AKUSTIK – lytterens omgivelser måles med stråler og styrer efterklangen (gyde = kort slap-back, hal/kælder = lang hale, åbent land = næsten tørt) ---- */
+let _probeT = 0;
+function probeRoom(p) {
+  const now = performance.now(); if (now - _probeT < 220 || Game.state !== 'game') return; _probeT = now;
+  let sum = 0, mn = 99, n = 0;
+  for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6, d = WD.raycastWorld(W, p.x, p.y, p.z, Math.cos(a), 0, Math.sin(a), 32); sum += Math.min(d, 32); mn = Math.min(mn, d); n++; }
+  const mean = sum / n, up = Math.min(WD.raycastWorld(W, p.x, p.y, p.z, 0, 1, 0, 26), 26), open = up >= 25, sf = WD.surfaceAt(W, Game.body.x, Game.body.y, Game.body.z);
+  let wet, lg, damp = 9000;
+  if (open) { if (mean < 6) { wet = 0.3; lg = 0.02; damp = 8000; } else { wet = 0.1 + 0.01 * Math.min(10, mean - 6); lg = 0.05; damp = 6500; } }   // gyde: slap-back, åben gård: svagt fjernt ekko
+  else { wet = 0.16 + Math.min(0.3, mean * 0.02); lg = Math.min(0.6, Math.max(0, (mean - 4) / 16) * (up < 12 ? 1 : 0.7)); damp = sf === 'cave' ? 4600 : 8800 - Math.min(2500, up * 120); }
+  Audio.setRoom({ wet, long: lg, damp });
+}
+/* ---- v26.10: visuelle lyd-indikatorer (tilgængelighed) ---- */
+const SND_COL = { step: '#e9edf2', shot: '#ff4b3a', boom: '#ffb020', glass: '#6fd3ff', beep: '#ffe04a', door: '#c9c9ff' };
+const _sndLast = {};
+Audio.onEvent = (pos, kind, loud) => {
+  if (!Settings.get().sndInd || Game.state !== 'game' || !Game.alive && false) return;
+  const host = $('sndHud'); if (!host) return; const now = performance.now(), dx = pos.x - Game.body.x, dz = pos.z - Game.body.z, dist = Math.hypot(dx, dz);
+  if (dist < 0.8 || dist > (kind === 'step' ? 30 : 70)) return;
+  const rel = Math.atan2(-dx, -dz) - aimYaw(), key = kind + Math.round(rel * 4); if (_sndLast[key] && now - _sndLast[key] < (kind === 'step' ? 350 : 160)) return; _sndLast[key] = now;
+  const el = document.createElement('div'); el.className = 'sp'; el.style.setProperty('--c', SND_COL[kind] || '#fff'); el.style.transform = `rotate(${(-rel * 180 / Math.PI).toFixed(1)}deg)`;
+  el.style.opacity = '0'; el.style.animationDuration = (kind === 'step' ? 0.9 : 1.3) + 's'; el.innerHTML = '<i></i>'; host.appendChild(el); setTimeout(() => el.remove(), 1400);
+  if (host.childElementCount > 24) host.firstChild.remove();
+};
 /* ---- v26.6: SÆSONKORTET – radar af bureau farvet efter hvilken fraktion der kontrollerer bydelen ---- */
 function drawFactionMap(cv, AREA, dist) {
   const RI = radarImages('bureau', () => { if (cv.isConnected) drawFactionMap(cv, AREA, dist); });
@@ -696,6 +726,7 @@ Net.on('lobby', m => {
    RUNDE / SELV / HANDLINGER
    ========================================================================== */
 Net.on('round', m => {
+  try { hideDeathCard(); } catch (e) {}
   try { Renderer.setEvent(m.ev || null); EventHud.show(m.ev || null, m.ph); } catch (e) { console.warn('[event]', e); }   // v26.6: dynamiske events
   if (m.map) setMap(m.map);
   if (Game.state !== 'game') enterGame();
@@ -807,7 +838,7 @@ Net.on('ev', m => {
     case 'bclaim': Bounty.claim(m); break;
     case 'rf': Profile.onRound(m); break;                                        // v26.6: rundens fakta → XP
     case 'mf': Profile.onMatch(m); setTimeout(sendPub, 500); break;
-    case 'kill': HUD.killfeed(m); noteKill(m); if (m.v === Game.meId) { HUD.showDead(); Game.nade = null; Game.firing = false; } break;
+    case 'kill': HUD.killfeed(m); noteKill(m); if (m.v === Game.meId) { HUD.showDead(); Game.nade = null; Game.firing = false; try { showDeathCard(m); } catch (e) { console.warn('[dødskort]', e); } } break;
     case 'end': m._rx = performance.now(); if (!Renderer.deferEnd(m, roundCineInfo(m))) HUD.roundEnd(m); break;   // v26: bombe-filmen · v26.3: rundeslut-filmen – rundeslut/MVP bagefter
     case 'pay': HUD.pay(m); break;
     case 'over': startVictory(m); break;
@@ -826,6 +857,11 @@ Net.on('ev', m => {
     case 'flashed': if (Game.self.alive) startFlash(m.dur, !!m.full); break;
     case 'fire': Renderer.onFirePop(m); break;
     case 'fireout': Renderer.onFireOut(m); break;
+    case 'sensor': Renderer.onSensor(m); break;
+    case 'sensorbreak': Renderer.onSensorBreak(m); break;
+    case 'sense': Renderer.onSense(m); break;
+    case 'sbeep': Renderer.onSbeep(m); break;
+    case 'ping': Renderer.onPing(m); break;
     case 'fizzle': Audio.fizzle({ x: m.x, y: m.y, z: m.z }); break;
     case 'bounce': Audio.bounce({ x: m.x, y: m.y, z: m.z }, m.w); break;
     case 'burn': HUD.burn(); break;
@@ -868,7 +904,7 @@ function hideActBar() { $('actBar').classList.add('hidden'); $('promptE').classL
    ========================================================================== */
 const KEY = {};
 // v12: 3 = kniv, 4 = bladr gennem granater (CS), 5 = HE, 6 = smoke, 7 = molotov/brandgranat, 8 = flashbang, Q = forrige våben
-const NADE_KEYS = { Digit5: ['he'], Digit6: ['smoke'], Digit7: ['molotov', 'incgren'], Digit8: ['flash'] };
+const NADE_KEYS = { Digit5: ['he'], Digit6: ['smoke'], Digit7: ['molotov', 'incgren'], Digit8: ['flash'], Digit9: ['sensor'] };
 const Input = {
   requestLockSoon() {                                                     // v26.6: kampstart – ingen pausemenu; låsen tages med det samme (eller ved første klik på banen)
     if (TOUCH) { Touch.show(); return; }
@@ -896,6 +932,7 @@ const Input = {
     });
     gl.addEventListener('mousedown', e => {
       if (document.pointerLockElement !== gl) return;
+      if (e.button === 1) { e.preventDefault(); if (Game.self.alive) Renderer.ping(); return; }          // v26.10: midterste museknap = ping (på trackpad: V)
       if (!Game.self.alive && Game.phase !== 'buy') { cycleSpec(e.button === 2 ? -1 : 1); return; }
       const w = WEAPONS[Game.self.cur];
       if (w && w.kind === 'nade') { if (e.button === 0) nadeStart(false); else if (e.button === 2) nadeStart(true); return; }
@@ -922,7 +959,7 @@ const Input = {
     if (down && !uiOpen() && Game.state === 'game' && (k === 'KeyY' || k === 'KeyU') && !e.repeat) { e.preventDefault(); Chat.open(k === 'KeyU'); return; }
     if (uiOpen()) return;                                           // indstillinger/inventar åbne: ingen spil-input
     if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'KeyR', 'KeyE', 'ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'KeyC', 'Tab', 'KeyB', 'KeyF', 'KeyQ', 'ArrowLeft', 'ArrowRight',
-      'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9', 'Digit0', 'Backspace', 'KeyG'].includes(k) && Game.state === 'game') e.preventDefault();
+      'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9', 'Digit0', 'Backspace', 'KeyG', 'KeyN', 'KeyV'].includes(k) && Game.state === 'game') e.preventDefault();
     KEY[k] = down;
     if (!down) return;
     if (Game.state !== 'game') return;
@@ -933,6 +970,8 @@ const Input = {
     if (k === 'KeyB') { BuyMenu.toggle(); return; }
     if (BuyMenu.hotkey(k)) return;
     if (k === 'KeyG') Net.send({ t: 'drop' });
+    if (k === 'KeyN') Renderer.toggleThermal();
+    if (k === 'KeyV') Renderer.ping();
     if (Game.phase !== 'buy' && Game.self.inv) {
       const inv = Game.self.inv;
       if (k === 'Digit1' && inv.primary) switchWeapon(inv.primary);
@@ -940,7 +979,7 @@ const Input = {
       if (k === 'Digit3') switchWeapon('knife');
       if (k === 'KeyQ' && Game.lastWeapon) { const lw = Game.lastWeapon, ok = lw === 'knife' || lw === inv.pistol || lw === inv.primary || (inv[lw] > 0); if (ok) switchWeapon(lw); }
       if (k === 'Digit4') {                                        // CS: 4 bladrer gennem granaterne
-        const nl = ['flash', 'he', 'smoke', 'molotov', 'incgren'].filter(n => inv[n] > 0);
+        const nl = ['flash', 'he', 'smoke', 'molotov', 'incgren', 'sensor'].filter(n => inv[n] > 0);
         if (nl.length) switchWeapon(nl[(nl.indexOf(Game.self.cur) + 1) % nl.length]);
       }
       if (NADE_KEYS[k]) { const id = NADE_KEYS[k].find(n => inv[n] > 0); if (id) switchWeapon(id); }
@@ -953,7 +992,7 @@ function invOrder() {
   if (inv.primary) order.push(inv.primary);
   order.push(inv.pistol || WD.sidePistol(Game.side));
   order.push('knife');
-  for (const n of ['flash', 'he', 'smoke', 'molotov', 'incgren']) if (inv[n] > 0) order.push(n);
+  for (const n of ['flash', 'he', 'smoke', 'molotov', 'incgren', 'sensor']) if (inv[n] > 0) order.push(n);
   return order;
 }
 function fireStart() {
@@ -966,6 +1005,21 @@ function fireStart() {
 function posOfPlayer(id) {
   if (id === Game.meId) return Game.body ? { x: Game.body.x, y: Game.body.y, z: Game.body.z, yaw: Game.yaw, self: true, alive: !!Game.self.alive } : null;
   const r = Game.remotes.get(id); return r ? { x: r.rx, y: r.ry, z: r.rz, yaw: r.yaw, self: false, alive: !!r.alive } : null;
+}
+/* v26.10: DØDS-POSTKORT – et lille 'snapshot' af dræberen i det øjeblik skuddet faldt (hans egen model, retning, våben, tilbageværende HP) */
+let _dcTimer = 0;
+function hideDeathCard() { const el = document.getElementById('deathCard'); if (el) el.classList.add('hidden'); clearTimeout(_dcTimer); }
+function showDeathCard(m) {
+  if (!m.a || m.a === Game.meId) return;
+  const pl = Game.players.get(m.a) || {}, w = WEAPONS[m.w], img = Renderer.snapKiller(m.a);
+  let el = document.getElementById('deathCard');
+  if (!el) { el = document.createElement('div'); el.id = 'deathCard'; el.className = 'death-card hidden'; el.setAttribute('translate', 'no'); document.body.appendChild(el); }
+  const pose = m.ag ? 'i luften' : m.ac ? 'hugget' : 'stående', wn = w ? w.name : '', ic = w && w.kind !== 'bomb' ? Renderer.gunIcon(m.w, pl.side || 'hij') : null, hp = Math.max(0, Math.min(100, m.ah || 0));
+  el.innerHTML = `<div class="dc-img">${img ? `<img src="${img}" alt="">` : '<div class="dc-none">?</div>'}<span class="dc-tag ${pl.side === 'hij' ? 'hij' : 'swat'}">${pl.side === 'hij' ? 'HIJACKER' : 'SWAT'}</span></div>
+    <div class="dc-txt"><small>DRÆBT AF</small><b>${escapeHtml(pl.name || 'Ukendt')}</b>
+    <div class="dc-w">${ic ? `<img src="${ic}" alt="">` : ''}<span>${escapeHtml(wn)}${m.hs ? ' · <u>HEADSHOT</u>' : ''}</span></div>
+    <div class="dc-hp"><i style="--v:${hp}%"></i><em>${hp} HP</em></div><div class="dc-m">${Math.round(m.ad || 0)} m · ${pose}</div></div>`;
+  el.classList.remove('hidden'); el.classList.remove('in'); void el.offsetWidth; el.classList.add('in'); clearTimeout(_dcTimer); _dcTimer = setTimeout(hideDeathCard, 9000);
 }
 function noteKill(m) {
   if (Game.rkRound !== Game.round) { Game.rkRound = Game.round; Game.roundKills = {}; }      // v26.6: rundens drab pr. spiller (til MVP-filmens valg)
@@ -1258,7 +1312,8 @@ const BuyMenu = {
       { id: 'pistols', name: 'PISTOLER', items: B.pistols },
       { id: 'smgs', name: 'MASKINPISTOLER', items: B.smgs },
       { id: 'rifles', name: 'RIFLER', items: B.rifles },
-      { id: 'nades', name: 'GRANATER', items: B.nades }
+      { id: 'nades', name: 'GRANATER', items: B.nades },
+      { id: 'gear', name: 'UDSTYR', items: B.gear }
     ];
   },
   inZone() { const b = Game.body; return (W.spawns[Game.side] || []).some(sp => Math.hypot(b.x - sp.x, b.z - sp.z) < 14 && Math.abs(b.y - sp.y) < 3); },
@@ -1295,14 +1350,14 @@ const BuyMenu = {
     if (n < list.length) this.pick(this.cat ? list[n] : list[n].id);
     return true;
   },
-  nadeDesc(id) { return { he: 'Splint-granat · op til 98 skade', flash: 'Blænder alle der ser den · max 2', smoke: 'Røgsky i 18 s', molotov: 'Brand i 7 s · spærrer et område', incgren: 'Brand i 7 s · spærrer et område' }[id] || ''; },
-  owned(id) { const inv = Game.self.inv || {}, w = WEAPONS[id]; return w.kind === 'gun' ? (inv.primary === id || inv.pistol === id) : (inv[id] || 0) > 0; },
+  nadeDesc(id) { return { sensor: 'Kast på en flade: bipper på holdets minikort, når en fjende løber forbi (ikke ved snigen/hugning) · kan skydes ned', kit: 'Halverer tiden det tager at desarmere bomben (5 s i stedet for 10 s)', thermal: 'Se kropsvarme gennem røg og mørke · batteri: 5 sekunder pr. runde · tast N', he: 'Splint-granat · op til 98 skade', flash: 'Blænder alle der ser den · max 2', smoke: 'Røgsky i 18 s', molotov: 'Brand i 7 s · spærrer et område', incgren: 'Brand i 7 s · spærrer et område' }[id] || ''; },
+  owned(id) { const inv = Game.self.inv || {}, w = WEAPONS[id]; return w.kind === 'gun' ? (inv.primary === id || inv.pistol === id) : w.kind === 'gear' ? !!inv[id] : (inv[id] || 0) > 0; },
   sellable(id) { return (Game.self.bought || []).includes(id) && this.owned(id); },
   pick(id) {
     if (!this.cat) { this.cat = id; this._sig = ''; this.render(); Audio.click('switch'); return; }
     if (this.mode === 'req') { Net.send({ t: 'req', i: id }); UI.toast('Ønske sendt til holdet: ' + WEAPONS[id].name); this.mode = 'buy'; this._sig = ''; this.render(); return; }
     const w = WEAPONS[id];
-    if (this.sellable(id) && w.kind === 'gun') { Net.send({ t: 'sell', i: id }); Audio.click('buy'); return; }   // klik på eget købt våben = sælg
+    if (this.sellable(id) && (w.kind === 'gun' || w.kind === 'gear')) { Net.send({ t: 'sell', i: id }); Audio.click('buy'); return; }   // klik på eget købt våben = sælg
     if ((Game.self.money || 0) < w.price) { Audio.click('empty'); return; }
     Net.send({ t: 'buy', i: id }); Audio.click('buy'); this.stamp('KØBT', w.name); this.cat = null; this._sig = '';
   },
@@ -1319,6 +1374,7 @@ const BuyMenu = {
     const w = WEAPONS[id], inv = Game.self.inv || {}, money = Game.self.money || 0;
     if (this.mode === 'req') return 'req';
     if (w.kind === 'gun' && this.owned(id)) return this.sellable(id) ? 'sell' : 'owned';
+    if (w.kind === 'gear' && inv[id]) return this.sellable(id) ? 'sell' : 'owned';
     if (w.kind === 'nade' && !WD.canTakeNade(inv, id)) return (inv[id] || 0) > 0 ? (this.sellable(id) ? 'sell' : 'owned') : 'full';
     return money < w.price ? 'poor' : 'ok';
   },
@@ -1375,7 +1431,7 @@ const BuyMenu = {
         if (!items) {
           html += `<g class="bw-sec cat" data-id="${it.id}" style="--dx:${dx}px;--dy:${dy}px;--i:${i};--ax:${(Math.cos(am) * 60).toFixed(0)}px;--ay:${(Math.sin(am) * 60).toFixed(0)}px"><path class="bw-p" d="${d}"/>${img}
             <text x="${cx}" y="${cy - 52}" class="bw-key">${i + 1}</text><text x="${cx}" y="${cy + 24}" class="bw-name">${it.name}</text>
-            <text x="${cx}" y="${cy + 41}" class="bw-sub">${it.items.length} ${it.items.length === 1 ? 'våben' : it.id === 'nades' ? 'granater' : 'våben'}</text></g>`;
+            <text x="${cx}" y="${cy + 41}" class="bw-sub">${it.items.length} ${it.id === 'gear' ? 'valg' : it.items.length === 1 ? 'våben' : it.id === 'nades' ? 'granater' : 'våben'}</text></g>`;
         } else {
           const w = WEAPONS[it], st = this.state(it), tag = w.team ? '' : ' · FÆLLES';
           const price = st === 'sell' ? 'SÆLG +$' + w.price : st === 'owned' ? 'EJET' : st === 'full' ? 'INGEN PLADS' : st === 'req' ? 'ØNSK · $' + w.price : '$' + w.price;
@@ -1585,7 +1641,7 @@ const HUD = {
     if (inv.primary) { const a = s.ammo && s.ammo[inv.primary]; row(inv.primary === s.cur ? 'active' : '', '1', inv.primary, WEAPONS[inv.primary].name, a ? a.mag + '/' + a.res : ''); }
     if (inv.pistol) { const a = s.ammo && s.ammo[inv.pistol]; row(inv.pistol === s.cur ? 'active' : '', '2', inv.pistol, WEAPONS[inv.pistol].name, a ? a.mag + '/' + a.res : ''); }
     row(s.cur === 'knife' ? 'active' : '', '3', 'knife', 'KNIV');
-    const nd = [['he', 'HE'], ['flash', 'FLASH'], ['smoke', 'SMOKE'], ['molotov', 'MOLOTOV'], ['incgren', 'BRAND']].filter(([k]) => inv[k] > 0);
+    const nd = [['he', 'HE'], ['flash', 'FLASH'], ['smoke', 'SMOKE'], ['molotov', 'MOLOTOV'], ['incgren', 'BRAND'], ['sensor', 'SENSOR']].filter(([k]) => inv[k] > 0);
     if (nd.length) { const d = row('nades' + (nd.some(([k]) => k === s.cur) ? ' active' : ''), '4', null, ''); d.querySelector('.n').innerHTML = '<span class="ns">' + nd.map(([k, l]) => `<span class="${k === s.cur ? 'on' : ''}">${l}${inv[k] > 1 ? '<b>×' + inv[k] + '</b>' : ''}</span>`).join('') + '</span>'; }
     if (inv.bomb) row('c4', '', null, '☢ C4 · DU BÆRER BOMBEN');
     BuyMenu.update();
@@ -1965,7 +2021,7 @@ const Renderer = (() => {
     const label = new THREE.Object3D(); label.position.y = 2.12;
     h.group.add(label); h.label = label; h.lastName = '';
     h.tagEl = document.createElement('div'); h.tagEl.className = 'ntag ' + (side === 'hij' ? 'hij' : 'swat'); h.tagEl.style.display = 'none'; $('nameTags').appendChild(h.tagEl);
-    h.stepCb = (hh, sp) => { const p = hh.group.position; Audio.step({ x: p.x, y: p.y, z: p.z }, false, onMetal(p.x, p.y, p.z)); };
+    h.stepCb = (hh, sp) => { const p = hh.group.position; Audio.step({ x: p.x, y: p.y, z: p.z }, false, onMetal(p.x, p.y, p.z), WD.surfaceAt(W, p.x, p.y, p.z)); fpStep(h, p.x, p.y, p.z, hh.group.rotation.y); };
     scene.add(h.group);
     return h;
   }
@@ -2138,7 +2194,7 @@ const Renderer = (() => {
 
   function onRoundStart() {
     for (const [, o] of Game.grenadesFly) scene.remove(o.mesh);
-    Game.grenadesFly.clear();
+    Game.grenadesFly.clear(); resetGear();
     for (const [, f] of fireSys) f.remove(); fireSys.clear();
     for (const [, s] of smokeSys) s.remove(); smokeSys.clear();
     vm.drawT = 0;
@@ -2153,6 +2209,7 @@ const Renderer = (() => {
     let sp = m.o;
     if (rm && rm.flash) { rm.flash.updateMatrixWorld(true); const mp = rm.flash.getWorldPosition(_v); if (Math.hypot(mp.x - m.o[0], mp.y - m.o[1], mp.z - m.o[2]) < 1.5) sp = [mp.x, mp.y, mp.z]; }   // fra fjendens munding
     addTracer(sp, m.e, false);
+    muzzleStrobe(sp, false);
     if (rm) Chars.fire(rm);
     if (m.h) for (const [id, o] of remoteModels) {   // skud-reaktion hos ramt spiller
       if (id === m.i) continue;
@@ -2164,7 +2221,7 @@ const Renderer = (() => {
     if (WEAPONS[m.w] && m.w !== 'usp' && m.w !== 'mp5') pulseLight(m.o[0], m.o[1], m.o[2], 6, 0xffc880, 0.05);
   }
   function impactAt(p, n, col, small) {
-    if (fxs) { const metal = !!(col && (col.k === 'grate' || col.k === 'rail' || col.k === 'steelstairs' || col.k === 'glass')); fxs.impact(p[0], p[1], p[2], n[0], n[1], n[2], metal); if (!small) Audio.impact({ x: p[0], y: p[1], z: p[2] }, metal); }
+    if (fxs) { const metal = !!(col && (col.k === 'grate' || col.k === 'rail' || col.k === 'steelstairs' || col.k === 'glass')); fxs.impact(p[0], p[1], p[2], n[0], n[1], n[2], metal); if (!small) Audio.impact({ x: p[0], y: p[1], z: p[2] }, metal, WD.surfaceAt(W, p[0], p[1] - 0.05 + (n[1] < 0.5 ? 0.35 : 0), p[2])); }
     if (small) return;
     if (!impMesh) {
       impMesh = new THREE.InstancedMesh(new THREE.CircleGeometry(0.03, 10), new THREE.MeshBasicMaterial({ map: holeTex(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), IMP_MAX);
@@ -2251,6 +2308,10 @@ const Renderer = (() => {
       ctx.globalAlpha = lay && (r.ry + 0.5 < lay.yb || r.ry + 0.5 >= lay.yt) ? 0.45 : 1;
       ctx.beginPath(); ctx.arc(r.rx * scale + ox, r.rz * scale + oz, 3.2, 0, 7); ctx.fill(); ctx.globalAlpha = 1;
     }
+    const nowM = performance.now();                                                     // v26.10: sensorer (egne) og blips fra bevægelse
+    for (const [, so] of sensorObjs) if (so.side === Game.side) { ctx.fillStyle = '#ffae2b'; ctx.beginPath(); ctx.rect(so.x * scale + ox - 2.5, so.z * scale + oz - 2.5, 5, 5); ctx.fill(); ctx.strokeStyle = 'rgba(255,174,43,.35)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(so.x * scale + ox, so.z * scale + oz, 9.5 * scale, 0, 7); ctx.stroke(); }
+    Game.senseBlips = Game.senseBlips.filter(b => nowM - b.t < 2400);
+    for (const b of Game.senseBlips) { const k = (nowM - b.t) / 2400; ctx.strokeStyle = `rgba(255,90,40,${(1 - k).toFixed(2)})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(b.x * scale + ox, b.z * scale + oz, 3 + k * 14, 0, 7); ctx.stroke(); ctx.fillStyle = `rgba(255,90,40,${(1 - k).toFixed(2)})`; ctx.beginPath(); ctx.arc(b.x * scale + ox, b.z * scale + oz, 2.6, 0, 7); ctx.fill(); }
     ctx.fillStyle = '#f2c200';
     ctx.save(); ctx.translate(Game.body.x * scale + ox, Game.body.z * scale + oz); ctx.rotate(-Game.yaw);   // canvas roterer med uret, verdens-yaw mod uret
     ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(4, 5); ctx.lineTo(-4, 5); ctx.closePath(); ctx.fill(); ctx.restore();
@@ -2292,6 +2353,142 @@ const Renderer = (() => {
   }
 
   /* ---------------- flyvende granater: rigtige modeller pr. type (molotov brænder i luften) ---------------- */
+  /* ---------------- v26.10: BEVÆGELSESSENSORER + TERMISK KIKKERT ---------------- */
+  const sensorObjs = new Map(); Game.senseBlips = [];
+  function onSensor(m) {
+    const old = sensorObjs.get(m.id); if (old) { scene.remove(old.mesh); }
+    const mesh = Weap.worldModel('sensor') || new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.03, 16), V.dynMat({ color: 0x23272b }));
+    mesh.position.set(m.x, m.y + 0.01, m.z); mesh.traverse(n => { if (n.isMesh) n.castShadow = true; }); scene.add(mesh);
+    sensorObjs.set(m.id, { mesh, side: m.s, x: m.x, y: m.y, z: m.z, led: null });
+    Audio.click('switch');
+  }
+  function onSensorBreak(m) {
+    const o = sensorObjs.get(m.id); if (o) { scene.remove(o.mesh); sensorObjs.delete(m.id); }
+    if (fxs) fxs.impact(m.x, m.y + 0.05, m.z, 0, 1, 0, true);
+    Audio.glass({ x: m.x, y: m.y + 0.1, z: m.z }); pulseLight(m.x, m.y + 0.3, m.z, 6, 0xffb060, 0.2);
+  }
+  function onSense(m) { Game.senseBlips.push({ x: m.x, z: m.z, t: performance.now() }); if (Game.senseBlips.length > 12) Game.senseBlips.shift(); Audio.beep(null, true); try { Audio.emit && Audio.emit({ x: m.x, y: Game.body.y, z: m.z }, 'beep', 0.5); } catch (e) {} }
+  function onSbeep(m) { Audio.beep({ x: m.x, y: m.y, z: m.z }, false); }
+  const TH = Game.therm = { on: false, left: 5, max: 5 };
+  const thermMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(11, 11, 11), toneMapped: false, fog: false });
+  function thermApply(on) {
+    for (const [, r] of remoteModels) {
+      const g = r.group || (r.h && r.h.group); if (!g) continue;
+      g.traverse(n => {
+        if (!(n.isMesh || n.isSkinnedMesh)) return;
+        if (on) { if (!n.userData._thm) { n.userData._thm = n.material; n.material = thermMat; } }
+        else if (n.userData._thm) { n.material = n.userData._thm; delete n.userData._thm; }
+      });
+    }
+  }
+  function setThermal(on) {
+    if (on === TH.on) return; TH.on = on;
+    if (post && post.setThermal) post.setThermal(on); if (fxs && fxs.setThermal) fxs.setThermal(on);
+    thermApply(on); const el = $('thermHud'); if (el) el.classList.toggle('hidden', !on && TH.left >= TH.max - 0.01);
+    Audio.click(on ? 'switch' : 'empty');
+  }
+  function toggleThermal() {
+    const inv = Game.self.inv || {}; if (!inv.thermal || !Game.self.alive || Game.state !== 'game') return;
+    if (!TH.on && TH.left <= 0.05) { UI.toast('Batteriet er tomt – nyt batteri næste runde'); Audio.click('empty'); return; }
+    setThermal(!TH.on);
+  }
+  function tickThermal(dt) {
+    const hud = $('thermHud');
+    if (TH.on) {
+      TH.left = Math.max(0, TH.left - dt); thermApply(true);
+      if (TH.left <= 0) { setThermal(false); UI.toast('Termisk kikkert: batteriet er løbet tør'); }
+    }
+    if (hud) { const show = !!(Game.self.inv && Game.self.inv.thermal) && Game.self.alive; hud.classList.toggle('hidden', !show); hud.classList.toggle('on', TH.on); const bar = hud.querySelector('i'); if (bar) bar.style.setProperty('--v', (TH.left / TH.max * 100).toFixed(0) + '%'); const t = hud.querySelector('span'); if (t) t.textContent = TH.left.toFixed(1) + ' s'; }
+    for (const [, o] of sensorObjs) { const led = o.mesh.userData.led; if (led) led.visible = ((performance.now() + o.x * 97) % 1300) < 140; }
+  }
+  function resetGear() { for (const [, o] of sensorObjs) scene.remove(o.mesh); sensorObjs.clear(); Game.senseBlips.length = 0; TH.left = TH.max; if (TH.on) setThermal(false); }
+  /* ---------------- v26.10: 3D-PING, FODSPOR, DØDS-POSTKORT, MUNDINGSLYS ---------------- */
+  const pings = []; let pingHost = null;
+  function ping() {
+    if (Game.state !== 'game' || !Game.self.alive || Game.phase === 'end') return;
+    const o = camera.position, d = _v.set(0, 0, -1).applyQuaternion(camera.quaternion), nrm = { nx: 0, ny: 1, nz: 0 };
+    const t = WD.raycastWorld(W, o.x, o.y, o.z, d.x, d.y, d.z, 140, nrm);
+    if (t >= 139.9) { UI.toast('Intet at pinge'); return; }
+    let kind = 'point';
+    for (const [id, r] of remoteModels) { const pl = Game.players.get(id); if (!pl || pl.side === Game.side || !r.group.visible) continue; const dx = r.group.position.x - (o.x + d.x * t), dz = r.group.position.z - (o.z + d.z * t); if (dx * dx + dz * dz < 1.2) kind = 'enemy'; }
+    Net.send({ t: 'mark', x: +(o.x + d.x * t - nrm.nx * 0.02).toFixed(2), y: +(o.y + d.y * t - nrm.ny * 0.02).toFixed(2), z: +(o.z + d.z * t - nrm.nz * 0.02).toFixed(2), k: kind });
+  }
+  function onPing(m) {
+    if (!pingHost) { pingHost = document.createElement('div'); pingHost.id = 'pingHud'; pingHost.className = 'ping-hud'; pingHost.setAttribute('translate', 'no'); $('hud').appendChild(pingHost); }
+    const el = document.createElement('div'); el.className = 'ping ' + (m.pk || 'point'); el.innerHTML = '<i></i><span></span>'; pingHost.appendChild(el);
+    const pl = Game.players.get(m.i), nm = pl ? pl.name : ''; el.querySelector('span').textContent = nm;
+    pings.push({ x: m.x, y: m.y, z: m.z, el, t: performance.now(), k: m.pk, by: m.i, minimap: true });
+    while (pings.length > 6) { const q = pings.shift(); q.el.remove(); }
+    Audio.beep({ x: m.x, y: m.y, z: m.z }, true); setTimeout(() => Audio.beep({ x: m.x, y: m.y, z: m.z }, false), 90);
+  }
+  const _pp = new THREE.Vector3();
+  function tickPings() {
+    const now = performance.now(), w = innerWidth, h = innerHeight;
+    for (let i = pings.length - 1; i >= 0; i--) {
+      const p = pings[i], age = (now - p.t) / 1000;
+      if (age > 7) { p.el.remove(); pings.splice(i, 1); continue; }
+      _pp.set(p.x, p.y, p.z).project(camera); const behind = _pp.z > 1;
+      let sx = (_pp.x * 0.5 + 0.5) * w, sy = (-_pp.y * 0.5 + 0.5) * h; if (behind) { sx = w - sx; sy = h - sy; }
+      const m = 46, cx = Math.min(w - m, Math.max(m, sx)), cy = Math.min(h - m, Math.max(m + 40, sy)), edge = behind || cx !== sx || cy !== sy;
+      p.el.style.transform = `translate(${cx.toFixed(1)}px, ${cy.toFixed(1)}px)`; p.el.classList.toggle('edge', edge);
+      p.el.style.opacity = String(Math.min(1, (7 - age) / 1.2) * (edge ? 0.75 : 1));
+      const dist = Math.hypot(p.x - camera.position.x, p.z - camera.position.z); p.el.dataset.d = Math.round(dist) + ' m';
+    }
+  }
+  // fodspor: efter vand/mudder efterlades snavsede aftryk på rene sten-gulve (13 s)
+  const FP = { max: 150, i: 0, mesh: null, alpha: null, born: new Float32Array(150).fill(-99), base: new Float32Array(150), st: new Map(), life: 13 };
+  function fpInit() {
+    const cv = document.createElement('canvas'); cv.width = 64; cv.height = 128; const g = cv.getContext('2d'); g.fillStyle = '#fff';
+    g.beginPath(); g.ellipse(32, 42, 17, 30, 0, 0, 7); g.fill(); g.beginPath(); g.ellipse(32, 100, 14, 17, 0, 0, 7); g.fill();     // fodballe + hæl
+    for (let k = 0; k < 90; k++) { g.globalCompositeOperation = 'destination-out'; g.globalAlpha = 0.5; g.beginPath(); g.arc(8 + Math.random() * 48, 6 + Math.random() * 116, 1 + Math.random() * 3, 0, 7); g.fill(); }
+    const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+    const geo = new THREE.PlaneGeometry(0.16, 0.32); geo.rotateX(-Math.PI / 2);
+    FP.alpha = new THREE.InstancedBufferAttribute(new Float32Array(FP.max), 1); geo.setAttribute('aA', FP.alpha);
+    const mat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3, uniforms: { map: { value: tex } },
+      vertexShader: 'attribute float aA; varying float vA; varying vec2 vUv; void main() { vUv = uv; vA = aA; gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.0); }',
+      fragmentShader: 'uniform sampler2D map; varying float vA; varying vec2 vUv; void main() { float a = texture2D(map, vUv).a * vA; if (a < 0.01) discard; gl_FragColor = vec4(0.16, 0.12, 0.07, a * 0.75); }' });
+    FP.mesh = new THREE.InstancedMesh(geo, mat, FP.max); FP.mesh.frustumCulled = false; FP.mesh.renderOrder = 3;
+    const z = new THREE.Matrix4().makeScale(0, 0, 0); for (let i = 0; i < FP.max; i++) FP.mesh.setMatrixAt(i, z); scene.add(FP.mesh);
+  }
+  function fpStep(id, x, y, z, yaw) {
+    if (!W.data || !W.data.surf) return;
+    const surf = WD.surfaceAt(W, x, y, z); let st = FP.st.get(id); if (!st) { st = { wet: 0, foot: 0 }; FP.st.set(id, st); }
+    if (surf === 'water') st.wet = 1; else if (surf === 'dirt') st.wet = Math.max(st.wet, 0.55); else if (surf === 'leaf') st.wet = Math.max(st.wet, 0.3);
+    else if (st.wet > 0.07 && surf === 'stone') {
+      if (!FP.mesh) fpInit();
+      const side = (st.foot ^= 1) ? 1 : -1, fx = -Math.sin(yaw), fz = -Math.cos(yaw), rx = Math.cos(yaw), rz = -Math.sin(yaw), px = x + rx * 0.1 * side, pz = z + rz * 0.1 * side;
+      _m4.compose(_v.set(px, y + 0.012, pz), _q.setFromEuler(new THREE.Euler(0, yaw, 0)), _sc.set(side, 1, 1));
+      FP.mesh.setMatrixAt(FP.i, _m4); FP.mesh.instanceMatrix.needsUpdate = true; FP.born[FP.i] = performance.now() / 1000; FP.base[FP.i] = st.wet; FP.i = (FP.i + 1) % FP.max;
+      st.wet -= 0.075;                                                   // aftrykkene bliver svagere for hvert skridt
+    }
+    if (st.wet < 0) st.wet = 0;
+  }
+  function tickFootprints() {
+    if (!FP.mesh) return; const t = performance.now() / 1000; let ch = false;
+    for (let i = 0; i < FP.max; i++) {
+      const age = t - FP.born[i], v = age < 0 || age > FP.life ? 0 : FP.base[i] * (1 - age / FP.life);
+      if (Math.abs(FP.alpha.array[i] - v) > 0.004) { FP.alpha.array[i] = v; ch = true; }
+    }
+    if (ch) FP.alpha.needsUpdate = true;
+  }
+  function muzzleStrobe(sp, big) {                                       // mundingsglimt lyser rummet op i mørke (blackout eller mørke områder) – stroboskop-effekt ved automatild
+    if (EV.cur !== 'blackout') { const lum = V.probe(sp[0], sp[1], sp[2], _prb)[3]; if (lum > 0.16) return; }
+    pulseLight(sp[0], sp[1], sp[2], big ? 40 : 34, 0xffd9a0, 0.05);
+  }
+  const _prb = [0, 0, 0, 0];
+  function snapKiller(id) {                                              // billede af dræberen i det øjeblik skuddet faldt (rigtig 3D-model, hans egen retning)
+    const rm = remoteModels.get(id), rr = Game.remotes.get(id); if (!rm || !rr) return null;
+    const Wd = 240, Hd = 300, rt = new THREE.WebGLRenderTarget(Wd, Hd, { samples: 0 }); rt.texture.colorSpace = THREE.SRGBColorSpace;
+    const cam = new THREE.PerspectiveCamera(34, Wd / Hd, 0.1, 40), p = rm.group.position, yaw = rr.yaw || 0, fx = -Math.sin(yaw), fz = -Math.cos(yaw);
+    cam.position.set(p.x + fx * 3.2, p.y + (rr.crouch ? 1.0 : 1.45), p.z + fz * 3.2); cam.lookAt(p.x, p.y + (rr.crouch ? 0.7 : 1.05), p.z); cam.updateMatrixWorld();
+    const lbl = rm.label ? rm.label.visible : false; if (rm.label) rm.label.visible = false;
+    const prev = renderer.getRenderTarget(); renderer.setRenderTarget(rt); renderer.clear(); renderer.render(scene, cam); renderer.setRenderTarget(prev);
+    if (rm.label) rm.label.visible = lbl;
+    const buf = new Uint8Array(Wd * Hd * 4); renderer.readRenderTargetPixels(rt, 0, 0, Wd, Hd, buf); rt.dispose();
+    const cv = document.createElement('canvas'); cv.width = Wd; cv.height = Hd; const c2 = cv.getContext('2d'), im = c2.createImageData(Wd, Hd);
+    for (let y = 0; y < Hd; y++) im.data.set(buf.subarray((Hd - 1 - y) * Wd * 4, (Hd - y) * Wd * 4), y * Wd * 4);
+    c2.putImageData(im, 0, 0); return cv.toDataURL('image/jpeg', 0.85);
+  }
   function nadeMesh(type) {
     const id = WD.NADE_BY_TYPE[type] || 'he';
     const wm = Weap.worldModel(id) || new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), V.dynMat({ color: 0x4a5a32 }));
@@ -2488,7 +2685,7 @@ const Renderer = (() => {
     Game.camEye = Game.camEye === undefined ? eye : lerp(Game.camEye, eye, 1 - Math.exp(-14 * dt));
     const spd = Math.hypot(Game.body.vx, Game.body.vz), moving = spd > 0.5 && Game.body.ground;
     stepPh += dt * spd * 1.7;
-    if (moving && spd > 4 && Math.floor(stepPh / Math.PI) !== Math.floor((stepPh - dt * spd * 1.7) / Math.PI)) Audio.step(null, true, onMetal(Game.body.x, Game.body.y, Game.body.z));
+    if (moving && spd > 4 && Math.floor(stepPh / Math.PI) !== Math.floor((stepPh - dt * spd * 1.7) / Math.PI)) { Audio.step(null, true, onMetal(Game.body.x, Game.body.y, Game.body.z), WD.surfaceAt(W, Game.body.x, Game.body.y, Game.body.z)); Renderer.fpStep(-1, Game.body.x, Game.body.y, Game.body.z, aimYaw()); }
     const camOff = camRig(dt, spd, moving);
     applyCam(Game.body.x + camOff.x, Game.body.y + Game.camEye + camOff.y + Game.stepOff, Game.body.z + camOff.z, aimYaw(), aimPitch(), camOff.roll);
 
@@ -2527,7 +2724,7 @@ const Renderer = (() => {
     if (w.id === 'awp') { vm.boltT = 0; setTimeout(() => Audio.click('bolt'), 350); Game.scoped = false; }
     ejectShell(w);
     Audio.shot(w.id, null, true);
-    if (w.id !== 'usp' && w.id !== 'mp5') pulseLight(o.x + fwd.x * 0.8, o.y + fwd.y * 0.8, o.z + fwd.z * 0.8, 6, 0xffc880, 0.05);
+    if (w.id !== 'usp' && w.id !== 'mp5') { pulseLight(o.x + fwd.x * 0.8, o.y + fwd.y * 0.8, o.z + fwd.z * 0.8, 6, 0xffc880, 0.05); muzzleStrobe([o.x + fwd.x * 0.8, o.y + fwd.y * 0.8, o.z + fwd.z * 0.8], true); }
     // realtids-ammo: forudsig lokalt, serverens 'self' retter ved næste sync
     const am = Game.self.ammo && Game.self.ammo[w.id];
     if (am && am.mag > 0) { am.mag--; HUD.updateSelf(); }
@@ -2566,7 +2763,7 @@ const Renderer = (() => {
   function onRemoteMelee(m) {
     const rm = remoteModels.get(m.i); if (!rm) return;
     Chars.fire(rm); const p = rm.group.position;
-    Audio.step({ x: p.x, y: p.y + 1.2, z: p.z }, true, false);
+    Audio.step({ x: p.x, y: p.y + 1.2, z: p.z }, true, false, WD.surfaceAt(W, p.x, p.y, p.z));
     if (m.h === 2 && m.e) impactAt(m.e, m.n || [0, 1, 0], null, true);
   }
   function onMeleeWall(m) { Audio.click('clank'); if (m.e) impactAt(m.e, m.n || [0, 1, 0], null, true); }
@@ -2973,7 +3170,7 @@ const Renderer = (() => {
       sky.position.copy(camera.position);
       V.update(dt, performance.now() / 1000, camera.position, decorGroup); fxObj.update(dt, performance.now() / 1000, camera.position);
       if (night) night.update(dt, camera.position, performance.now() / 1000);
-      camera.updateMatrixWorld(); _fw.set(0, 0, -1).applyQuaternion(camera.quaternion); _up.set(0, 1, 0).applyQuaternion(camera.quaternion); Audio.setListener(camera.position, _fw, _up);
+      camera.updateMatrixWorld(); _fw.set(0, 0, -1).applyQuaternion(camera.quaternion); _up.set(0, 1, 0).applyQuaternion(camera.quaternion); Audio.setListener(camera.position, _fw, _up); probeRoom(camera.position); tickThermal(dt); tickPings(); tickFootprints();
       fxs.update(dt, camera.position);
       if (++shadowTick >= gfx.every) { shadowTick = 0; followShadow(); sun.shadow.needsUpdate = true; }   // skyggekort + placering opdateres sammen
     }
@@ -3023,7 +3220,7 @@ const Renderer = (() => {
   }
   const api = { canvas: () => renderer.domElement, setEvent, event: () => EV.cur, get camera() { return camera; }, intro: () => (ensureChars(), Intro), bombCine: () => BombCine, deferEnd: (m, info) => { if (BombCine && BombCine.active) { pendingEnd = m; return true; }
       if (info && RoundCine && !Game.cineFull) { try { if (RoundCine.start(info)) { pendingEnd = m; m._cine = true; return true; } } catch (e) { console.warn('rundefilm', e); } } return false; },
-    roundCine: () => RoundCine, introReady: () => introLoaded, setQuality, gunIcon, get gfx() { return gfxName; }, get pr() { return prCur; }, get perf() { return perf; }, chars: () => (ensureChars(), Chars), weap: () => (ensureChars(), Weap), onCosmetics, mapReady: () => !loading && mapId === W.id, cosReady: () => COS.ready, setCine, init, loadMap, flinchAim, onRoundStart, onShotFx, inspect, onRemoteMelee, onMeleeWall, onPlant, onExplode, onBoom, onSmokePop, onFlashPop, onFirePop, onFireOut, onRemoteThrow, onThrowLocal, onPinPull, onWeaponChange, mouseDelta, shake, skinName, get mapId() { return mapId; } };
+    roundCine: () => RoundCine, introReady: () => introLoaded, setQuality, gunIcon, get gfx() { return gfxName; }, get pr() { return prCur; }, get perf() { return perf; }, chars: () => (ensureChars(), Chars), weap: () => (ensureChars(), Weap), onCosmetics, mapReady: () => !loading && mapId === W.id, cosReady: () => COS.ready, setCine, init, loadMap, flinchAim, onRoundStart, onShotFx, inspect, onRemoteMelee, onMeleeWall, onPlant, onExplode, onBoom, onSmokePop, onFlashPop, onFirePop, onFireOut, onSensor, onSensorBreak, onSense, onSbeep, toggleThermal, ping, onPing, snapKiller, fpStep, onRemoteThrow, onThrowLocal, onPinPull, onWeaponChange, mouseDelta, shake, skinName, get mapId() { return mapId; } };
   if (DEV) {   // v14: kontaktark over førstepersonsvåben (kun dev) – hvert våben renderes alene på neutral baggrund
     const sideCam = new THREE.PerspectiveCamera(30, 1.6, 0.01, 10);
     api.vmSheet = (ids, cols, tw, th, side) => {
@@ -3373,7 +3570,7 @@ async function runTour(id, only) {
   const params = new URLSearchParams(location.search);
   const joinCode = params.get('join');
   if (joinCode && /^\d{4}$/.test(joinCode)) { $('codeInput').value = joinCode; $('joinRow').classList.remove('hidden'); }
-  if (DEV) window.__wd = { playTrailer, Bounty, EventHud, Factions, Hideout, Friends, Profile, Missions, Trophies, Mastery, mvp: i => MvpCine.play(i), victory: m => startVictory(m), hudRE: m => HUD.roundEnd(m), introPlay: (ms) => { const I = Renderer.intro(); return I.preload().then(() => I.play({ side: Game.side, mates: [...Game.players.entries()].filter(([, p]) => p.side === Game.side).map(([id, p]) => ({ id, cos: p.cos, me: id === Game.meId })) }, ms || 13000)); }, Game, Renderer, Net, BuyMenu, get W() { return W; }, WD, THREE, KEY, Settings, act: { nadeStart, nadeRelease, fireStart, fireEnd, switchWeapon, startFlash, startReloadLocal }, tour: runTour,
+  if (DEV) window.__wd = { playTrailer, Bounty, EventHud, Factions, Hideout, Friends, Profile, Missions, Trophies, Mastery, mvp: i => MvpCine.play(i), victory: m => startVictory(m), hudRE: m => HUD.roundEnd(m), introPlay: (ms) => { const I = Renderer.intro(); return I.preload().then(() => I.play({ side: Game.side, mates: [...Game.players.entries()].filter(([, p]) => p.side === Game.side).map(([id, p]) => ({ id, cos: p.cos, me: id === Game.meId })) }, ms || 13000)); }, Game, Renderer, Net, BuyMenu, deathCard: showDeathCard, get W() { return W; }, WD, THREE, KEY, Settings, act: { nadeStart, nadeRelease, fireStart, fireEnd, switchWeapon, startFlash, startReloadLocal }, tour: runTour,
     bombSheet: async (id, site, times, name) => {                              // v26: node pw/bomb.js – kontaktark af bombe-filmen → docs/qa/<name>.jpg
       if (Renderer.mapId !== id) await runTour(id, [{ n: 'load', x: 0, y: 2, z: 0, yaw: 0 }]);
       const cv = await Renderer.bombSheet(site, times); if (!cv) return null;

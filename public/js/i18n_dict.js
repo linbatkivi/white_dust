@@ -5460,6 +5460,90 @@ export const DICT = {
 "Überwucherte mesoamerikanische Ruinen im Dschungel · moosbewachsener Stein, Stufenpyramiden, enge Gassen und Sonnenstrahlen durchs Laub. A-Site (der Tempelplatz) im Norden, B-Site (die Ausgrabung) im Südwesten nahe bei SWAT.",
 "丛林中被藤蔓覆盖的中美洲遗迹 · 长满苔藓的石头、阶梯金字塔、狭窄小巷和透过树叶的阳光。A 点（神庙广场）在北面，B 点（发掘坑）在西南，靠近特警。"
 ],
+"UDSTYR": [
+"GEAR",
+"ÉQUIPEMENT",
+"EQUIPO",
+"AUSRÜSTUNG",
+"装备"
+],
+"BEVÆGELSESSENSOR": [
+"MOTION SENSOR",
+"DÉTECTEUR DE MOUVEMENT",
+"SENSOR DE MOVIMIENTO",
+"BEWEGUNGSSENSOR",
+"动态传感器"
+],
+"DESARMERINGSSÆT": [
+"DEFUSE KIT",
+"KIT DE DÉSAMORÇAGE",
+"KIT DE DESACTIVACIÓN",
+"ENTSCHÄRFUNGSSET",
+"拆弹工具包"
+],
+"TERMISK KIKKERT": [
+"THERMAL GOGGLES",
+"LUNETTES THERMIQUES",
+"GAFAS TÉRMICAS",
+"WÄRMEBILDBRILLE",
+"热成像护目镜"
+],
+"Kast på en flade: bipper på holdets minikort, når en fjende løber forbi (ikke ved snigen/hugning) · kan skydes ned": [
+"Throw onto a surface: beeps on your team's minimap when an enemy runs past (not when sneaking/crouching) · can be shot down",
+"À lancer sur une surface : bip sur la minicarte de l'équipe quand un ennemi passe en courant (pas en marchant/accroupi) · peut être détruit",
+"Lánzalo sobre una superficie: pita en el minimapa del equipo cuando un enemigo pasa corriendo (no al ir sigiloso/agachado) · se puede destruir a tiros",
+"Auf eine Fläche werfen: piept auf der Teamkarte, wenn ein Gegner vorbeirennt (nicht beim Schleichen/Ducken) · kann abgeschossen werden",
+"投掷到表面上：敌人跑过时在队伍小地图上发出提示音（潜行/蹲下时不触发）· 可被击毁"
+],
+"Halverer tiden det tager at desarmere bomben (5 s i stedet for 10 s)": [
+"Halves the time it takes to defuse the bomb (5 s instead of 10 s)",
+"Réduit de moitié le temps de désamorçage (5 s au lieu de 10 s)",
+"Reduce a la mitad el tiempo para desactivar la bomba (5 s en vez de 10 s)",
+"Halbiert die Zeit zum Entschärfen der Bombe (5 s statt 10 s)",
+"拆弹时间减半（5 秒而不是 10 秒）"
+],
+"Se kropsvarme gennem røg og mørke · batteri: 5 sekunder pr. runde · tast N": [
+"See body heat through smoke and darkness · battery: 5 seconds per round · key N",
+"Voyez la chaleur corporelle à travers la fumée et l'obscurité · batterie : 5 secondes par manche · touche N",
+"Mira el calor corporal a través del humo y la oscuridad · batería: 5 segundos por ronda · tecla N",
+"Körperwärme durch Rauch und Dunkelheit sehen · Akku: 5 Sekunden pro Runde · Taste N",
+"透过烟雾和黑暗看到体温 · 电池：每回合 5 秒 · 按 N 键"
+],
+"Batteriet er tomt – nyt batteri næste runde": [
+"The battery is empty – new battery next round",
+"La batterie est vide – nouvelle batterie à la prochaine manche",
+"La batería está vacía – batería nueva en la próxima ronda",
+"Der Akku ist leer – nächste Runde neuer Akku",
+"电池已耗尽——下回合更换新电池"
+],
+"Termisk kikkert: batteriet er løbet tør": [
+"Thermal goggles: the battery has run out",
+"Lunettes thermiques : la batterie est épuisée",
+"Gafas térmicas: se agotó la batería",
+"Wärmebildbrille: der Akku ist leer",
+"热成像护目镜：电池耗尽"
+],
+"Intet at pinge": [
+"Nothing to ping",
+"Rien à signaler",
+"Nada que marcar",
+"Nichts zum Markieren",
+"没有可标记的目标"
+],
+"DRÆBT AF": [
+"KILLED BY",
+"TUÉ PAR",
+"ELIMINADO POR",
+"GETÖTET VON",
+"击杀者"
+],
+"Visuelle lyd-indikatorer (tilgængelighed: viser retningen til skud, fodtrin og eksplosioner på skærmen)": [
+"Visual sound indicators (accessibility: shows the direction of shots, footsteps and explosions on screen)",
+"Indicateurs sonores visuels (accessibilité : montre la direction des tirs, pas et explosions à l'écran)",
+"Indicadores visuales de sonido (accesibilidad: muestra la dirección de disparos, pasos y explosiones en pantalla)",
+"Visuelle Geräuschanzeigen (Barrierefreiheit: zeigt die Richtung von Schüssen, Schritten und Explosionen auf dem Bildschirm)",
+"视觉声音提示（无障碍：在屏幕上显示枪声、脚步和爆炸的方向）"
+],
 "Grøn {0}": [
 "Green {0}",
 "Vert {0}",

@@ -117,6 +117,12 @@ async function main() {
     ok(A.self.inv[fireNade] === 1 && A.self.inv.flash === 2, 'Holdets ild-granat + max 2 flashbangs (' + fireNade + ')');
     A.send({ t: 'buy', i: 'smoke' }); await sleep(60);
     ok(!(A.self.inv.smoke > 0) && WD.nadeCount(A.self.inv) === 4, 'Max 4 granater i alt');
+    // v26.10: udstyr – termisk kikkert (begge hold), desarmeringssæt (kun SWAT), bevægelsessensor (granat-slot)
+    B.send({ t: 'buy', i: 'thermal' }); B.send({ t: 'buy', i: 'kit' }); B.send({ t: 'buy', i: 'sensor' }); await sleep(120);
+    ok(B.self.inv.thermal === true && B.self.inv.sensor === 1, 'Termisk kikkert og bevægelsessensor kan købes (' + B.side + ')');
+    ok(B.side === 'swat' ? B.self.inv.kit === true : !B.self.inv.kit, 'Desarmeringssæt kan kun købes af SWAT (' + B.side + ')');
+    B.send({ t: 'sell', i: 'thermal' }); await sleep(80);
+    ok(B.self.inv.thermal === false, 'Købt udstyr kan sælges igen i købsfasen');
     A.send({ t: 'sw', w: RIFLE(A.side) }); await sleep(40);
     const live = await A.waitSnap(s => s.ph === 'live', 5000);
     ok(!!live, 'Købsfasen slutter, runden går i gang');
@@ -239,6 +245,9 @@ async function main() {
     const rf3 = await swat.wait(m => m.t === 'ev' && m.k === 'rf', 1500);
     ok(rf3 && rf3.defuse === 1 && rf3.won === 1, 'Fakta: desarmeringen tælles til progressionen');
 
+    // v26.10: desarmering tager 10 s (test: 1 s) og halveres af sættet
+    ok(WD.DEFUSE.base === 10 && WD.DEFUSE.kit === 5, 'Desarmeringstid: 10 s uden sæt, 5 s med sæt');
+
     console.log('\n== Runde 4: granater (kast-kraft, underhånd, HE, flashbang, molotov, smoke) ==');
     const GX = -3.5, GY = 4.8, GZ = -1;   // fri 20 m bane på øverste etage (atriets lounge-ø står på den gamle x=12-linje)
     await hij.wait(m => m.t === 'round' && m.n === 4, 4000); await sleep(100);
@@ -305,6 +314,20 @@ async function main() {
     }
     // C4-tjek: hijackeren må ikke kunne plante oppe på en kasse – og får en fejlmeddelelse
     hij.send({ t: 'dbg', hp: 100 }); swat.send({ t: 'dbg', hp: 100 });
+
+    console.log('\n== v26.10: bevægelsessensor (kast → fastsat → bip ved løbende fjende) ==');
+    swat.send({ t: 'dbg', give: 'sensor' }); hij.send({ t: 'dbg', hp: 100 }); await sleep(100);
+    swat.tp(GX, GY, GZ + 5); hij.tp(GX, GY, GZ + 18); await sleep(150); swat.pos = { x: GX, y: GY, z: GZ + 5 }; hij.pos = { x: GX, y: GY, z: GZ + 18 };
+    swat.send({ t: 'sw', w: 'sensor' }); await sleep(80); hij.clear(); swat.clear();
+    swat.send({ t: 'throw', o: [GX, GY + 1.2, GZ + 5], d: [0, -0.6, -0.8], u: 1 });
+    const sev = await swat.wait(m => m.t === 'ev' && m.k === 'sensor', 4000);
+    ok(!!sev && sev.s === 'swat', 'Sensoren lander og sidder fast (event med hold)');
+    if (sev) {
+      for (let i = 0; i < 14; i++) { hij.pos = { x: GX, y: GY, z: Math.max(sev.z + 1.5, GZ + 14 - i * 0.9) }; hij.sendIn({ c: 0 }); await sleep(60); }
+      const sense = await swat.wait(m => m.t === 'ev' && m.k === 'sense', 1500);
+      ok(!!sense, 'Sensoren bipper på holdets minikort, når en fjende løber forbi');
+      ok(!hij.log.some(m => m.t === 'ev' && m.k === 'sense'), 'Fjenden får ikke sensor-blippet (kun holdet)');
+    }
 
     console.log('\n== Reconnect ==');
     const oldWs = swat.ws, key = swat.key, id = swat.id, code = swat.code;

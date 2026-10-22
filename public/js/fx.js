@@ -90,6 +90,8 @@ export function createFx(THREE, o) {
 
   /* ---------------- RØG ---------------- */
   const coreGeo = new THREE.IcosahedronGeometry(1, 2);
+  let thermalK = 1;                                       // v26.10: termisk kikkert ser gennem røg (røgen tyndes ud, kernen skjules)
+  function setThermal(on) { thermalK = on ? 0.16 : 1; }
   function smoke(x, y, z) {
     o.probe(x, y + 1.2, z, _pr);
     const lum = 0.42 + 0.58 * _pr[3], col = [lum * 0.84 + _pr[0] * 0.15, lum * 0.85 + _pr[1] * 0.15, lum * 0.87 + _pr[2] * 0.15];
@@ -105,14 +107,14 @@ export function createFx(THREE, o) {
       set(grow, fade) { S.grow = grow; S.fade = fade; },
       draw(dt) {
         S.t += dt;
-        const g = smooth(S.grow), f = S.fade, Rh = 0.5 + S.R0 * g, Hh = 0.4 + S.H0 * g, cy = y + 0.2 + Hh * 0.5;
+        const g = smooth(S.grow), f = S.fade * (thermalK), Rh = 0.5 + S.R0 * g, Hh = 0.4 + S.H0 * g, cy = y + 0.2 + Hh * 0.5;
         for (const p of puffs) {
           const wob = Math.sin(S.t * 0.4 + p.ph) * 0.12;
           const sh = 0.84 + 0.2 * (p.dy * 0.5 + 0.5);                       // lysere top, mørkere bund (blødt volumen-indtryk)
           LSmoke.push(x + p.dx * Rh * (1.08 - 0.25 * Math.max(0, p.dy)) + wob, Math.max(y + 0.35, cy + p.dy * Hh * 0.62), z + p.dz * Rh * (1.08 - 0.25 * Math.max(0, p.dy)) - wob, (1.0 + 2.4 * g) * p.s * (0.75 + 0.25 * f), col[0] * sh, col[1] * sh, col[2] * sh, 0.94 * f, p.rot + S.t * p.spin);
         }
         const kc = g > 0.55 ? smooth((g - 0.55) / 0.3) * clamp((f - 0.15) / 0.5, 0, 1) : 0;
-        core.visible = kc > 0.02;
+        core.visible = kc > 0.02 && thermalK >= 1;
         if (core.visible) { core.position.set(x, cy, z); core.scale.set(Rh * 0.6 * kc, Hh * 0.52 * kc, Rh * 0.6 * kc); }   // skjult inde i puf-skallen
       },
       remove() { scene.remove(core); core.material.dispose(); systems.delete(S); }
@@ -214,5 +216,5 @@ export function createFx(THREE, o) {
     LSmoke.end(cam); LFire.end(cam); LDot.end(cam); LGlow.end(cam);
   }
   function clear() { for (const s of [...systems]) s.remove(); pops.length = 0; trail.length = 0; imps.length = 0; }
-  return { smoke, fire, flashPop, trailFlame, impact, update, clear };
+  return { smoke, fire, flashPop, trailFlame, impact, update, clear, setThermal };
 }

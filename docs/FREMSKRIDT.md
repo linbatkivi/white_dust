@@ -37,3 +37,10 @@ Venner og fraktioner udveksler data direkte mellem spillerne via PeerJS (ingen n
 - **Højder**: A Heaven +2,0 m, Upper Mid +2,4 m, B-udgravningen −1,2 m (4 trapper, 2 ramper).
 - **Spillet**: banevalg i lobby/veto, venteværelset følger banen (navn, mission, baggrund, radar, dag/nat), junglelyd (insekter, dryp), oversættelser.
 - **Fundet undervejs**: delte materialer i flere modeller fik '.001'-navne uden spilmateriale (hvide blade) → samlet til ét datablok i build.py; Poly Haven-teksturer er for lyse/blanke → dæmpes og gøres ruere i fetch_tex.py.
+
+## v26.10 – grafik, lyd og nyt udstyr
+- **Grafik**: løv/bregner/vedbend/lianer/træer som alfa-bladkort (smidige silhuetter, tæt underskov, bladskygger i banen); vand med refleksion og bølger (B-udgravningen, A Heaven-bassinet); bladene lyser let igennem. Materialebug (delte materialer → hvide blade) rettet.
+- **Lyd**: rum-ekko målt med stråler (gyde = slap-back, hal/kælder = lang hale, åbent land = tørt); fodtrin pr. underlag (sten, jord, blade, vand, træ, metal) med små detaljer (grus, blade, dryp); jungleambience (insekter, dryp, frøer, fugle, aber, løv, knirken) via faste lydkilder; nedslag pr. materiale; visuelle lyd-indikatorer (indstilling).
+- **Udstyr** (købes i Udstyr/Granater): desarmeringssæt (SWAT, 5 s i stedet for 10 s), termisk kikkert (N, 5 s batteri pr. runde, ser gennem røg), bevægelsessensor (tast 9; kastes, sidder fast, bipper på holdets minikort, kan skydes ned). Desarmering tager nu 10 s.
+- **Andet**: 3D-ping (midterste museknap, V på trackpad) · dynamiske fodspor efter vand/mudder på rene gulve (13 s) · mundingsglimt lyser mørke rum op (stroboskop) · dræber-postkort med 3D-snapshot af modstanderen, våben, HP.
+- **Ikke gjort endnu**: dynamisk glas, replay + fri kamera, ragdoll/blod, nye karaktermodeller.

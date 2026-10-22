@@ -67,7 +67,7 @@ export async function loadHavn(THREE, renderer, base = '/assets/havn/', maxAniso
       mat = new THREE.MeshBasicMaterial({ map: await tex(d.tex, 'd'), fog: true });
       matCache.set(key, mat); return mat;
     }
-    else if (m.mat === 'water') mat = new THREE.MeshStandardMaterial({ color: 0x0b2026, roughness: 0.06, metalness: 0.0, envMapIntensity: 1.0 });
+    else if (m.mat === 'water') mat = new THREE.MeshStandardMaterial({ color: 0x1a3b30, roughness: 0.04, metalness: 0.0, envMapIntensity: 1.7, transparent: true, opacity: 0.7, depthWrite: false });
     else {
       mat = new THREE.MeshStandardMaterial(P);
       const tint = d.tint || [1, 1, 1], col = d.color;
@@ -75,7 +75,7 @@ export async function loadHavn(THREE, renderer, base = '/assets/havn/', maxAniso
         // v16: Source-sæt (de_canals) har ikke altid normal-/ARM-kort (d.nrm / d.arm === false) og kan være alfa-testede (d.alpha: blade, rækværk)
         const [map, nrm, arm] = await Promise.all([tex(d.tex, 'd'), d.nrm === false ? null : tex(d.tex, 'n'), d.arm === false ? null : tex(d.tex, 'a')]);
         mat.map = map; mat.normalMap = nrm; if (arm) { mat.roughnessMap = arm; mat.metalnessMap = arm; mat.aoMap = arm; mat.aoMapIntensity = 1.0; }
-        if (d.alpha) { mat.alphaTest = 0.5; mat.side = THREE.DoubleSide; }
+        if (d.alpha) { mat.alphaTest = 0.5; mat.side = THREE.DoubleSide; mat.emissiveMap = map; mat.emissive.setRGB(0.55, 0.62, 0.5); mat.emissiveIntensity = 0.16; }   // v26.10: bladene lyser lidt igennem (translucens) – ingen sorte skyggekort
         mat.color.setRGB(tint[0], tint[1], tint[2]);
       } else if (col) mat.color.setRGB(col[0], col[1], col[2]);
       if (d.emit) { mat.emissive.setRGB(d.emit[0], d.emit[1], d.emit[2]); mat.emissiveIntensity = Math.min(8, d.emit[3] * 0.25); }
@@ -94,6 +94,7 @@ export async function loadHavn(THREE, renderer, base = '/assets/havn/', maxAniso
     mesh.position.set(m.lo[0], m.lo[1], m.lo[2]); mesh.scale.set(m.ext[0], m.ext[1], m.ext[2]);
     mesh.castShadow = m.kind !== 'water' && m.mat !== 'glass' && !mat.userData.glass && m.kind !== 'city'; mesh.receiveShadow = m.kind !== 'city'; mesh.name = m.name + ':' + m.mat;
     if (mat.userData.glass) mesh.renderOrder = 2;
+    if (m.mat === 'water') mesh.renderOrder = 1;
     mesh.userData.havn = m;
     if (m.mat === 'water') mesh.onBeforeRender = () => { WATER_T.value = performance.now() / 1000; };
     group.add(mesh);
@@ -151,7 +152,7 @@ function patch(THREE, mat, kind) {
       sh.fragmentShader = 'varying vec4 vHvBlend;\n' + sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>' + BLEND_MAP)
         .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>' + BLEND_ROUGH);
     }
-    sh.fragmentShader = 'uniform float lmScale, vScale, skyRef;\nuniform vec3 indTint;\n' + sh.fragmentShader.replace('#include <lights_fragment_maps>', `
+    sh.fragmentShader = 'uniform float lmScale, vScale, skyRef;\nuniform vec3 indTint;\n' + sh.fragmentShader.replace(mat.userData.water ? '#include <never_matches_water_keeps_ibl>' : '#include <lights_fragment_maps>', `
   #if defined( RE_IndirectDiffuse )
     vec3 bakedIrr = vec3(0.0);
     #ifdef USE_LIGHTMAP

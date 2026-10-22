@@ -10,7 +10,7 @@ export function createSettings(opts) {
   const KEY = 'wd_settings';
   const PRESETS = [['Grøn', '#00FF00'], ['Cyan', '#00FFFF'], ['Gul', '#FFFF00'], ['Rød', '#FF0000'], ['Hvid', '#FFFFFF']];
   // v12: separate lydbusser (Master · SFX · Musik/Ambience · Speaker/Stemme), mus-udjævning (ms) og rå mus-input (ingen OS-acceleration)
-  const DEF = { xh: { len: 7, thick: 2, gap: 3, color: '#00FF00', dot: false, dotSize: 2, outline: true, outlineThick: 1, alpha: 1 }, sens: 2.5, vol: 80, sfx: 100, music: 55, voice: 85, smooth: 6, raw: true, gfx: 'auto', stats: false, fullscreen: true };
+  const DEF = { xh: { len: 7, thick: 2, gap: 3, color: '#00FF00', dot: false, dotSize: 2, outline: true, outlineThick: 1, alpha: 1 }, sens: 2.5, vol: 80, sfx: 100, music: 55, voice: 85, smooth: 6, raw: true, gfx: 'auto', stats: false, sndInd: false, fullscreen: true };
   // præcise grænser fra specifikationen
   const LIM = { len: [2, 30, 1], thick: [1, 10, 1], gap: [-5, 20, 1], dotSize: [1, 5, 1], outlineThick: [1, 3, 1], alpha: [0.1, 1, 0.05], sens: [0.1, 10, 0.05], vol: [0, 100, 1], sfx: [0, 100, 1], music: [0, 100, 1], voice: [0, 100, 1], smooth: [0, 20, 1] };
   const clampTo = (k, v) => { const L = LIM[k]; v = +v; if (!Number.isFinite(v)) return null; v = Math.min(L[1], Math.max(L[0], v)); return Math.round(v / L[2]) * L[2]; };
@@ -28,6 +28,7 @@ export function createSettings(opts) {
       for (const k of ['sens', 'vol', 'sfx', 'music', 'voice', 'smooth']) { const v = clampTo(k, raw[k]); if (v !== null && raw[k] !== undefined) s[k] = v; }
       if (typeof raw.raw === 'boolean') s.raw = raw.raw;
       if (typeof raw.stats === 'boolean') s.stats = raw.stats;
+      if (typeof raw.sndInd === 'boolean') s.sndInd = raw.sndInd;
       if (typeof raw.fullscreen === 'boolean') s.fullscreen = raw.fullscreen;
       if (['auto', 'ultra', 'high', 'medium', 'low', 'min'].includes(raw.gfx)) s.gfx = raw.gfx;
     }
@@ -97,6 +98,7 @@ export function createSettings(opts) {
             <div class="st-row"><label for="stRaw">Rå input (ingen acceleration)</label><label class="st-tog"><input type="checkbox" id="stRaw"><span></span></label></div>
             <h3>GRAFIK</h3>
             <div class="st-row"><label for="stGfx">Kvalitet (lavere = flere FPS)</label><select id="stGfx" class="st-sel"><option value="auto">Auto (anbefalet)</option><option value="ultra">Ultra</option><option value="high">Høj</option><option value="medium">Medium</option><option value="low">Lav</option><option value="min">Minimum</option></select></div>
+            <div class="st-row"><label for="stSndInd">Visuelle lyd-indikatorer (tilgængelighed: viser retningen til skud, fodtrin og eksplosioner på skærmen)</label><label class="st-tog"><input type="checkbox" id="stSndInd"><span></span></label></div>
             <div class="st-row"><label for="stStats">Vis FPS & ping</label><label class="st-tog"><input type="checkbox" id="stStats"><span></span></label></div>
             <div class="st-row"><label for="stFull">Fuldskærm i spillet (Esc forlader den ikke · hold Esc for at gå ud)</label><label class="st-tog"><input type="checkbox" id="stFull"><span></span></label></div>
             <h3>LYD</h3>
@@ -128,6 +130,7 @@ export function createSettings(opts) {
     $('stRaw').addEventListener('change', e => { S.raw = !!e.target.checked; changed(); });
     $('stGfx').addEventListener('change', e => { S.gfx = e.target.value; changed(); });
     $('stStats').addEventListener('change', e => { S.stats = !!e.target.checked; changed(); });
+    $('stSndInd').addEventListener('change', e => { S.sndInd = !!e.target.checked; changed(); });
     $('stFull').addEventListener('change', e => { S.fullscreen = !!e.target.checked; changed(); });
     $('stReset').addEventListener('click', () => { S = JSON.parse(JSON.stringify(DEF)); changed(); });
     $('stClose').addEventListener('click', () => close());
@@ -143,7 +146,7 @@ export function createSettings(opts) {
     });
     root.querySelectorAll('.st-sw').forEach(b => b.classList.toggle('sel', b.dataset.c.toUpperCase() === S.xh.color.toUpperCase()));
     $('stColor').value = S.xh.color.toLowerCase();
-    $('stDot').checked = S.xh.dot; $('stOutline').checked = S.xh.outline; $('stRaw').checked = !!S.raw; $('stGfx').value = S.gfx || 'auto'; $('stStats').checked = !!S.stats; $('stFull').checked = S.fullscreen !== false;
+    $('stDot').checked = S.xh.dot; $('stOutline').checked = S.xh.outline; $('stRaw').checked = !!S.raw; $('stGfx').value = S.gfx || 'auto'; $('stStats').checked = !!S.stats; $('stSndInd').checked = !!S.sndInd; $('stFull').checked = S.fullscreen !== false;
     $('stDotSize').disabled = !S.xh.dot; $('stOutlineThick').disabled = !S.xh.outline;
     $('stDotSize').closest('.st-row').classList.toggle('off', !S.xh.dot); $('stOutlineThick').closest('.st-row').classList.toggle('off', !S.xh.outline);
     drawCrosshair($('stPrevXh'), S.xh, 1); drawCrosshair($('stPrevXh2'), S.xh, 3);

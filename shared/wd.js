@@ -69,13 +69,16 @@
     smoke: { id: 'smoke', name: 'SMOKE',     slot: 3, kind: 'nade', price: 300, code: 7, fuse: 3.0 },
     molotov: { id: 'molotov', name: 'MOLOTOV',  slot: 3, kind: 'nade', price: 400, code: 16, fuse: 2.0, team: 'hij', fire: true },
     incgren: { id: 'incgren', name: 'BRANDGRANAT', slot: 3, kind: 'nade', price: 600, code: 17, fuse: 2.0, team: 'swat', fire: true },
+    sensor: { id: 'sensor', name: 'BEVÆGELSESSENSOR', slot: 3, kind: 'nade', price: 250, code: 27, fuse: 99, sensor: true },
+    kit:    { id: 'kit',    name: 'DESARMERINGSSÆT', slot: 6, kind: 'gear', price: 400, code: 25, team: 'swat' },
+    thermal: { id: 'thermal', name: 'TERMISK KIKKERT', slot: 6, kind: 'gear', price: 1000, code: 26 },
     c4:    { id: 'c4',    name: 'C4',        slot: 5, kind: 'bomb', price: 0,   code: 8 },
     // v12: kniv (altid i inventaret, tast 3 / Q). Venstreklik = hurtigt hug, højreklik = tungt stik; bagfra (rygstik) gør meget mere skade.
     knife: { id: 'knife', name: 'KNIV',      slot: 3, kind: 'knife', price: 0, code: 18, slash: 40, slashBack: 90, stab: 65, stabBack: 180, slashRate: 0.42, stabRate: 1.0, range: 1.75 }
   };
   /* v12: bevægelsesfart pr. våben i hånden (CS: kniv 250, pistoler 240, SMG 230, rifler 215-225, AWP 200 u/s ift. 250) */
   const SPEED = { knife: 1.1, usp: 1.0, glock: 1.0, tec9: 1.0, fiveseven: 1.0, deagle: 0.98, mp5: 0.95, mac10: 0.96, mp9: 0.96, mp7: 0.95, ump45: 0.92, p90: 0.92, galil: 0.94, famas: 0.94, ak47: 0.93, m4a1: 0.94, awp: 0.84,
-    he: 1.0, flash: 1.0, smoke: 1.0, molotov: 1.0, incgren: 1.0, c4: 1.0 };
+    he: 1.0, flash: 1.0, smoke: 1.0, molotov: 1.0, incgren: 1.0, sensor: 1.0, c4: 1.0 };
   for (const k in SPEED) WEAPONS[k].speed = SPEED[k];
   const speedOf = id => (WEAPONS[id] && WEAPONS[id].speed) || 1;
   /* v12: CS-økonomi. Kill-belønning pr. våbentype, mål-bonusser og tabs-serie (loss streak) */
@@ -102,10 +105,10 @@
   const sidePistol = side => side === 'hij' ? 'glock' : 'usp';
 
   /* ---- granater: max pr. type, ild-granaterne deler én plads, højst 4 i alt (som i CS) ---- */
-  const NADES = ['flash', 'smoke', 'he', 'molotov', 'incgren'];
-  const NADE_MAX = { he: 1, flash: 2, smoke: 1, molotov: 1, incgren: 1 };
-  const NADE_TYPE = { he: 0, smoke: 1, flash: 2, molotov: 3, incgren: 4 };      // kode i snapshots
-  const NADE_BY_TYPE = ['he', 'smoke', 'flash', 'molotov', 'incgren'];
+  const NADES = ['flash', 'smoke', 'he', 'molotov', 'incgren', 'sensor'];
+  const NADE_MAX = { he: 1, flash: 2, smoke: 1, molotov: 1, incgren: 1, sensor: 2 };
+  const NADE_TYPE = { he: 0, smoke: 1, flash: 2, molotov: 3, incgren: 4, sensor: 5 };      // kode i snapshots
+  const NADE_BY_TYPE = ['he', 'smoke', 'flash', 'molotov', 'incgren', 'sensor'];
   function nadeCount(inv) { let n = 0; for (const k of NADES) n += inv[k] || 0; return n; }
   function canTakeNade(inv, id) {
     if (!NADE_MAX[id] || (inv[id] || 0) >= NADE_MAX[id] || nadeCount(inv) >= 4) return false;
@@ -114,10 +117,10 @@
   }
   // køb: holdets egne våben + fælles våben (uden team). v13: SMG-kategori (MAC-10/MP9 pr. hold + MP7, UMP-45, P90, MP5-SD)
   const BUY = {
-    hij:  { pistols: ['tec9', 'deagle'], smgs: ['mac10', 'mp7', 'ump45', 'p90', 'mp5'], rifles: ['galil', 'ak47', 'awp'], nades: ['flash', 'smoke', 'he', 'molotov'] },
-    swat: { pistols: ['fiveseven', 'deagle'], smgs: ['mp9', 'mp7', 'ump45', 'p90', 'mp5'], rifles: ['famas', 'm4a1', 'awp'], nades: ['flash', 'smoke', 'he', 'incgren'] }
+    hij:  { pistols: ['tec9', 'deagle'], smgs: ['mac10', 'mp7', 'ump45', 'p90', 'mp5'], rifles: ['galil', 'ak47', 'awp'], nades: ['flash', 'smoke', 'he', 'molotov', 'sensor'], gear: ['thermal'] },
+    swat: { pistols: ['fiveseven', 'deagle'], smgs: ['mp9', 'mp7', 'ump45', 'p90', 'mp5'], rifles: ['famas', 'm4a1', 'awp'], nades: ['flash', 'smoke', 'he', 'incgren', 'sensor'], gear: ['kit', 'thermal'] }
   };
-  const canBuy = (side, id) => { const B = BUY[side]; return !!B && (B.rifles.includes(id) || B.smgs.includes(id) || B.pistols.includes(id) || B.nades.includes(id)); };
+  const canBuy = (side, id) => { const B = BUY[side]; return !!B && (B.rifles.includes(id) || B.smgs.includes(id) || B.pistols.includes(id) || B.nades.includes(id) || B.gear.includes(id)); };
 
   /* ---- kast: venstreklik = overhåndskast (kraft bygges op, 0..1), højreklik = blødt underhåndskast. Parabelbane med tyngdekraft THROW.G ---- */
   const THROW = { G: 15, overMin: 14, overMax: 25, overUp: 2.4, under: 7.0, underUp: 1.6, charge: 0.55, underDrop: 0.45 };
@@ -703,6 +706,12 @@
     for (const l of (W.labels || [])) { if (l.kind === 'site') continue; const ly = l.y === undefined ? 0 : l.y; if (Math.abs(y - ly) > 2.6) continue; const d = Math.hypot(l.x - x, l.z - z); if (d < bd) { bd = d; best = l; } }
     return best ? best.text : '';
   }
+  // v26.10: underlag til fodtrin og nedslag ('stone' | 'dirt' | 'leaf' | 'cave' | 'water' | 'wood' | 'metal'); null = banen har ingen underlagsdata (Bureau)
+  function surfaceAt(W, x, y, z) {
+    const d = W.data; if (!d || !d.surf) return null;
+    if (d.water) for (const r of d.water) if (x >= r[0] && x <= r[2] && z >= r[1] && z <= r[3] && y < r[4] + 0.25 && y > r[4] - 1.4) return 'water';
+    return d.surf[calloutAt(W, x, y, z)] || 'stone';
+  }
   function siteAt(W, x, y, z) {
     for (const k in W.sites) {
       const s = W.sites[k];
@@ -749,6 +758,7 @@
   /* ---------------------------------------------------------------- ild (molotov / brandgranat)
      Zonen er en 3D-polygon på gulvet: FIRE.N stråler ud fra centrum, hver stopper ved vægge/props (ilden kryber ikke op på kasser)
      og ved kanter/huller i gulvet. Server og klient beregner præcis samme polygon (deterministisk). */
+  const DEFUSE = { base: 10, kit: 5 };                     // v26.10: desarmering tager 10 s (5 s med sæt)
   const FIRE = { R: 3.5, N: 20, DUR: 7, DPS: 15 };
   function fireZone(W, x, y, z) {
     const rad = new Array(FIRE.N);
@@ -810,11 +820,11 @@
 
   return {
     PL, HIT_MUL, hitMul, plantSpot, inSiteBox, WEAPONS, WEAPON_BY_CODE, HB, sidePistol, SPEED, speedOf, ECON, killReward, lossBonus,
-    NADES, NADE_MAX, NADE_TYPE, NADE_BY_TYPE, nadeCount, canTakeNade, BUY, canBuy, THROW, throwVel, SPRAY, sprayAt,
+    DEFUSE, NADES, NADE_MAX, NADE_TYPE, NADE_BY_TYPE, nadeCount, canTakeNade, BUY, canBuy, THROW, throwVel, SPRAY, sprayAt,
     FIRE, fireZone, fireRadiusAt, inFire, floorBelow, FLASH, flashAmount, segHitsSphere,
     get MAP_LIST() { return MAP_LIST(); },
     buildWorld, newBody, stepBody, groundAt, isBlocked, canStand, ladderAt, query,
-    raycastWorld, losClear, rayAABB, rayPlayer, siteAt, calloutAt, rampHeight, topAt
+    raycastWorld, losClear, rayAABB, rayPlayer, siteAt, calloutAt, surfaceAt, rampHeight, topAt
   };
 
   /* ---------------------------------------------------------------- kort-definitioner (funktionserklæringer => hoisted) */

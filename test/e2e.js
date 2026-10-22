@@ -10,7 +10,7 @@ let fails = 0, passes = 0;
 const ok = (c, msg) => { if (c) { passes++; console.log('  ✓ ' + msg); } else { fails++; console.log('  ✗ FEJL: ' + msg); } };
 
 async function main() {
-  const srv = spawn('node', [path.join(__dirname, '..', 'server.js')], { env: Object.assign({}, process.env, { PORT, WD_FAST: '1' }), stdio: ['ignore', 'pipe', 'pipe'] });
+  const srv = spawn('node', [path.join(__dirname, '..', 'server.js')], { env: Object.assign({}, process.env, { PORT, WD_FAST: '1', WD_TEST: '1' }), stdio: ['ignore', 'pipe', 'pipe'] });
   srv.stdout.on('data', () => {});
   await sleep(700);
   const browser = await chromium.launch({ args: process.platform === 'darwin' ? ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'] : ['--use-gl=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist', '--no-sandbox'] });
@@ -54,6 +54,20 @@ async function main() {
     ok(await A.evaluate(() => { const c = document.getElementById('minimap'), d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; for (let i = 3; i < d.length; i += 4) if (d[i] > 0) return true; return false; }), 'Minimap tegner banens lag');
     await A.keyboard.down('Tab'); await sleep(300); ok(await A.isVisible('#scoreboard'), 'Scoreboard vises når Tab holdes'); await A.keyboard.up('Tab');
     ok(await A.evaluate(() => __wd.Game.remotes.size === 1), 'Modspilleren renderes som 3D-model');
+
+    console.log('\n== v26.10: ping, termisk kikkert, dræber-postkort ==');
+    await A.evaluate(() => { __wd.Game.pitch = -0.35; }); await sleep(100);
+    await A.keyboard.press('KeyV'); await sleep(700);
+    ok(await A.$$eval('#pingHud .ping', els => els.length) >= 1, 'Ping (tast V) sætter en markør i 3D-verdenen');
+    await A.evaluate(() => __wd.Net.send({ t: 'dbg', give: 'thermal' })); await sleep(400);
+    await A.keyboard.press('KeyN'); await sleep(500);
+    ok(await A.evaluate(() => __wd.Game.therm.on === true), 'Termisk kikkert tændes med N');
+    await A.screenshot({ path: path.join(__dirname, '..', 'docs', 'qa', 'e2e_thermal.jpg'), type: 'jpeg', quality: 70 });
+    await sleep(5600);
+    ok(await A.evaluate(() => __wd.Game.therm.on === false && __wd.Game.therm.left <= 0.05), 'Kikkertens batteri løber tør efter 5 sekunder');
+    const bid = await A.evaluate(() => { for (const [id] of __wd.Game.players) if (id !== __wd.Game.meId) return id; return 0; });
+    await A.evaluate(id => __wd.deathCard({ a: id, v: __wd.Game.meId, w: 'usp', hs: true, ah: 42, ad: 12.4, ac: 1 }), bid); await sleep(300);
+    ok(await A.isVisible('#deathCard') && await A.$eval('#deathCard', el => /42 HP/.test(el.textContent)), 'Dræber-postkort vises med navn, våben og tilbageværende HP');
 
     console.log('\n== Ingen JS-fejl ==');
     const relevant = arr => arr.filter(e => !/fonts\.googleapis|fonts\.gstatic|status of 403|pointer lock/i.test(e));
