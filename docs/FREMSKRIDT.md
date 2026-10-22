@@ -43,4 +43,7 @@ Venner og fraktioner udveksler data direkte mellem spillerne via PeerJS (ingen n
 - **Lyd**: rum-ekko målt med stråler (gyde = slap-back, hal/kælder = lang hale, åbent land = tørt); fodtrin pr. underlag (sten, jord, blade, vand, træ, metal) med små detaljer (grus, blade, dryp); jungleambience (insekter, dryp, frøer, fugle, aber, løv, knirken) via faste lydkilder; nedslag pr. materiale; visuelle lyd-indikatorer (indstilling).
 - **Udstyr** (købes i Udstyr/Granater): desarmeringssæt (SWAT, 5 s i stedet for 10 s), termisk kikkert (N, 5 s batteri pr. runde, ser gennem røg), bevægelsessensor (tast 9; kastes, sidder fast, bipper på holdets minikort, kan skydes ned). Desarmering tager nu 10 s.
 - **Andet**: 3D-ping (midterste museknap, V på trackpad) · dynamiske fodspor efter vand/mudder på rene gulve (13 s) · mundingsglimt lyser mørke rum op (stroboskop) · dræber-postkort med 3D-snapshot af modstanderen, våben, HP.
-- **Ikke gjort endnu**: dynamisk glas, replay + fri kamera, ragdoll/blod, nye karaktermodeller.
+- **Ragdoll + blod**: dødsfald som let fysik (skuddets impuls, glidning, svingende lemmer) og blodsprøjt/pøle (kan slås fra i indstillinger).
+- **Replay + fri kamera** (F9 / pausemenu, når man er død eller runden er slut): de seneste runder afspilles med tidslinje, hastighed, fri/følg/orbit-kamera, billede (PNG) og 10 s-klip (WebM).
+- **Dynamisk glas**: vinduer revner ved første skud (kan ikke ses tydeligt igennem) og knuses ved andet (lyden høres over hele banen); HE knuser glas i nærheden. Valkyrie har to (B Window, A Balcony). Serveren styrer stadierne.
+- **Karakterer**: kantlys/'subsurface'-glød på hud og stofsheen, skarpere øjne. Nye modeller (fotorealistiske ansigter) kræver rigtige 3D-assets og er ikke lavet.

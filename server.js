@@ -222,7 +222,7 @@ function sendSelf(p) {
 function roundMsg(room) {
   return {
     t: 'round', map: room.map, n: room.round, ph: room.phase, ms: Math.max(0, Math.round(room.phaseEnd - now())), score: [room.score.swat, room.score.hij], half: room.swapped,
-    intro: room.introEnd ? Math.max(0, Math.round(room.introEnd - now())) : 0, ev: room.event || null,
+    intro: room.introEnd ? Math.max(0, Math.round(room.introEnd - now())) : 0, ev: room.event || null, panes: (room.panes || []).map(p => p.st),
     players: [...room.players.values()].filter(p => p.side).map(p => ({ id: p.id, name: p.name, side: p.side, cos: p.cos || null, prof: p.prof || null }))
   };
 }
@@ -493,7 +493,7 @@ function newRound(room) {
   // v22: kampens første runde starter med intro-cutscenen (holdene ankommer) – købsfasen forlænges, og der kan ikke købes imens
   room.introEnd = room.round === 1 && TIMES.intro > 0 ? t + TIMES.intro * 1000 : 0;
   if (room.introEnd) room.phaseEnd += TIMES.intro * 1000;
-  room.grenades = []; room.smokes = []; room.fires = []; room.sensors = []; room.bomb = newBomb(); room.drops = []; room.requests = [];
+  room.grenades = []; room.smokes = []; room.fires = []; room.sensors = []; room.panes = ((room.W.data && room.W.data.panes) || []).map(p => Object.assign({ st: 0 }, p)); room.bomb = newBomb(); room.drops = []; room.requests = [];
   room.planter = 0; room.defuser = 0; room.snapHist = [];
   const idx = { swat: 0, hij: 0 };
   const hijs = [];
@@ -821,6 +821,24 @@ function validOrigin(p, o) {
   return [p.x, ey, p.z];
 }
 
+/* ---- v26.10: DYNAMISK GLAS – vinduer med to stadier: 1 = revnet (kan ikke ses igennem), 2 = knust (åbent, og lyden afslører ruten for alle) ---- */
+function paneRay(room, o, d, tMax) {
+  let best = null;
+  for (const p of room.panes || []) {
+    if (p.st >= 2) continue;
+    let t0 = 0, t1 = tMax, ok = true;
+    for (const [ox, dx, a, b] of [[o[0], d[0], p.x0, p.x1], [o[1], d[1], p.y0, p.y1], [o[2], d[2], p.z0, p.z1]]) {
+      if (Math.abs(dx) < 1e-9) { if (ox < a || ox > b) { ok = false; break; } continue; }
+      let ta = (a - ox) / dx, tb = (b - ox) / dx; if (ta > tb) { const q = ta; ta = tb; tb = q; }
+      if (ta > t0) t0 = ta; if (tb < t1) t1 = tb; if (t0 > t1) { ok = false; break; }
+    }
+    if (ok && (!best || t0 < best.t)) best = { t: t0, p };
+  }
+  return best;
+}
+function hitPane(room, p, st) {
+  p.st = Math.max(p.st, st); room.bcast({ t: 'ev', k: 'pane', id: p.id, st: p.st, x: r2((p.x0 + p.x1) / 2), y: r2((p.y0 + p.y1) / 2), z: r2((p.z0 + p.z1) / 2) });
+}
 function onShoot(room, p, m) {
   if ((room.phase !== 'live' && room.phase !== 'end') || !p.alive) return;      // v12: man kan også skyde i pausen efter en vundet runde
   const w = WEAPONS[p.cur];
@@ -846,19 +864,22 @@ function onShoot(room, p, m) {
   const range = 220;
   const nrm = { nx: 0, ny: 1, nz: 0 };
   const tw = WD.raycastWorld(room.W, o[0], o[1], o[2], d[0], d[1], d[2], range, nrm);
-  const noWallHit = tw >= range - 1e-6;   // raycastWorld returns `range` itself (not Infinity) when nothing was hit
+  const noWallHit0 = tw >= range - 1e-6;   // raycastWorld returns `range` itself (not Infinity) when nothing was hit
+  const pr = room.panes && room.panes.length ? paneRay(room, o, d, Math.min(tw, range)) : null;     // glas foran væggen?
+  const twp = pr ? pr.t : tw, noWallHit = pr ? false : noWallHit0;
   let best = null, victim = null;
   for (const q of room.players.values()) {
     if (q === p || !q.alive || q.side === p.side) continue;
     const pos = posAtSnap(room, q, st);
-    const h = WD.rayPlayer(o[0], o[1], o[2], d[0], d[1], d[2], pos.x, pos.y, pos.z, pos.c, Math.min(tw, range));
+    const h = WD.rayPlayer(o[0], o[1], o[2], d[0], d[1], d[2], pos.x, pos.y, pos.z, pos.c, Math.min(twp, range));
     if (h && (!best || h.t < best.t)) { best = h; victim = q; }
   }
-  let tEnd = best ? best.t : tw;
+  let tEnd = best ? best.t : twp;
+  if (pr && !best) hitPane(room, pr.p, pr.p.st + 1);                              // skuddet rammer glasset: revner → knuses
   const ts = room.sensors && room.sensors.length ? sensorShot(room, p, o, d, tEnd, w.dmg) : null;
   if (ts !== null && ts < tEnd) { tEnd = ts; best = null; victim = null; }
   const e = [r2(o[0] + d[0] * tEnd), r2(o[1] + d[1] * tEnd), r2(o[2] + d[2] * tEnd)];
-  room.bcast({ t: 'ev', k: 'shot', i: p.id, w: p.cur, o: [r2(o[0]), r2(o[1]), r2(o[2])], e, h: best ? 1 : 0, hs: best && best.part === 'head' ? 1 : 0, n: (best || noWallHit) ? 0 : [r2(nrm.nx), r2(nrm.ny), r2(nrm.nz)] }, p);
+  room.bcast({ t: 'ev', k: 'shot', i: p.id, w: p.cur, o: [r2(o[0]), r2(o[1]), r2(o[2])], e, h: best ? 1 : 0, hs: best && best.part === 'head' ? 1 : 0, n: (best || noWallHit || pr) ? 0 : [r2(nrm.nx), r2(nrm.ny), r2(nrm.nz)] }, p);
   if (best) {
     const hs = best.part === 'head';
     const dmg = Math.round(w.dmg * WD.hitMul(w, best.part));
@@ -1197,6 +1218,7 @@ function updateProjectiles(room, t, dt) {
     if (g.type === 'sensor') { placeSensor(room, g, t); continue; }
     if (g.type === 'he') {
       room.bcast({ t: 'ev', k: 'boom', x: r2(g.x), y: r2(g.y), z: r2(g.z) });
+      for (const pn of room.panes || []) if (pn.st < 2 && Math.hypot((pn.x0 + pn.x1) / 2 - g.x, (pn.z0 + pn.z1) / 2 - g.z) < 7) hitPane(room, pn, 2);
       const owner = room.players.get(g.owner);
       for (const q of room.players.values()) {
         if (!q.alive) continue;

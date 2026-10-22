@@ -216,10 +216,19 @@ export function createFx(THREE, o) {
     }
     if (imps.length > 420) imps.splice(0, imps.length - 420);
   }
+  function shards(x, y, z, nx, nz, n) {                                         // glasskår: lyse, glimtende stykker der falder
+    for (let i = 0; i < n; i++) imps.push({ k: 3, x: x + (Math.random() - 0.5) * 0.8, y: y + (Math.random() - 0.5) * 1.1, z: z + (Math.random() - 0.5) * 0.8, vx: nx * (1 + Math.random() * 3) + (Math.random() - 0.5) * 2, vy: Math.random() * 2.2, vz: nz * (1 + Math.random() * 3) + (Math.random() - 0.5) * 2, t: 0, life: 0.9 + Math.random() * 0.9, s: 0.02 + Math.random() * 0.035 });
+    if (imps.length > 420) imps.splice(0, imps.length - 420);
+  }
   function stepImpacts(dt) {
     for (let i = imps.length - 1; i >= 0; i--) {
       const p = imps[i]; p.t += dt; if (p.t > p.life) { imps.splice(i, 1); continue; }
       const a = p.t / p.life;
+      if (p.k === 3) {
+        p.vy -= 9.8 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; const gy = WD.groundAt(o.getW ? o.getW() : null, p.x, p.z, p.y + 0.4, 1.6);
+        if (gy !== -Infinity && p.y <= gy + 0.01) { p.y = gy + 0.01; p.vy *= -0.25; p.vx *= 0.5; p.vz *= 0.5; }
+        const tw = 0.6 + 0.4 * Math.sin(p.t * 38 + p.s * 900); LDot.push(p.x, p.y, p.z, p.s, 0.75 * tw, 0.95 * tw, 1.0 * tw, Math.min(1, (p.life - p.t) * 2), 0); continue;
+      }
       if (p.k === 2) {                                                  // blod: bue under tyngdekraft, lander som stænk
         p.vy -= 9.8 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
         const gy = WD.groundAt(o.getW ? o.getW() : null, p.x, p.z, p.y + 0.4, 1.6);
@@ -241,5 +250,5 @@ export function createFx(THREE, o) {
     LSmoke.end(cam); LFire.end(cam); LDot.end(cam); LGlow.end(cam);
   }
   function clear() { for (const s of [...systems]) s.remove(); pops.length = 0; trail.length = 0; imps.length = 0; for (const q of pools) { scene.remove(q.m); q.m.material.dispose(); } pools.length = 0; }
-  return { smoke, fire, flashPop, trailFlame, impact, blood, pool, update, clear, setThermal };
+  return { smoke, fire, flashPop, trailFlame, impact, blood, pool, shards, update, clear, setThermal };
 }

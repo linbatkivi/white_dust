@@ -878,6 +878,7 @@
         for (const r of D.ramps) fRamp(r[0], r[1], r[2], r[3], r[4], r[5], r[6]);
         for (const t of D.stairs) { const [x0, z0, x1, z1, ax, ya, yb, n] = t, lo = Math.min(ya, yb); stairs(x0, z0, x1, z1, ax, yb > ya ? 1 : -1, lo, Math.abs(yb - ya), n, lo - 0.3, 'stone'); }
         for (const r of D.rails) H.rail(r[0], r[1], r[2], r[3], r[4], r[5], 'metal');
+        for (const p of (D.panes || [])) H.rail(p.x0, p.z0, p.x1, p.z1, p.y0, p.y1 - p.y0, 'glass');       // v26.10: dynamisk glas – spærrer for bevægelse; skud håndteres af serveren
       },
       meta(H) {
         for (const l of D.labels) H.labels.push({ text: l[0], x: l[1], z: l[2], y: l[3], kind: l[0] === 'A' || l[0] === 'B' ? 'site' : undefined });

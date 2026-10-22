@@ -318,6 +318,15 @@ export function createAudio() {
     // foley: lidt udstyr (karabinhager/rem) og stof ved hvert fjerde trin
     if (Math.random() < 0.28) noise(d, t + 0.03, 0.05, 5200, 3, 'bandpass', 0.05 * v, 0.04);
   }
+  /* v26.10: hjerteslag ved lavt liv – level 0..1 (hvor tæt på døden); pulsen stiger, lyden dæmpes svagt og et tungt åndedrag lægges ovenpå */
+  let heartNext = 0, heartLevel = 0;
+  function heart(level) {
+    heartLevel = level; if (!ok() || level <= 0.02) return; const t = ctx.currentTime;
+    if (t < heartNext) return; const bpm = 62 + level * 78; heartNext = t + 60 / bpm;
+    const d = out(null), v = 0.14 + level * 0.3;
+    tone(d, t, 0.13, 62, 38, 'sine', v); tone(d, t + 0.17, 0.12, 54, 34, 'sine', v * 0.7); noise(d, t, 0.06, 140, 0.8, 'lowpass', v * 0.5, 0.05);
+    if (level > 0.5 && Math.random() < 0.5) noise(d, t + 0.25, 0.55, 700, 0.5, 'bandpass', 0.05 * level, 0.5);
+  }
   /* små detaljer: vanddryp, frøer, fuglekald, vind i løv, knirken – bruges af ambient-systemet og af gameplay */
   function detail(kind, pos) {
     if (!ok() || (pos && far(pos, 55))) return; const t = ctx.currentTime, d = out(pos, 3, 55);
@@ -411,7 +420,17 @@ export function createAudio() {
     const sg = sfx.gain; sg.cancelScheduledValues(t); sg.setValueAtTime(Math.max(0.0001, sg.value), t); sg.exponentialRampToValueAtTime(duck, t + 0.06);
     sg.setValueAtTime(duck, t + Math.min(D * 0.35, 1.4)); sg.exponentialRampToValueAtTime(1, t + D);
   }
-  function glass(pos) { if (!ok()) return; if (pos) emit(pos, 'glass', 0.9); const t = ctx.currentTime, d = out(pos, 4, 60); for (let i = 0; i < 5; i++) tone(d, t + i * 0.025, 0.12, 2800 + Math.random() * 3000, 1800, 'triangle', 0.12); noise(d, t, 0.25, 5000, 1.5, 'highpass', 0.5, 0.2); }
+  function glass(pos, st) {                          // st 1 = revner (skarpt 'tik'), st 2 = knuses (højt og hørbart over hele banen), ellers: glas-klirr (molotov)
+    if (!ok()) return; if (pos) emit(pos, 'glass', st === 2 ? 1 : 0.9);
+    const t = ctx.currentTime;
+    if (st === 1) { const d = out(pos, 4, 60); noise(d, t, 0.03, 4800, 3, 'bandpass', 0.45, 0.025); tone(d, t, 0.2, 2900, 1900, 'triangle', 0.08); for (let i = 0; i < 4; i++) noise(d, t + 0.02 + i * 0.045, 0.02, 3000 + Math.random() * 3000, 4, 'bandpass', 0.14, 0.018); return; }
+    if (st === 2) {
+      const d = out(pos, 12, 400); d.gain.value = 1.6; noise(d, t, 0.12, 5200, 0.8, 'highpass', 0.9, 0.1); noise(d, t, 0.5, 2600, 0.7, 'bandpass', 0.5, 0.45);
+      for (let i = 0; i < 26; i++) tone(d, t + 0.03 + Math.random() * 0.55, 0.14, 2400 + Math.random() * 5200, 1600 + Math.random() * 1500, 'triangle', 0.06 + Math.random() * 0.05);
+      noise(d, t + 0.1, 0.9, 3200, 0.5, 'highpass', 0.16, 0.8); return;
+    }
+    const d = out(pos, 4, 60); for (let i = 0; i < 5; i++) tone(d, t + i * 0.025, 0.12, 2400 + Math.random() * 3000, 1200, 'triangle', 0.1); noise(d, t, 0.15, 5000, 1, 'highpass', 0.3, 0.12);
+  }
   function ignite(pos) { if (!ok()) return; const t = ctx.currentTime, d = out(pos, 6, 80); noise(d, t, 0.9, 400, 0.6, 'lowpass', 0.9, 0.8); noise(d, t, 0.4, 1800, 0.8, 'bandpass', 0.5, 0.35); }
   function fizzle(pos) { if (!ok()) return; const t = ctx.currentTime, d = out(pos, 4, 40); noise(d, t, 0.6, 3000, 0.8, 'highpass', 0.25, 0.55); }
   // ild-løkke (knitren) i 3D: returnerer stop()
@@ -531,5 +550,5 @@ export function createAudio() {
   // v26.7: lyd-udtag til videooptagelse (MediaRecorder): hele mixet efter kompressoren
   let tapDest = null;
   function tap() { if (!ctx) build(); if (!ctx) return null; if (!tapDest) { tapDest = ctx.createMediaStreamDestination(); comp.connect(tapDest); } return tapDest.stream; }
-  return { tap, duck, loaded, cine, cinePreload, playMusic, stopMusic, musicTime, musicPlaying, init, setListener, setRoom, setEmitters, detail, emit, set onEvent(f) { onEvent = f; }, shot, step, impact, door, beep, boom, hiss, click, pin, throwSnd, bounce, flashbang, tinnitus, glass, ignite, fizzle, fireLoop, setVolume, setVolumes, music, ambience, stopAmbience, announce, get ready() { return ok(); }, set enabled(v) { enabled = v; } };
+  return { tap, duck, loaded, cine, cinePreload, playMusic, stopMusic, musicTime, musicPlaying, init, setListener, setRoom, setEmitters, detail, heart, emit, set onEvent(f) { onEvent = f; }, shot, step, impact, door, beep, boom, hiss, click, pin, throwSnd, bounce, flashbang, tinnitus, glass, ignite, fizzle, fireLoop, setVolume, setVolumes, music, ambience, stopAmbience, announce, get ready() { return ok(); }, set enabled(v) { enabled = v; } };
 }

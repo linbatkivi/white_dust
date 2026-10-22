@@ -477,6 +477,18 @@ async function main() {
       // spawn-positionen ligger på banen
       const sp = tH.snap.p.find(q => q[0] === tH.id), spw = W2.spawns.hij;
       ok(spw.some(q => Math.hypot(q.x - sp[1], q.z - sp[3]) < 1.5), 'Hijacker spawner på ' + mapId + '-banens T-spawn');
+      // v26.10: dynamisk glas – første skud revner, andet knuser (kun baner med vinduer)
+      if (W2.data && W2.data.panes && W2.data.panes.length) {
+        const pn = W2.data.panes[0], axX = (pn.z1 - pn.z0) > (pn.x1 - pn.x0), cxp = (pn.x0 + pn.x1) / 2, czp = (pn.z0 + pn.z1) / 2, yb = WDt.groundAt(W2, axX ? cxp - 3.2 : cxp, axX ? czp : czp - 3.2, pn.y0, 1.6);
+        const sx = axX ? cxp - 3.2 : cxp, sz = axX ? czp : czp - 3.2, dir = axX ? [1, 0, 0] : [0, 0, 1];
+        tH.tp(sx, yb, sz); await sleep(250); tH.pos = { x: sx, y: yb, z: sz }; tH.sendIn(); await sleep(80); tH.clear(); tS.clear();
+        tH.send({ t: 'shoot', o: [sx, (pn.y0 + pn.y1) / 2, sz], d: dir, st: tH.snap.st });
+        const p1 = await tS.wait(m => m.t === 'ev' && m.k === 'pane', 1500);
+        ok(!!p1 && p1.st === 1, 'Glasset revner ved første skud (alle ser det)');
+        await sleep(200); tH.send({ t: 'shoot', o: [sx, (pn.y0 + pn.y1) / 2, sz], d: dir, st: tH.snap.st });
+        const p2 = await tS.wait(m => m.t === 'ev' && m.k === 'pane' && m.st === 2, 1500);
+        ok(!!p2, 'Glasset knuses ved andet skud (lyden afslører ruten for alle)');
+      }
       // fysisk stige (Nuke): klatr op uden at serveren retter spilleren tilbage
       if (W2.ladders.length) {
         for (const l of W2.ladders) {
@@ -501,6 +513,9 @@ async function main() {
     const lobN = A.log.filter(m => m.t === 'lobby').pop();
     ok(lobN && lobN.map === 'bureau', 'Banen skifter IKKE af sig selv efter kampen (stadig bureau)');
     await planting('bureau', 'B');
+    A.send({ t: 'map', id: 'valkyrie' }); ok(!!(await A.wait(m => m.t === 'lobby' && m.map === 'valkyrie', 2000)), 'Vært vælger Valkyrie');
+    await planting('valkyrie', 'A'); await planting('valkyrie', 'B');
+    A.send({ t: 'map', id: 'bureau' }); await A.wait(m => m.t === 'lobby' && m.map === 'bureau', 2000);
 
     console.log('\n== Købssystem: salg, ønske → gave, sen køb i spawn, smid våben ==');
     {

@@ -746,7 +746,7 @@ Net.on('round', m => {
   Game.stabbing = false; Game.hurts.length = 0;
   Game.reloading = null; Game.firing = false; Game.scoped = false; Game.nade = null; Game.sprayN = 0; Game.punch.yaw = Game.punch.pitch = 0; endFlash();
   hideActBar(); BuyMenu.build();
-  Renderer.onRoundStart();
+  Renderer.onRoundStart(); Renderer.buildPanes(m.panes);
   // v22: kampstart => intro-cutscene (holdet ankommer); serveren holder købsfasen åben imens
   if (m.intro > 600 && Game.side) {
     Game.introUntil = performance.now() + m.intro;
@@ -869,6 +869,7 @@ Net.on('ev', m => {
     case 'sensorbreak': Renderer.onSensorBreak(m); break;
     case 'sense': Renderer.onSense(m); break;
     case 'sbeep': Renderer.onSbeep(m); break;
+    case 'pane': Renderer.onPane(m); break;
     case 'ping': Renderer.onPing(m); break;
     case 'fizzle': Audio.fizzle({ x: m.x, y: m.y, z: m.z }); break;
     case 'bounce': Audio.bounce({ x: m.x, y: m.y, z: m.z }, m.w); break;
@@ -880,7 +881,7 @@ Net.on('ev', m => {
 /* ---- snapshot ---- */
 /* ---- v26.10: REPLAY – de seneste runder optages (snapshots + hændelser) og kan afspilles med fri kamera ---- */
 const Rec = { cur: null, rounds: [], lastSt: 0 };
-const REC_EV = new Set(['shot', 'throw', 'smoke', 'flash', 'boom', 'explode', 'fire', 'fireout', 'bounce', 'plant', 'kill', 'melee', 'sensor', 'sensorbreak', 'defuse']);
+const REC_EV = new Set(['shot', 'throw', 'smoke', 'flash', 'boom', 'explode', 'fire', 'fireout', 'bounce', 'plant', 'kill', 'melee', 'sensor', 'sensorbreak', 'defuse', 'pane']);
 function recRound(n, map) {
   if (Rec.cur && Rec.cur.frames.length > 20) { Rec.rounds.push(Rec.cur); while (Rec.rounds.length > 5) Rec.rounds.shift(); }
   Rec.cur = { n, map, frames: [], ev: [] };
@@ -1983,7 +1984,7 @@ const Renderer = (() => {
     sunFar.shadow.needsUpdate = true;                       // statisk skyggekort gentegnes kun når banen skiftes
     mapId = W.id;
     if (DEV) console.log('[dev] bane', W.id, 'bygget på', Math.round(performance.now() - t0), 'ms', 'verden', worldGroup.userData.tris, 'tri, dekor', decorGroup.userData.tris, 'tri, bagte punkter', worldGroup.userData.bakeN);
-    loading = false; $('loadingMap').classList.add('hidden');
+    buildPanes(); loading = false; $('loadingMap').classList.add('hidden');
     if (W.id !== mapId) loadMap(); else tryLoadAck();
   }
 
@@ -2520,6 +2521,31 @@ const Renderer = (() => {
     setTimeout(() => { if (fxs) fxs.pool(p.x + (Math.random() - 0.5) * 0.3, gy, p.z + (Math.random() - 0.5) * 0.3, 0.55 + Math.random() * 0.4); }, 350);
     if (m.hs) fxs.blood(p.x, p.y + 1.7, p.z, 0, 0.3, 0, 10, true);
   }
+  /* ---------------- v26.10: DYNAMISK GLAS (to stadier) ---------------- */
+  const paneObjs = []; let crackTex = null;
+  function crackTexture() {
+    if (crackTex) return crackTex; const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'); g.fillStyle = 'rgba(225,240,236,.38)'; g.fillRect(0, 0, 256, 256);
+    const cx = 120 + Math.random() * 20, cy = 120 + Math.random() * 20; g.strokeStyle = 'rgba(255,255,255,.95)'; g.lineWidth = 1.4;
+    for (let k = 0; k < 22; k++) { let a = k / 22 * 6.28 + Math.random() * 0.2, x = cx, y = cy; g.beginPath(); g.moveTo(x, y); for (let s = 0; s < 9; s++) { a += (Math.random() - 0.5) * 0.45; const l = 14 + Math.random() * 20; x += Math.cos(a) * l; y += Math.sin(a) * l; g.lineTo(x, y); if (Math.random() < 0.3) { g.moveTo(x, y); g.lineTo(x + Math.cos(a + 1) * 14, y + Math.sin(a + 1) * 14); g.moveTo(x, y); } } g.stroke(); }
+    for (let r = 14; r < 120; r += 22) { g.beginPath(); for (let k = 0; k <= 16; k++) { const a = k / 16 * 6.28, rr = r + (Math.random() - 0.5) * 8; g.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); } g.stroke(); }
+    crackTex = new THREE.CanvasTexture(c); crackTex.colorSpace = THREE.SRGBColorSpace; return crackTex;
+  }
+  function buildPanes(states) {
+    for (const o of paneObjs) { scene.remove(o.mesh); o.mesh.material.dispose(); } paneObjs.length = 0;
+    for (const p of (W.data && W.data.panes) || []) {
+      const alongZ = (p.z1 - p.z0) > (p.x1 - p.x0), w = alongZ ? p.z1 - p.z0 : p.x1 - p.x0, h = p.y1 - p.y0;
+      const mat = new THREE.MeshPhysicalMaterial({ color: 0xbcd8d0, roughness: 0.03, metalness: 0, transparent: true, opacity: 0.2, side: THREE.DoubleSide, depthWrite: false, envMapIntensity: 1.6 });
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat); mesh.position.set((p.x0 + p.x1) / 2, (p.y0 + p.y1) / 2, (p.z0 + p.z1) / 2); if (alongZ) mesh.rotation.y = Math.PI / 2; mesh.renderOrder = 2; scene.add(mesh);
+      paneObjs.push({ mesh, st: 0, p, alongZ });
+    }
+    if (states) states.forEach((st, i) => paneSet(i, st, false));
+  }
+  function paneSet(id, st, fx) {
+    const o = paneObjs[id]; if (!o || st <= o.st) return; o.st = st; const m = o.mesh.material;
+    if (st === 1) { m.map = crackTexture(); m.opacity = 0.62; m.roughness = 0.35; m.needsUpdate = true; }
+    else if (st >= 2) { scene.remove(o.mesh); if (fx !== false && fxs) { const c = o.mesh.position; fxs.shards(c.x, c.y, c.z, o.alongZ ? 1 : 0, o.alongZ ? 0 : 1, 38); } }
+  }
+  function onPane(m) { paneSet(m.id, m.st, true); Audio.glass({ x: m.x, y: m.y, z: m.z }, m.st); if (m.st === 2) shake(0.12); }
   function nadeMesh(type) {
     const id = WD.NADE_BY_TYPE[type] || 'he';
     const wm = Weap.worldModel(id) || new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), V.dynMat({ color: 0x4a5a32 }));
@@ -2699,7 +2725,7 @@ const Renderer = (() => {
       case 'shot': onShotFx(m); break; case 'throw': onRemoteThrow(m); break; case 'smoke': onSmokePop(m); break; case 'flash': onFlashPop(m); break;
       case 'boom': onBoom(m); break; case 'explode': onExplode(m); break; case 'fire': onFirePop(m); break; case 'fireout': onFireOut(m); break;
       case 'bounce': Audio.bounce({ x: m.x, y: m.y, z: m.z }, m.w); break; case 'plant': onPlant(m); break; case 'kill': onKillFx(m); break; case 'melee': onRemoteMelee(m); break;
-      case 'sensor': onSensor(m); break; case 'sensorbreak': onSensorBreak(m); break;
+      case 'sensor': onSensor(m); break; case 'sensorbreak': onSensorBreak(m); break; case 'pane': onPane(m); break;
     }
   }
   function replayStep(dt) {
@@ -3336,7 +3362,7 @@ const Renderer = (() => {
       sky.position.copy(camera.position);
       V.update(dt, performance.now() / 1000, camera.position, decorGroup); fxObj.update(dt, performance.now() / 1000, camera.position);
       if (night) night.update(dt, camera.position, performance.now() / 1000);
-      camera.updateMatrixWorld(); _fw.set(0, 0, -1).applyQuaternion(camera.quaternion); _up.set(0, 1, 0).applyQuaternion(camera.quaternion); Audio.setListener(camera.position, _fw, _up); probeRoom(camera.position); tickThermal(dt); tickPings(); tickFootprints();
+      camera.updateMatrixWorld(); _fw.set(0, 0, -1).applyQuaternion(camera.quaternion); _up.set(0, 1, 0).applyQuaternion(camera.quaternion); Audio.setListener(camera.position, _fw, _up); probeRoom(camera.position); tickThermal(dt); tickPings(); tickFootprints(); Audio.heart(Game.self.alive && Game.self.hp > 0 && Game.self.hp < 35 ? 1 - Game.self.hp / 35 : 0);
       fxs.update(dt, camera.position);
       if (++shadowTick >= gfx.every) { shadowTick = 0; followShadow(); sun.shadow.needsUpdate = true; }   // skyggekort + placering opdateres sammen
     }
@@ -3387,7 +3413,7 @@ const Renderer = (() => {
   }
   const api = { canvas: () => renderer.domElement, setEvent, event: () => EV.cur, get camera() { return camera; }, intro: () => (ensureChars(), Intro), bombCine: () => BombCine, deferEnd: (m, info) => { if (BombCine && BombCine.active) { pendingEnd = m; return true; }
       if (info && RoundCine && !Game.cineFull) { try { if (RoundCine.start(info)) { pendingEnd = m; m._cine = true; return true; } } catch (e) { console.warn('rundefilm', e); } } return false; },
-    roundCine: () => RoundCine, introReady: () => introLoaded, setQuality, gunIcon, get gfx() { return gfxName; }, get pr() { return prCur; }, get perf() { return perf; }, chars: () => (ensureChars(), Chars), weap: () => (ensureChars(), Weap), onCosmetics, mapReady: () => !loading && mapId === W.id, cosReady: () => COS.ready, setCine, init, loadMap, flinchAim, onRoundStart, onShotFx, inspect, onRemoteMelee, onMeleeWall, onPlant, onExplode, onBoom, onSmokePop, onFlashPop, onFirePop, onFireOut, onSensor, onSensorBreak, onSense, onSbeep, toggleThermal, ping, onPing, snapKiller, fpStep, onKillFx, replayStart, replayStop, replayAvailable, get replayActive() { return Rep.active; }, onRemoteThrow, onThrowLocal, onPinPull, onWeaponChange, mouseDelta, shake, skinName, get mapId() { return mapId; } };
+    roundCine: () => RoundCine, introReady: () => introLoaded, setQuality, gunIcon, get gfx() { return gfxName; }, get pr() { return prCur; }, get perf() { return perf; }, chars: () => (ensureChars(), Chars), weap: () => (ensureChars(), Weap), onCosmetics, mapReady: () => !loading && mapId === W.id, cosReady: () => COS.ready, setCine, init, loadMap, flinchAim, onRoundStart, onShotFx, inspect, onRemoteMelee, onMeleeWall, onPlant, onExplode, onBoom, onSmokePop, onFlashPop, onFirePop, onFireOut, onSensor, onSensorBreak, onSense, onSbeep, toggleThermal, ping, onPing, onPane, buildPanes, snapKiller, fpStep, onKillFx, replayStart, replayStop, replayAvailable, get replayActive() { return Rep.active; }, onRemoteThrow, onThrowLocal, onPinPull, onWeaponChange, mouseDelta, shake, skinName, get mapId() { return mapId; } };
   if (DEV) {   // v14: kontaktark over førstepersonsvåben (kun dev) – hvert våben renderes alene på neutral baggrund
     const sideCam = new THREE.PerspectiveCamera(30, 1.6, 0.01, 10);
     api.vmSheet = (ids, cols, tw, th, side) => {

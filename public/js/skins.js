@@ -230,13 +230,27 @@ function patternize(THREE, mat, sk) {
   mat.customProgramCacheKey = () => key;
 }
 // agent-materialer: farvevariant pr. materialenavn
+/* v26.10: karakter-materialer – kantlys (rim/Fresnel) der giver silhuetten dybde (hud: varm 'subsurface'-glød ved kanterne, stof: kølig sheen) og
+   øjenglans; styres af spillerens probe-lys (uBake), så figurerne ikke gløder i mørke rum. Kædes efter dynMat's bagelys-patch. */
+function charFX(m, kind) {
+  if (kind === 'eye') return;
+  const hasBake = !!(m.userData && m.userData.uBake), prev = m.onBeforeCompile, rim = kind === 'skin' ? 'vec3(1.0, 0.5, 0.34)' : 'vec3(0.72, 0.8, 0.96)', k = kind === 'skin' ? '0.7' : '0.2';
+  m.onBeforeCompile = (sh, r) => {
+    if (prev) prev(sh, r);
+    sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+      { float cfr = pow( 1.0 - clamp( dot( normalize( vNormal ), normalize( vViewPosition ) ), 0.0, 1.0 ), 2.6 ); float clit = ${hasBake ? 'clamp( dot( uBake.rgb, vec3( 0.33 ) ) * 1.1 + 0.05, 0.0, 1.0 )' : '0.45'};
+        totalEmissiveRadiance += cfr * ${rim} * ${k} * clit * 0.5; }`);
+  };
+  m.customProgramCacheKey = () => 'cfx' + kind + (hasBake ? 'b' : 'n');
+}
 export function recolorAgent(THREE, root, variant, mk) {
   const col = (variant && variant.col) || {}, cache = new Map();
   root.traverse(o => {
     if (!o.isMesh) return;
     const src = o.material; if (cache.has(src)) { o.material = cache.get(src); return; }
     const hex = col[src.name] !== undefined ? col[src.name] : src.color.getHex();
-    const m = mk({ color: hex, map: src.map || null, normalMap: src.normalMap || undefined, roughness: Math.max(0.35, src.roughness), metalness: Math.min(0.6, src.metalness) });
+    const m = mk({ color: hex, map: src.map || null, normalMap: src.normalMap || undefined, roughness: src.name === 'Eyes' ? src.roughness : Math.max(0.35, src.roughness), metalness: Math.min(0.6, src.metalness) });
+    charFX(m, src.name === 'Skin' ? 'skin' : src.name === 'Eyes' ? 'eye' : 'cloth');
     if (src.normalMap) m.normalScale.copy(src.normalScale);
     if (src.alphaTest > 0) { m.alphaTest = src.alphaTest; m.side = THREE.DoubleSide; }
     m.name = src.name; if (!(src.alphaTest > 0)) m.side = src.side; cache.set(src, m); o.material = m;
