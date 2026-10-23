@@ -24,8 +24,13 @@ const MAX_PLAYERS = 10, WIN_ROUNDS = 7, HALF = 6, START_MONEY = WD.ECON.start, M
 const GRACE_GAME = 25000, GRACE_LOBBY = 8000;
 const SNAP_MS = 50;
 // v26.12: fysiske/destruerbare props. a: 'b' knuses · 'k' vælter/flyver · 's' gnister (forbliver) · r = træfradius, h = højde
-const Bots = require('./bots/brain')({ WD, now: () => now(), r2: v => r2(v), makePlayer: (...a) => makePlayer(...a), onShoot: (...a) => onShoot(...a), onBuy: (...a) => onBuy(...a),
-  onThrow: (...a) => onThrow(...a), onSwitch: (...a) => onSwitch(...a), startReload: (...a) => startReload(...a) });      // v26.12: computerstyrede spillere
+let Bots; try { Bots = require('./shared/bots.js')({ WD, now: () => now(), r2: v => r2(v), makePlayer: (...a) => makePlayer(...a), onShoot: (...a) => onShoot(...a), onBuy: (...a) => onBuy(...a),
+  onThrow: (...a) => onThrow(...a), onSwitch: (...a) => onSwitch(...a), startReload: (...a) => startReload(...a) }); } catch (e) { console.error('bots utilgængelige:', e.message); Bots = { fill: (r, T) => T, spawn() {}, tick() {}, noise() {}, onKill() {}, remove() {}, prepare() {} }; }      // v26.12: computerstyrede spillere (aldrig fatalt)
+const BANS = new Map();
+let Admin; try { Admin = require('./shared/admin.js')({ WD, now: () => now(), r2: v => r2(v), sendP: (...a) => sendP(...a), send: (...a) => send(...a), newRound: r => newRound(r), endRound: (...a) => endRound(...a), startGame: (...a) => startGame(...a),
+  giveItem: (...a) => giveItem(...a), damage: (...a) => damage(...a), tpMsg: q => tpMsg(q), sendSelf: q => sendSelf(q), removePlayer: (...a) => removePlayer(...a), resetLoadout: q => resetLoadout(q), Bots, lobbyMsg: r => lobbyMsg(r),
+  bans: BANS, MAX_MONEY, WIN_ROUNDS, START_MONEY, GRAV0: WD.PL.GRAV }); } catch (e) { console.error('admin utilgængelig:', e.message); Admin = { exec: () => ({ ok: false, msg: 'admin utilgængelig' }) }; }
+const banned = (name, ip) => { const t = Date.now(); for (const [k, v] of BANS) if (v.until < t) BANS.delete(k); return BANS.has(String(name || '').toLowerCase()) || (ip && BANS.has('ip:' + ip)); };
 const DPT = {
   planter_pot_clay: { a: 'b', r: 0.34, h: 0.55 }, ceramic_pot: { a: 'b', r: 0.3, h: 0.5 }, wicker_basket_01: { a: 'k', r: 0.3, h: 0.45 }, wooden_bucket_01: { a: 'k', r: 0.26, h: 0.4 },
   wooden_crate_01: { a: 'k', r: 0.42, h: 0.5 }, wooden_crate_02: { a: 'k', r: 0.42, h: 0.5 }, korean_fire_extinguisher_01: { a: 'k', r: 0.16, h: 0.55 },
@@ -36,7 +41,7 @@ function dpropsFor(mapId) {
   if (DPCACHE[mapId] !== undefined) return DPCACHE[mapId];
   let out = [];
   try {
-    const raw = JSON.parse(fs.readFileSync(path.join(__dirname, 'public', 'assets', mapId, 'dprops.json'), 'utf8'));
+    const raw = require('./shared/dprops_data.js')[mapId] || [];
     raw.forEach((e, i) => {
       if (e.st) { const c = e.c; out.push({ i, st: 1, m: e.m, x: c[0], y: c[1], z: c[2], hx: c[3] / 2, hy: c[4] / 2, hz: c[5] / 2 }); return; }
       const T = DPT[e.m]; if (!T) { out.push(null); return; }
@@ -45,7 +50,7 @@ function dpropsFor(mapId) {
   } catch (e) { out = []; }
   return (DPCACHE[mapId] = out);
 }
-let LAMPS = {}; try { LAMPS = JSON.parse(fs.readFileSync(path.join(__dirname, 'shared', 'lamps.json'), 'utf8')); } catch (e) {}   // v26.12: lampernes positioner (kan skydes ned/svinge)
+let LAMPS = {}; try { LAMPS = require('./shared/lamps.js'); } catch (e) {}   // v26.12: lampernes positioner (kan skydes ned/svinge)
 const netStats = { snapBytes: 0, snaps: 0, skipped: 0 };      // v26.12: netværksstatistik
 
 const { WEAPONS, ECON } = WD;
@@ -166,6 +171,7 @@ const rooms = new Map();
 function send(ws, obj) { if (ws && ws.readyState === 1) ws.send(typeof obj === 'string' ? obj : JSON.stringify(obj)); }
 // v17: chat – højst 120 tegn, kontroltegn fjernes, maks. 5 beskeder pr. 4 s pr. spiller; holdchat kun til eget hold (i lobbyen: alle)
 function onChat(room, p, m) {
+  if (p.muted) { sendP(p, { t: 'notice', msg: 'Du er muted af værten' }); return; }
   const txt = String(m.s == null ? '' : m.s).replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120);
   if (!txt) return;
   const now = Date.now(); p.chatT = (p.chatT || []).filter(t => now - t < 4000);
@@ -267,7 +273,7 @@ wss.on('connection', (ws, req) => {
   }
   ws.isAlive = true;
   ws.on('pong', () => { ws.isAlive = true; });
-  ws.ctx = { room: null, p: null, cnt: 0, cntT: Date.now() };
+  ws.ctx = { room: null, p: null, cnt: 0, cntT: Date.now(), ip: (req && req.socket && req.socket.remoteAddress) || '' };
   ws.on('message', data => {
     const c = ws.ctx, t = Date.now();
     if (t - c.cntT > 1000) { c.cnt = 0; c.cntT = t; }
@@ -301,6 +307,7 @@ function handle(ws, m) {
     case 'ping': { const pp = ws.ctx.p; if (pp && Number.isFinite(+m.r)) pp.rtt = Math.max(0, Math.min(3000, +m.r)); send(ws, { t: 'pong', c: m.c }); return; }
     case 'create': {
       if (c.p) return;
+      if (banned(m.name, c.ip)) return send(ws, { t: 'err', msg: 'Du er bannet fra denne server' });
       const code = makeCode();
       if (!code) return send(ws, { t: 'err', msg: 'Kunne ikke lave et rum – prøv igen' });
       const room = new Room(code); rooms.set(code, room);
@@ -316,7 +323,9 @@ function handle(ws, m) {
       const room = rooms.get(code);
       if (!/^\d{4}$/.test(code) || !room) return send(ws, { t: 'err', msg: 'Ukendt kode – tjek de fire cifre' });
       if (room.phase !== 'lobby') return send(ws, { t: 'err', msg: 'Spillet er allerede i gang' });
-      if (room.players.size >= MAX_PLAYERS) return send(ws, { t: 'err', msg: 'Rummet er fuldt (' + MAX_PLAYERS + ' spillere)' });
+      if (banned(m.name, c.ip)) return send(ws, { t: 'err', msg: 'Du er bannet fra denne server' });
+      if (room.locked) return send(ws, { t: 'err', msg: 'Værten har lukket for nye spillere' });
+      if (room.players.size >= (room.maxPlayers || MAX_PLAYERS)) return send(ws, { t: 'err', msg: 'Rummet er fuldt (' + (room.maxPlayers || MAX_PLAYERS) + ' spillere)' });
       const p = makePlayer(room, ws, m.name);
       attach(ws, room, p);
       send(ws, { t: 'joined', code, id: p.id, key: p.key });
@@ -356,6 +365,7 @@ function handle(ws, m) {
     case 'start':
       if (p.id === room.hostId && room.phase === 'lobby') { if (room.vetoMode !== 'host' && (!FAST || m.veto)) startVeto(room); else startGame(room); }   // tests: afstemning kun med {veto:1}
       break;
+    case 'adm': { const r = Admin.exec(room, p, m.c, m.a); sendP(p, { t: 'admr', ok: !!r.ok, msg: r.msg, c: String(m.c || '').slice(0, 40) }); break; }     // v26.12: admin-konsol (kun værten)
     case 'bots': if (p.id === room.hostId && room.phase === 'lobby') { room.botsOn = !!m.on; room.bcast(lobbyMsg(room)); } break;     // v26.12: værten slår bots til/fra
     case 'vmode':   // v20: værten vælger banevalg: 'premier' (holdene stemmer baner ud) eller 'host' (værten vælger)
       if (p.id === room.hostId && room.phase === 'lobby') { room.vetoMode = m.mode === 'host' ? 'host' : 'premier'; room.bcast(lobbyMsg(room)); }
@@ -653,7 +663,8 @@ function removePlayer(room, p) {
 function onInput(room, p, m) {
   if (room.phase === 'lobby' || room.phase === 'loading') return;
   const t = now();
-  if (typeof m.cs === 'number' && m.cs < p.corrId) return;    // gammel besked fra før en teleport/korrektion
+  if (typeof m.cs === 'number' && m.cs < p.corrId) return;
+  if (room.paused || p.frozen) { p.lastIn = t; return; }    // gammel besked fra før en teleport/korrektion
   const yaw = +m.yaw, pitch = +m.pitch;
   if (Number.isFinite(yaw) && Number.isFinite(pitch)) { p.yaw = yaw; p.pitch = Math.max(-1.6, Math.min(1.6, pitch)); }
   p.use = !!m.u;
@@ -674,6 +685,7 @@ function onInput(room, p, m) {
   p.lastIn = t;
   p.budget = Math.min(4.6, p.budget + (use / 1000) * 9);
   const dx = x - p.x, dz = z - p.z, dist = Math.hypot(dx, dz);
+  if (p.noclip || p.fly) { p.x = x; p.y = y; p.z = z; p.crouch = !!m.c; p.ground = false; p.speed = 0; p.hist.push({ t, x, y, z, c: p.crouch }); while (p.hist.length && t - p.hist[0].t > 700) p.hist.shift(); return; }
   if (dist > p.budget + 0.4 || Math.abs(y - p.y) > 45 * dt + 2.5) {
     p.corrId++; { const tm = tpMsg(p); if (dist < 3.5 && Math.abs(y - p.y) < 1.5) tm.soft = 1; sendP(p, tm); } return;   // urealistisk hop – ryk spilleren tilbage (blødt hvis hoppet er lille)
   }
@@ -769,10 +781,11 @@ function giveItem(room, p, item) {
 function onBuy(room, p, item) {
   if (!canBuyNow(room, p)) return;
   const w = WEAPONS[item];
-  if (!w || !w.price || p.money < w.price) return;
+  const price = room.freebuy ? 0 : w && w.price;
+  if (!w || !w.price || p.money < price) return;
   if (!WD.canBuy(p.side, item)) { sendP(p, { t: 'notice', msg: w.name + ' kan kun købes af ' + (w.team === 'hij' ? 'HIJACKERS' : 'SWAT') }); return; }
   if (!giveItem(room, p, item)) return;
-  p.money -= w.price; p.bought.push(item);
+  p.money -= price; p.bought.push(item);
   room.requests = room.requests.filter(r => !(r.from === p.id && r.item === item));   // eget ønske opfyldt
   sendReqs(room);
   sendSelf(p);
@@ -878,6 +891,7 @@ function hitPane(room, p, st) {
   p.st = Math.max(p.st, st); room.bcast({ t: 'ev', k: 'pane', id: p.id, st: p.st, x: r2((p.x0 + p.x1) / 2), y: r2((p.y0 + p.y1) / 2), z: r2((p.z0 + p.z1) / 2) });
 }
 function onShoot(room, p, m) {
+  if (room.paused || p.frozen) return;
   if ((room.phase !== 'live' && room.phase !== 'end') || !p.alive) return;      // v12: man kan også skyde i pausen efter en vundet runde
   const w = WEAPONS[p.cur];
   if (w && w.kind === 'knife') return onMelee(room, p, m);
@@ -966,7 +980,7 @@ function onMelee(room, p, m) {
 
 const newRF = () => ({ kills: [], plant: 0, defuse: 0, dmg: 0 });
 function damage(room, victim, dmg, attacker, weapon, hs) {
-  if (!victim.alive) return false;
+  if (!victim.alive || victim.god) return false;
   if (attacker && attacker !== victim && attacker.side !== victim.side) { const d_ = Math.min(dmg, victim.hp); attacker.rdmg += d_; attacker.dmgTot = (attacker.dmgTot || 0) + d_; }
   victim.hp -= dmg;
   if (victim.hp > 0) { sendSelf(victim); return false; }
@@ -1325,6 +1339,7 @@ function tickRoom(room, t, dt) {
   if (room.phase === 'lobby') return;
   if (room.phase === 'veto') { tickVeto(room, t); return; }
   if (room.phase === 'loading') { if (t >= room.phaseEnd) newRound(room); else checkLoaded(room); return; }   // frakoblede spillere blokerer ikke
+  if (room.paused && (room.phase === 'buy' || room.phase === 'live')) { room.phaseEnd += dt * 1000; if (room.bomb && room.bomb.state === 2) room.bomb.timer += dt; return; }
   if (room.phase === 'buy' || room.phase === 'live') { try { Bots.tick(room, t, dt); } catch (e) { console.error('bots:', e); } }
   if (room.phase === 'buy') {
     if (t >= room.phaseEnd) { room.phase = 'live'; room.phaseEnd = t + TIMES.round * 1000; room.liveStart = t; }
@@ -1426,7 +1441,7 @@ function sendSnap(room, t) {
   for (const p of room.players.values()) {
     if (!p.side) continue;
     SP.set(p.id, [r2(p.x), r2(p.y), r2(p.z), p.crouch]);
-    P.push([p.id, r2(p.x), r2(p.y), r2(p.z), r2(p.yaw), r2(p.pitch), (p.alive ? 1 : 0) | (p.crouch ? 2 : 0) | (p.act ? 4 : 0) | (p.ground ? 8 : 0) | (p.reloadEnd ? 16 : 0) | (p.pin ? 32 : 0), (WEAPONS[p.cur] || {}).code || 0]);
+    P.push([p.id, r2(p.x), r2(p.y), r2(p.z), r2(p.yaw), r2(p.pitch), (p.alive ? 1 : 0) | (p.crouch ? 2 : 0) | (p.act ? 4 : 0) | (p.ground ? 8 : 0) | (p.reloadEnd ? 16 : 0) | (p.pin ? 32 : 0) | (p.invis ? 64 : 0), (WEAPONS[p.cur] || {}).code || 0]);
   }
   for (const p of room.players.values()) {                                  // v26.12: hårdt sårede (< 20 HP) bløder spor på gulv og vægge
     if (!p.side || !p.alive || p.hp >= 20 || (p.speed || 0) < 1.0 || t - (p.lastBleed || 0) < 1700) continue;

@@ -15,8 +15,8 @@
 //   • Situationer: 1vX (clutch) med tidsspil og lyd-baserede skud, rotationer via holdets 'intel', fake-pushes (to bots viser sig på det forkerte site)
 //   createBots(ctx) -> { fill, spawn, tick, noise, onKill, remove }
 // ==========================================================================
-const createNav = require('./nav');
-const { createAim, wrap } = require('./aim');
+const createNav = require('./bots_nav');
+const { createAim, wrap } = require('./bots_aim');
 
 const NAMES = ['Alex', 'Mads', 'Sofie', 'Jonas', 'Freja', 'Oliver', 'Ida', 'Emil', 'Laura', 'Noah', 'Maja', 'Viktor', 'Clara', 'Lukas', 'Nanna', 'Oscar'];
 const HIJ_AGENTS = ['hij4:olive', 'hij4:night', 'hij5:rust', 'hij5:olive', 'hij6:sand', 'hij6:jungle'];
@@ -466,7 +466,7 @@ module.exports = function createBots(S) {
     const T0 = process.hrtime.bigint(); try { tick0(room, t, dt); } finally { const ms = Number(process.hrtime.bigint() - T0) / 1e6; room._tmax = Math.max(room._tmax || 0, ms); room._tsum = (room._tsum || 0) + ms; room._tn = (room._tn || 0) + 1; }
   }
   function tick0(room, t, dt) {
-    room._tickT = t; let any = false; for (const p of room.players.values()) if (p.isBot) { any = true; break; }
+    room._tickT = t; if (room.botFreeze) return; let any = false; for (const p of room.players.values()) if (p.isBot) { any = true; break; }
     if (!any) return;
     if (room.phase === 'buy') {
       if (room.botBuyRound !== room.round) {

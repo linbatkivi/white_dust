@@ -5894,6 +5894,20 @@ export const DICT = {
 "Filmischer Schlag mit Paukenwirbel",
 "电影式重击与定音鼓滚奏"
 ],
+"se hvad du skal fokusere på": [
+"see what to focus on",
+"vois sur quoi te concentrer",
+"mira en qué centrarte",
+"sieh, worauf du dich konzentrieren sollst",
+"查看要专注的目标"
+],
+"fremskridt og låste trofæer": [
+"progress and locked trophies",
+"progression et trophées verrouillés",
+"progreso y trofeos bloqueados",
+"Fortschritt und gesperrte Trophäen",
+"进度与未解锁奖杯"
+],
 "Grøn {0}": [
 "Green {0}",
 "Vert {0}",

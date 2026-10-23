@@ -40,6 +40,7 @@ import { createFriends } from '/js/friends.js';
 import { createNight } from '/js/night.js';
 import { createDProps } from '/js/dprops.js';
 import { createChisel } from '/js/chisel.js';
+import { createConsole } from '/js/console.js';
 import * as SK from '/js/skins.js';
 import { createInventory } from '/js/inventory.js';
 import { buildAK47 } from '/js/procguns.js';
@@ -386,6 +387,8 @@ $('btnSettings').addEventListener('click', () => Settings.open());
 $('btnSettingsGame').addEventListener('click', e => { e.stopPropagation(); Settings.open(); });
 for (const id of ['btnInventory', 'btnInventoryLobby']) $(id).addEventListener('click', () => Inv.open());
 $('btnCareer').addEventListener('click', () => Profile.open()); $('pfStrip').addEventListener('click', () => Profile.open()); drawStrip();   // v26.6
+$('btnMissionsGame').addEventListener('click', e => { e.stopPropagation(); if (document.pointerLockElement) document.exitPointerLock(); Profile.open('missioner'); });
+$('btnTrophiesGame').addEventListener('click', e => { e.stopPropagation(); if (document.pointerLockElement) document.exitPointerLock(); Profile.open('trofaeer'); });
 $('btnInventoryGame').addEventListener('click', e => { e.stopPropagation(); if (document.pointerLockElement) document.exitPointerLock(); Inv.open(); });
 $('btnStart').addEventListener('click', () => Net.send({ t: 'start' }));
 $('btnTeamHij').addEventListener('click', () => Net.send({ t: 'team', side: 'hij' }));
@@ -421,6 +424,9 @@ $('chatInput').addEventListener('keydown', e => {
   e.stopPropagation();
   if (e.key === 'Enter') { e.preventDefault(); Chat.send(); } else if (e.key === 'Escape') e.preventDefault();   // v17: Esc lukker ikke chatten (Mac: ville forlade fuldskærm) – Enter på tom linje lukker
 });
+Game.adm = { noclip: false, fly: false, freeze: false, god: false }; Game.paused = false;
+const Con = createConsole({ Net, Game });                                       // v26.12: admin-konsol (§)
+Net.on('admr', m => Con.handle(m)); Net.on('admst', m => { Game.adm = { noclip: !!m.noclip, fly: !!m.fly, freeze: !!m.freeze, god: !!m.god }; });
 Net.on('pong', m => { const rtt = performance.now() - m.c; if (rtt >= 0 && rtt < 5000) Game.ping = Game.ping ? Game.ping * 0.6 + rtt * 0.4 : rtt; });
 Net.on('cos', m => { const e = Game.players.get(m.id); if (e) e.cos = SK.sanitize(m.c); });
 Net.on('pub', m => { if (m.id === Game.meId || !m.d) return; Factions.merge(m.d.fx); if (window.__pubIn) window.__pubIn(m.id, m.d); });
@@ -875,7 +881,7 @@ Net.on('ev', m => {
     case 'fire': Renderer.onFirePop(m); break;
     case 'fireout': Renderer.onFireOut(m); break;
     case 'sensor': Renderer.onSensor(m); break;
-    case 'sensorbreak': Renderer.onSensorBreak(m); break; case 'bleed': Renderer.onBleed(m); break; case 'dp': Renderer.onDp(m); break; case 'lamp': Renderer.onLamp(m); break;
+    case 'sensorbreak': Renderer.onSensorBreak(m); break; case 'bleed': Renderer.onBleed(m); break; case 'dp': Renderer.onDp(m); break; case 'adm': Renderer.onAdm(m); break; case 'slap': Renderer.onSlap(m); break; case 'lamp': Renderer.onLamp(m); break;
     case 'sense': Renderer.onSense(m); break;
     case 'sbeep': Renderer.onSbeep(m); break;
     case 'pane': Renderer.onPane(m); break;
@@ -1342,8 +1348,8 @@ const BuyMenu = {
       { id: 'pistols', name: 'PISTOLER', items: B.pistols },
       { id: 'smgs', name: 'MASKINPISTOLER', items: B.smgs },
       { id: 'rifles', name: 'RIFLER', items: B.rifles },
-      { id: 'nades', name: 'GRANATER', items: B.nades },
-      { id: 'gear', name: 'UDSTYR', items: B.gear }
+      { id: 'nades', name: 'GRANATER', items: B.nades.filter(i => i !== 'sensor') },
+      { id: 'gear', name: 'UDSTYR', items: [...B.gear, ...B.nades.filter(i => i === 'sensor')] }
     ];
   },
   inZone() { const b = Game.body; return (W.spawns[Game.side] || []).some(sp => Math.hypot(b.x - sp.x, b.z - sp.z) < 14 && Math.abs(b.y - sp.y) < 3); },
@@ -1927,7 +1933,7 @@ const Renderer = (() => {
     tr.mesh.material.opacity = own ? 0.75 : 0.9; scene.add(tr.mesh); tracers.push(tr); posTracer(tr);
   }
   function posTracer(tr) {
-    const head = Math.min(tr.len, tr.t * TR_V + 0.6), tail = Math.max(0, head - TR_L), pa = tr.mesh.geometry.attributes.position, d = tr.len;
+    const head = Math.min(tr.len, tr.t * TR_V + 0.6), tail = Adm.tracers ? 0 : Math.max(0, head - TR_L), pa = tr.mesh.geometry.attributes.position, d = tr.len;
     const a = tail / d, b = head / d, S = tr.s, E = tr.e;
     pa.setXYZ(0, S[0] + (E[0] - S[0]) * a, S[1] + (E[1] - S[1]) * a, S[2] + (E[2] - S[2]) * a);
     pa.setXYZ(1, S[0] + (E[0] - S[0]) * b, S[1] + (E[1] - S[1]) * b, S[2] + (E[2] - S[2]) * b);
@@ -2402,6 +2408,21 @@ const Renderer = (() => {
     sensorObjs.set(m.id, { mesh, side: m.s, x: m.x, y: m.y, z: m.z, led: null });
     Audio.click('switch');
   }
+  const Adm = { tracers: false, hitboxes: false, fog0: null, wire: false };
+  function onSlap(m) { const b = Game.body; b.vy = m.vy; b.vx += m.vx; b.vz += m.vz; b.ground = false; }
+  function onAdm(m) {                                                              // v26.12: admin-kommandoer der virker hos alle (miljø/debug)
+    const c = m.c, v = m.v;
+    if (c === 'pause') Game.paused = !!v;
+    else if (c === 'say') { const d = document.createElement('div'); d.className = 'adm-say'; d.textContent = String(v); document.body.appendChild(d); setTimeout(() => d.remove(), 5200); }
+    else if (c === 'time') { const h = ((+v % 24) + 24) % 24, day = Math.max(0, Math.sin((h - 6) / 12 * Math.PI)); const k = 0.16 + 0.84 * Math.pow(day, 0.6); renderer.toneMappingExposure = (Adm.expo0 = Adm.expo0 || renderer.toneMappingExposure) * k; if (post) post.cfg.exposure = (Adm.pexpo0 = Adm.pexpo0 || post.cfg.exposure) * k; }
+    else if (c === 'fog') { if (scene.fog) { Adm.fog0 = Adm.fog0 || [scene.fog.near, scene.fog.far]; const d = +v; scene.fog.near = d <= 0 ? 1e5 : Adm.fog0[0] / d; scene.fog.far = d <= 0 ? 2e5 : Adm.fog0[1] / d; } }
+    else if (c === 'blackout') setEvent('blackout');
+    else if (c === 'gravity') WD.PL.GRAV = +v;
+    else if (c === 'tracers') Adm.tracers = !!v;
+    else if (c === 'wireframe') { Adm.wire = !!v; scene.traverse(o => { const ms = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : []; for (const mm of ms) mm.wireframe = !!v; }); }
+    else if (c === 'hitboxes') Adm.hitboxes = !!v;
+    else if (c === 'fps') Settings.get().stats = !!v;
+  }
   function onDp(m) { if (DP) DP.apply(m, false); }
   function onLamp(m) { if (DP) DP.lamp(m, false); }
   function dpState(dpb, lampb) { if (!DP) return; DP.reset(); DP.applyState(dpb || [], lampb || []); }
@@ -2618,7 +2639,9 @@ const Renderer = (() => {
       const pl = Game.players.get(id);
       updateLabel(r, pl ? pl.name : ('#' + id));
       r.labelOn = side === Game.side;                                  // kun holdkammeraters navne (som i CS)
-      r.group.visible = !(!Game.self.alive && Game.phase !== 'buy' && id === Game.specId) && !(Intro && Intro.active);   // spectator ser gennem den observeredes øjne; v22: skjult under introen
+      r.group.visible = !(!Game.self.alive && Game.phase !== 'buy' && id === Game.specId) && !(Intro && Intro.active) && !(flags & 64);
+      if (Adm.hitboxes && !r.hbox) { r.hbox = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(0.64, 1.8, 0.64)), new THREE.LineBasicMaterial({ color: 0x00ffaa, depthTest: false })); r.hbox.position.y = 0.9; r.hbox.renderOrder = 9; r.group.add(r.hbox); const hh = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(0.3, 0.3, 0.3)), new THREE.LineBasicMaterial({ color: 0xff4040, depthTest: false })); hh.position.y = 0.72; hh.renderOrder = 9; r.hbox.add(hh); }
+      if (r.hbox) r.hbox.visible = Adm.hitboxes;   // spectator ser gennem den observeredes øjne; v22: skjult under introen
       if (Intro && Intro.active) r.labelOn = false;
       Game.remotes.set(id, { rx, ry, rz, alive, yaw: ryaw, pitch: rpitch, crouch: !!(flags & 2) });
     }
@@ -2748,7 +2771,7 @@ const Renderer = (() => {
       case 'shot': onShotFx(m); break; case 'throw': onRemoteThrow(m); break; case 'smoke': onSmokePop(m); break; case 'flash': onFlashPop(m); break;
       case 'boom': onBoom(m); break; case 'explode': onExplode(m); break; case 'fire': onFirePop(m); break; case 'fireout': onFireOut(m); break;
       case 'bounce': Audio.bounce({ x: m.x, y: m.y, z: m.z }, m.w); break; case 'plant': onPlant(m); break; case 'kill': onKillFx(m); break; case 'melee': onRemoteMelee(m); break;
-      case 'sensor': onSensor(m); break; case 'sensorbreak': onSensorBreak(m); break; case 'bleed': onBleed(m); break; case 'dp': onDp(m); break; case 'lamp': onLamp(m); break; case 'pane': onPane(m); break;
+      case 'sensor': onSensor(m); break; case 'sensorbreak': onSensorBreak(m); break; case 'bleed': onBleed(m); break; case 'dp': onDp(m); break; case 'adm': onAdm(m); break; case 'slap': onSlap(m); break; case 'lamp': onLamp(m); break; case 'pane': onPane(m); break;
     }
   }
   function replayStep(dt) {
@@ -2867,7 +2890,8 @@ const Renderer = (() => {
       return;
     }
     if (Game.phase === 'buy') { applyCam(Game.body.x, Game.body.y + PL.EYE, Game.body.z, Game.yaw, Game.pitch); return; }
-    const frozen = endFrozen();
+    const frozen = endFrozen() || Game.paused || Game.adm.freeze;
+    Game.body.fly = !!Game.adm.fly; Game.body.noclip = !!Game.adm.noclip;
     let fw = frozen ? 0 : (KEY.KeyW ? 1 : 0) - (KEY.KeyS ? 1 : 0);
     let sd = frozen ? 0 : (KEY.KeyD ? 1 : 0) - (KEY.KeyA ? 1 : 0);
     const tm = Math.hypot(Touch.mx, Touch.my);
@@ -3284,7 +3308,7 @@ const Renderer = (() => {
   }
 
   function animateFx(dt) {
-    for (let i = tracers.length - 1; i >= 0; i--) { const t = tracers[i]; t.t += dt; const done = posTracer(t); if (done || t.t > 0.6) { scene.remove(t.mesh); tracerPool.push(t); tracers.splice(i, 1); } }
+    for (let i = tracers.length - 1; i >= 0; i--) { const t = tracers[i]; t.t += dt; const done = posTracer(t); if ((!Adm.tracers && done) || t.t > (Adm.tracers ? 3 : 0.6)) { scene.remove(t.mesh); tracerPool.push(t); tracers.splice(i, 1); } }
     if (impMesh) { let dirty = false; for (let i = 0; i < IMP_MAX; i++) if (impT[i] >= 0 && (impT[i] += dt) > 25) { impT[i] = -1; _m4.makeScale(0, 0, 0); impMesh.setMatrixAt(i, _m4); dirty = true; } if (dirty) impMesh.instanceMatrix.needsUpdate = true; }
     for (let i = flashes.length - 1; i >= 0; i--) {
       const f = flashes[i]; f.t += dt;
@@ -3462,7 +3486,7 @@ const Renderer = (() => {
   }
   const api = { canvas: () => renderer.domElement, setEvent, event: () => EV.cur, get camera() { return camera; }, intro: () => (ensureChars(), Intro), bombCine: () => BombCine, deferEnd: (m, info) => { if (BombCine && BombCine.active) { pendingEnd = m; return true; }
       if (info && RoundCine && !Game.cineFull) { try { if (RoundCine.start(info)) { pendingEnd = m; m._cine = true; return true; } } catch (e) { console.warn('rundefilm', e); } } return false; },
-    roundCine: () => RoundCine, introReady: () => introLoaded, setQuality, gunIcon, get gfx() { return gfxName; }, get pr() { return prCur; }, get perf() { return perf; }, chars: () => (ensureChars(), Chars), weap: () => (ensureChars(), Weap), onCosmetics, mapReady: () => !loading && mapId === W.id, cosReady: () => COS.ready, setCine, init, loadMap, flinchAim, onRoundStart, onShotFx, inspect, onRemoteMelee, onMeleeWall, onPlant, onExplode, onBoom, onSmokePop, onFlashPop, onFirePop, onFireOut, onSensor, onSensorBreak, onBleed, onDp, onLamp, dpState, get dp() { return DP; }, onSense, onSbeep, toggleThermal, ping, onPing, onPane, buildPanes, snapKiller, fpStep, onKillFx, replayStart, replayStop, replayAvailable, get replayActive() { return Rep.active; }, onRemoteThrow, onThrowLocal, onPinPull, onWeaponChange, mouseDelta, shake, skinName, get mapId() { return mapId; } };
+    roundCine: () => RoundCine, introReady: () => introLoaded, setQuality, gunIcon, get gfx() { return gfxName; }, get pr() { return prCur; }, get perf() { return perf; }, chars: () => (ensureChars(), Chars), weap: () => (ensureChars(), Weap), onCosmetics, mapReady: () => !loading && mapId === W.id, cosReady: () => COS.ready, setCine, init, loadMap, flinchAim, onRoundStart, onShotFx, inspect, onRemoteMelee, onMeleeWall, onPlant, onExplode, onBoom, onSmokePop, onFlashPop, onFirePop, onFireOut, onSensor, onSensorBreak, onBleed, onAdm, onSlap, onDp, onLamp, dpState, get dp() { return DP; }, onSense, onSbeep, toggleThermal, ping, onPing, onPane, buildPanes, snapKiller, fpStep, onKillFx, replayStart, replayStop, replayAvailable, get replayActive() { return Rep.active; }, onRemoteThrow, onThrowLocal, onPinPull, onWeaponChange, mouseDelta, shake, skinName, get mapId() { return mapId; } };
   if (DEV) {   // v14: kontaktark over førstepersonsvåben (kun dev) – hvert våben renderes alene på neutral baggrund
     const sideCam = new THREE.PerspectiveCamera(30, 1.6, 0.01, 10);
     api.vmSheet = (ids, cols, tw, th, side) => {

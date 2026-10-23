@@ -397,9 +397,14 @@ export function createAudio() {
       for (let i = 0; i < 8; i++) { kick(d, t + i * b, 0.6); snare(d, t + (i + 0.5) * b, i % 2 ? 0.7 : 0); hat(d, t + i * 0.5 * b, 0.5); }
     }
   };
+  let kitT = 0;
   function kit(id) {
     const f = KIT[id]; if (!f || !ok()) return false;
-    const g = ctx.createGain(); g.gain.value = 0.8; g.connect(musicBus); try { f(g, ctx.currentTime + 0.05); } catch (e) { console.warn('kit', e); } return true;
+    // baggrundsmusikken skrues helt ned mens temaet spiller, så man kun hører MVP-musikken
+    const t = ctx.currentTime, g = ctx.createGain(); g.gain.value = 0.9; g.connect(master);
+    musicBus.gain.cancelScheduledValues(t); musicBus.gain.setTargetAtTime(0, t, 0.06);
+    clearTimeout(kitT); kitT = setTimeout(() => { if (ctx) musicBus.gain.setTargetAtTime(VOL.music * 0.55, ctx.currentTime, 0.4); }, 7500);
+    try { f(g, t + 0.1); } catch (e) { console.warn('kit', e); } return true;
   }
   // faste lydkilder i banen (vandbassiner osv.): [{ x, y, z, kinds:[navn…], rate: pr. sekund }] – et lille planlægnings-løb sørger for tilfældige hændelser
   let emitters = [], emTimer = null;

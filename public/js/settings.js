@@ -10,7 +10,7 @@ export function createSettings(opts) {
   const KEY = 'wd_settings';
   const PRESETS = [['Grøn', '#00FF00'], ['Cyan', '#00FFFF'], ['Gul', '#FFFF00'], ['Rød', '#FF0000'], ['Hvid', '#FFFFFF']];
   // v12: separate lydbusser (Master · SFX · Musik/Ambience · Speaker/Stemme), mus-udjævning (ms) og rå mus-input (ingen OS-acceleration)
-  const DEF = { xh: { len: 7, thick: 2, gap: 3, color: '#00FF00', dot: false, dotSize: 2, outline: true, outlineThick: 1, alpha: 1 }, sens: 2.5, vol: 80, sfx: 100, music: 55, voice: 85, smooth: 6, raw: true, gfx: 'auto', stats: false, sndInd: false, blood: true, fullscreen: true };
+  const DEF = { xh: { len: 7, thick: 2, gap: 3, color: '#00FF00', dot: false, dotSize: 2, outline: true, outlineThick: 1, alpha: 1 }, sens: 2.5, vol: 80, sfx: 100, music: 55, voice: 85, smooth: 6, raw: true, gfx: 'auto', stats: false, sndInd: false, blood: true, bloodV: 2, fullscreen: true };
   // præcise grænser fra specifikationen
   const LIM = { len: [2, 30, 1], thick: [1, 10, 1], gap: [-5, 20, 1], dotSize: [1, 5, 1], outlineThick: [1, 3, 1], alpha: [0.1, 1, 0.05], sens: [0.1, 10, 0.05], vol: [0, 100, 1], sfx: [0, 100, 1], music: [0, 100, 1], voice: [0, 100, 1], smooth: [0, 20, 1] };
   const clampTo = (k, v) => { const L = LIM[k]; v = +v; if (!Number.isFinite(v)) return null; v = Math.min(L[1], Math.max(L[0], v)); return Math.round(v / L[2]) * L[2]; };
@@ -29,7 +29,7 @@ export function createSettings(opts) {
       if (typeof raw.raw === 'boolean') s.raw = raw.raw;
       if (typeof raw.stats === 'boolean') s.stats = raw.stats;
       if (typeof raw.sndInd === 'boolean') s.sndInd = raw.sndInd;
-      if (typeof raw.blood === 'boolean') s.blood = raw.blood;
+      if (raw.bloodV === 2 && typeof raw.blood === 'boolean') s.blood = raw.blood;      // v26.12: blod/ragdoll slås til for alle én gang
       if (typeof raw.fullscreen === 'boolean') s.fullscreen = raw.fullscreen;
       if (['auto', 'ultra', 'high', 'medium', 'low', 'min'].includes(raw.gfx)) s.gfx = raw.gfx;
     }

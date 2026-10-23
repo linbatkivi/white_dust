@@ -45,13 +45,14 @@ export function createProfile(o) {
   }
   function levelUp(level) {
     return new Promise(res => {
-      const el = document.createElement('div'); el.className = 'lvu'; const r = P.rankOf(level), un = P.unlocksAt(level);
+      const hud = document.getElementById('hud'), mini = !!(hud && !hud.classList.contains('hidden'));      // midt i et spil: lille kort i hjørnet i stedet for fuld skærm
+      const el = document.createElement('div'); el.className = 'lvu' + (mini ? ' mini' : ''); const r = P.rankOf(level), un = P.unlocksAt(level);
       el.innerHTML = `<div class="lvu-in" style="--rc:${r.col}"><div class="lvu-k">LEVEL UP</div><div class="lvu-e">${emblem(level, 120)}</div>
         <div class="lvu-n">${level}</div><div class="lvu-r">${r.label}</div>
         ${un.length ? `<div class="lvu-u">${un.map(u => `<span><small>${{ title: 'NY TITEL', card: 'NYT PROFILKORT', badge: 'NYT BADGE', rank: 'NY RANK' }[u.kind]}</small>${esc(u.name)}</span>`).join('')}</div>` : ''}</div>`;
       document.body.appendChild(el); void el.offsetWidth; el.classList.add('go');
       try { o.Audio && o.Audio.cine && o.Audio.cine('braam', { vol: 0.7 }); } catch (e) {}
-      setTimeout(() => { el.classList.add('out'); setTimeout(() => { el.remove(); res(); }, 600); }, 3600);
+      setTimeout(() => { el.classList.add('out'); setTimeout(() => { el.remove(); res(); }, 600); }, mini ? 2600 : 3600);
     });
   }
   // små toasts øverst til højre (missioner, trofæer, mastery)

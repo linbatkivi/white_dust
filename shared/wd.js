@@ -476,6 +476,14 @@
     if (inp.crouch) b.crouch = true;
     else if (b.crouch && canStand(W, b)) b.crouch = false;
     const H = b.crouch ? PL.HC : PL.H;
+    if (b.fly || b.noclip) {                                         // v26.12: admin – flyv (med kollision) / noclip (igennem vægge)
+      const sy = Math.sin(inp.yaw), cy = Math.cos(inp.yaw), fx = inp.fx || 0, sx = inp.sx || 0;
+      let wx = -sy * fx + cy * sx, wz = -cy * fx - sy * sx; const wl = Math.hypot(wx, wz); if (wl > 1) { wx /= wl; wz /= wl; }
+      const sp = b.noclip ? 14 : 9, vy = (inp.jump ? 1 : 0) - (inp.crouch ? 1 : 0), dx = wx * sp * dt, dz = wz * sp * dt, dy = vy * sp * 0.7 * dt;
+      if (b.noclip) { b.x += dx; b.z += dz; b.y += dy; }
+      else { if (!isBlocked(W, b.x + dx, b.z, b.y, H, 0.02)) b.x += dx; if (!isBlocked(W, b.x, b.z + dz, b.y, H, 0.02)) b.z += dz; if (!isBlocked(W, b.x, b.z, b.y + dy, H, 0.02)) b.y += dy; }
+      b.vx = b.vy = b.vz = 0; b.ground = false; b.onLadder = false; return;
+    }
 
     // ---- stiger: W op / S ned mens man vender mod væggen; hop slipper. Falder man ned i en stige-skakt, gribes stigen.
     //      Øverst 'trækkes' man op på kanten (mod væggen, ellers væk fra den/til siden – nedhukket hvis der kun er plads sådan).
