@@ -52,7 +52,7 @@ const WD = window.WD;
 let W = WD.buildWorld('bureau');          // aktiv bane (skiftes via setMap når serveren melder en anden)
 function emittersFor(Wm) {                                     // v26.10: små, faste lydkilder (dryp, frøer, fugle, løv) – det der gør en bane levende
   const d = Wm.data, out = []; if (!d || !d.surf) return out;
-  for (const r of d.water || []) out.push({ x: (r[0] + r[2]) / 2, y: r[4] + 0.3, z: (r[1] + r[3]) / 2, kinds: ['drip', 'drip', 'frog', 'splash'], rate: 0.9 });
+  for (const r of d.water || []) out.push({ x: (r[0] + r[2]) / 2, y: r[4] + 0.3, z: (r[1] + r[3]) / 2, kinds: Wm.id === 'niseko' ? ['koi', 'trickle', 'drip', 'trickle'] : ['drip', 'drip', 'frog', 'splash'], rate: Wm.id === 'niseko' ? 0.5 : 0.9 });
   for (const l of d.labels || []) out.push({ x: l[1], y: (l[3] || 0) + 2.5, z: l[2], kinds: ['bird', 'rustle', 'monkey', 'creak', 'stonefall', 'drip', 'bird'], rate: 0.14 });
   return out;
 }
@@ -78,9 +78,11 @@ fitUI();
 /* ---- indstillinger (crosshair, mus, volumen) – anvendes i realtid ---- */
 const Settings = createSettings({ onChange: applySettings });
 // v11.3: inventar (agenter + våben-skins). Ændringer sendes til serveren og anvendes straks på førstepersonsvåbnet.
-const Inv = createInventory({ THREE, skins: SK, playKit: id => { try { Audio.init && Audio.init(); Audio.kit(id); } catch (e) {} }, chars: () => Renderer.chars(), weap: () => Renderer.weap(), weaponCode: id => (WD.WEAPONS[id] || {}).code || 0,
+const Inv = createInventory({ THREE, skins: SK, owns: id => !!Profile.data.owned[id], openShop: cat => { try { Shop.open(cat); } catch (e) {} }, playKit: id => { try { Audio.init && Audio.init(); Audio.kit(id); } catch (e) {} }, chars: () => Renderer.chars(), weap: () => Renderer.weap(), weaponCode: id => (WD.WEAPONS[id] || {}).code || 0,
   onChange: inv => { if (Net.connected) Net.send({ t: 'cos', c: inv }); Renderer.onCosmetics(); } });
-const uiOpen = () => Settings.isOpen() || Inv.isOpen() || Chat.isOpen() || Profile.isOpen();
+let conOpen = () => false;                                       // sættes når konsollen er bygget
+let shopOpen = () => false;
+const uiOpen = () => conOpen() || shopOpen() || Settings.isOpen() || Inv.isOpen() || Chat.isOpen() || Profile.isOpen();
 function applySettings(S) {
   Audio.setVolumes({ master: S.vol / 100, sfx: S.sfx / 100, music: S.music / 100, voice: S.voice / 100 });
   const xh = document.getElementById('crosshair'); if (xh) Settings.drawCrosshair(xh, S.xh, 1);
@@ -103,7 +105,7 @@ const smooth = t => t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
 // v26.7: sprogvalg i menuen (samme valg som i indstillingerne)
 onLang(() => { try { if (typeof Profile !== 'undefined' && Profile.isOpen()) Profile.render(); } catch (e) {} });
 { const sel = document.getElementById('langSel'); if (sel) { sel.innerHTML = LANGS.map(([c, n]) => `<option value="${c}">${n}</option>`).join(''); sel.value = getLang(); sel.addEventListener('change', e => setLang(e.target.value)); onLang(l => { sel.value = l; }); } }
-const Profile = createProfile({ $, Audio, esc: escapeHtml, mastery: () => Mastery.packed(), onLevel: () => { if (Net.connected) Net.send({ t: 'prof', p: Profile.summary() }); }, name: () => ($('nameInput') && $('nameInput').value.trim()) || loadName() || 'Spiller' });
+const Profile = createProfile({ $, Audio, esc: escapeHtml, openShop: cat => Shop.open(cat), mastery: () => Mastery.packed(), onLevel: () => { if (Net.connected) Net.send({ t: 'prof', p: Profile.summary() }); }, name: () => ($('nameInput') && $('nameInput').value.trim()) || loadName() || 'Spiller' });
 const Missions = createMissions({ Profile, esc: escapeHtml, toast: (a, b, c) => Profile.toast(a, b, c) });   // v26.6: daglige/ugentlige/sæson
 const Trophies = createTrophies({ Profile, esc: escapeHtml });   // v26.6: trofæer
 const Mastery = createMastery({ Profile, esc: escapeHtml, icon: id => { try { return Renderer.gunIcon(id, Game.side || 'swat'); } catch (e) { return null; } },
@@ -111,7 +113,7 @@ const Mastery = createMastery({ Profile, esc: escapeHtml, icon: id => { try { re
 const Factions = createFactions({ Profile, esc: escapeHtml, name: () => loadName() || 'Spiller', drawMap: (cv, A, d) => drawFactionMap(cv, A, d), onChange: () => { if (Net.connected) { Net.send({ t: 'prof', p: Profile.summary() }); sendPub(); } } });   // v26.6: fraktioner + sæsonkort
 // v26.6: offentlige profildata til de andre i rummet (fraktions-regnskab; vennekort kommer med i Friends)
 function sendPub(first) { try { Net.send({ t: 'pub', first: !!first, d: Object.assign({ fx: Factions.pubPart() }, window.__pubExtra ? window.__pubExtra() : {}) }); } catch (e) { console.warn('[pub]', e); } }
-const Shop = createShop({ Profile, esc: escapeHtml, name: () => ($('nameInput') && $('nameInput').value.trim()) || loadName() || 'Spiller', onEquip: () => { if (Net.connected) Net.send({ t: 'prof', p: Profile.summary() }); } });
+const Shop = createShop({ Profile, esc: escapeHtml, kits: SK.KITS, rarity: id => SK.RARITY[id], getKit: () => Inv.get().kit, setKit: id => Inv.setKit(id), playKit: id => { try { Audio.init && Audio.init(); Audio.kit(id); } catch (e) {} }, onClose: () => drawDock(), name: () => ($('nameInput') && $('nameInput').value.trim()) || loadName() || 'Spiller', onEquip: () => { if (Net.connected) Net.send({ t: 'prof', p: Profile.summary() }); } });
 const Hideout = createHideout({ THREE, Profile, Trophies, Mastery, Shop, Factions, esc: escapeHtml, name: () => loadName() || 'Spiller' });   // v26.6: hideout med 3D-trofævæg
 const Friends = createFriends({ Profile, Trophies, Mastery, Hideout, Factions, esc: escapeHtml, name: () => loadName() || 'Spiller' });   // v26.6: venner – vennekort via pub-relæ og PeerJS
 window.__pubExtra = () => ({ c: Friends.card() }); window.__pubIn = (id, d) => Friends.seen(d.c);
@@ -389,6 +391,21 @@ $('btnSettings').addEventListener('click', () => Settings.open());
 $('btnSettingsGame').addEventListener('click', e => { e.stopPropagation(); Settings.open(); });
 for (const id of ['btnInventory', 'btnInventoryLobby']) $(id).addEventListener('click', () => Inv.open());
 $('btnCareer').addEventListener('click', () => Profile.open()); $('pfStrip').addEventListener('click', () => Profile.open()); drawStrip();   // v26.6
+// v26.14: hub-dock på forsiden (butik · opgaver · inventar · karriere) med levende tal
+shopOpen = () => Shop.isOpen();
+$('btnShop').addEventListener('click', () => Shop.open()); $('btnTasks').addEventListener('click', () => Profile.open('missioner'));
+function drawDock() {
+  try {
+    const C = Profile.data.coins || 0; $('hdCoins').textContent = C + ' mønter';
+    const bd = Shop.bestDeal(), dl = $('hdDeal'); if (dl) { dl.textContent = 'TILBUD −' + bd + ' %'; dl.classList.remove('hidden'); }
+    const dm = Missions.daily(), nd = dm.filter(m => m.done).length;
+    $('hdBars').innerHTML = dm.map(m => `<div class="hd-bar${m.done ? ' done' : ''}" title="${escapeHtml(m.t)}"><i style="--p:${Math.round(100 * Math.min(1, m.p / m.n))}%"></i></div>`).join('');
+    $('hdTasks').textContent = nd + ' / ' + dm.length + ' missioner klaret · ' + Trophies.unlockedCount() + ' trofæer';
+    const L = window.WDP.levelOf(Profile.data.xp), r = window.WDP.rankOf(L.level);
+    $('hdEmblem').innerHTML = Profile.emblem(L.level, 30); $('hdLevel').textContent = 'Level ' + L.level + ' · ' + r.label; $('hdXp').style.width = Math.round(L.frac * 100) + '%';
+  } catch (e) { console.warn('[dock]', e); }
+}
+Profile.onChange(drawDock); drawDock();
 $('btnMissionsGame').addEventListener('click', e => { e.stopPropagation(); if (document.pointerLockElement) document.exitPointerLock(); Profile.open('missioner'); });
 $('btnTrophiesGame').addEventListener('click', e => { e.stopPropagation(); if (document.pointerLockElement) document.exitPointerLock(); Profile.open('trofaeer'); });
 $('btnInventoryGame').addEventListener('click', e => { e.stopPropagation(); if (document.pointerLockElement) document.exitPointerLock(); Inv.open(); });
@@ -427,7 +444,8 @@ $('chatInput').addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); Chat.send(); } else if (e.key === 'Escape') e.preventDefault();   // v17: Esc lukker ikke chatten (Mac: ville forlade fuldskærm) – Enter på tom linje lukker
 });
 Game.adm = { noclip: false, fly: false, freeze: false, god: false }; Game.paused = false;
-const Con = createConsole({ Net, Game });                                       // v26.12: admin-konsol (§)
+const Con = createConsole({ Net, Game, onClose: () => { if (Game.state === 'game' && !TOUCH && !uiOpen() && !BuyMenu.open) lockPointer(); } });                                       // v26.12: admin-konsol (§)
+conOpen = () => Con.isOpen();
 Net.on('admr', m => Con.handle(m)); Net.on('admst', m => { Game.adm = { noclip: !!m.noclip, fly: !!m.fly, freeze: !!m.freeze, god: !!m.god }; });
 Net.on('pong', m => { const rtt = performance.now() - m.c; if (rtt >= 0 && rtt < 5000) Game.ping = Game.ping ? Game.ping * 0.6 + rtt * 0.4 : rtt; });
 Net.on('cos', m => { const e = Game.players.get(m.id); if (e) e.cos = SK.sanitize(m.c); });
@@ -957,7 +975,7 @@ const Input = {
     document.addEventListener('pointerlockchange', () => {
       const locked = document.pointerLockElement === gl;
       if (locked) Game.noPauseUntilLock = false;
-      $('clickToPlay').classList.toggle('hidden', locked || !!Game.noPauseUntilLock); if (!locked) fillPause();
+      $('clickToPlay').classList.toggle('hidden', locked || !!Game.noPauseUntilLock || Con.isOpen()); if (!locked) fillPause();   // konsollen åbner ikke pausemenuen
       if (!locked) { Game.scoped = false; Game.firing = false; if (!BuyMenu.open) { KEY.KeyW = KEY.KeyA = KEY.KeyS = KEY.KeyD = false; } if (Game.nade) nadeRelease(Game.nade.under); }
       if (!locked && BuyMenu.open) $('clickToPlay').classList.add('hidden');   // købshjulet bruger musemarkøren – ingen 'klik for at sigte'
     });

@@ -9,6 +9,7 @@ const SPEC = `
 round.restart | Genstart den nuværende runde
 round.pause | Frys rundetimeren og alle spilleres bevægelser
 round.resume | Genoptag en pauset runde
+round.skipbuy | Spring købsfasen over
 round.extend <sekunder:num> | Tilføj tid til rundetimeren (negativ = træk fra)
 round.win <team:team> | Giv runden til hijackers eller defenders
 round.forceend | Afslut runden uden vinder
@@ -34,13 +35,15 @@ server.unban <navn_eller_ip:str> | Fjern et ban
 server.mute <id:player> | Deaktiver chat for en spiller
 server.unmute <id:player> | Genaktiver chat
 server.say <besked...:rest> | Server-besked midt på skærmen
-server.changemap <bane:str> | Skift bane med det samme (bureau, valkyrie)
+server.changemap <bane:str> | Skift bane med det samme (skriv server.maps for listen)
+server.maps | Vis alle baner
 server.maxplayers <antal:int> | Ændr maks. antal spillere
 server.passthrough <til:bool> | Tillad/blokér nye spillere
 bot.add <team:team> [sværhed:str] | Tilføj en bot (easy | normal | hard | 0.3–1)
 bot.remove <id:int> | Fjern en bot
 bot.removeall | Fjern alle bots
 bot.killall | Eliminér alle bots
+bot.difficulty <sværhed:str> | Sæt sværhed på ALLE bots (easy | normal | hard | 0.3–1)
 bot.freeze | Frys/optø bot-AI
 bot.fill | Fyld op med bots til max
 give.weapon <id:player> <våben:str> | Giv et våben (ak47, m4a1, awp …)
@@ -67,7 +70,7 @@ const CMDS = SPEC.trim().split('\n').map(l => {
   return { name, args, desc };
 });
 const BY = Object.fromEntries(CMDS.map(c => [c.name, c]));
-const LOCAL = new Set(['help', 'players', 'clear']);
+const LOCAL = new Set(['help', 'players', 'clear', 'server.maps']);
 
 export function createConsole(o) {
   const { Net, Game } = o;
@@ -87,7 +90,7 @@ export function createConsole(o) {
   function setOpen(v) {
     if (!el) build(); open = v; el.classList.toggle('hidden', !v); document.body.classList.toggle('con-open', v);
     if (v) { if (document.pointerLockElement) document.exitPointerLock(); window.dispatchEvent(new Event('blur')); setTimeout(() => input.focus(), 30); suggest(); }
-    else { input.blur(); sugg.classList.add('hidden'); }
+    else { input.blur(); sugg.classList.add('hidden'); if (o.onClose) o.onClose(); }
   }
 
   /* ---------------- forslag / tab ---------------- */
@@ -104,7 +107,7 @@ export function createConsole(o) {
   }
   let sel = 0, cand = [];
   function suggest() {
-    cand = candidates().slice(0, 8); sel = 0;
+    cand = input.value.trim() ? candidates().slice(0, 6) : []; sel = 0;
     if (!cand.length) { sugg.classList.add('hidden'); return; }
     sugg.classList.remove('hidden'); sugg.innerHTML = cand.map((c, i) => `<div class="con-s${i === sel ? ' on' : ''}"><b>${esc(c.t)}</b><em>${esc(c.d)}</em></div>`).join('');
   }
@@ -146,10 +149,14 @@ export function createConsole(o) {
     const n = p.c.name;
     if (n === 'clear') { logEl.innerHTML = ''; return; }
     if (n === 'players') { for (const [id, pl] of Game.players) log(`#${id} · ${esc(pl.name)} · ${pl.side || '–'}${id === Game.meId ? ' (dig)' : ''}${id === Game.host ? ' · vært' : ''}`, 'ok'); return; }
+    if (n === 'server.maps') { const ms = Game.maps || []; log(ms.length ? ms.map(m => '<b>' + esc(m.id || m) + '</b>' + (m.name ? ' <em>' + esc(m.name) + '</em>' : '')).join(' · ') : 'ingen baneliste endnu', 'ok'); return; }
     if (n === 'help') {
-      const q = p.out[0] && BY[p.out[0].toLowerCase()];
+      const a = (p.out[0] || '').toLowerCase(), q = BY[a];
       if (q) return log(esc(usage(q)) + ' – ' + esc(q.desc), 'ok');
-      let g = ''; for (const c of CMDS) { const k = c.name.split('.')[0]; if (k !== g) { g = k; log('<b>' + k + '</b>', 'sys'); } log('&nbsp;&nbsp;' + esc(usage(c)) + ' <em>' + esc(c.desc) + '</em>', 'ok'); } return;
+      const groups = {}; for (const c of CMDS) (groups[c.name.split('.')[0]] = groups[c.name.split('.')[0]] || []).push(c);
+      if (a && groups[a]) { log('<b>' + a + '</b>', 'sys'); for (const c of groups[a]) log('&nbsp;&nbsp;' + esc(usage(c)) + ' <em>' + esc(c.desc) + '</em>', 'ok'); return; }
+      log('<b>Kommandoer</b> – skriv <b>help &lt;gruppe&gt;</b> for detaljer, eller <b>help &lt;kommando&gt;</b>. Spiller = id, navn eller <b>me</b>.', 'sys');
+      for (const k in groups) log('<b>' + k + '</b>&nbsp; ' + groups[k].map(c => c.name.slice(k.length + 1) || c.name).join(' · '), 'ok'); return;
     }
     if (!Net.connected) return log('ikke forbundet til serveren', 'err');
     Net.send({ t: 'adm', c: n, a: p.out });

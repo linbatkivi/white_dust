@@ -91,22 +91,40 @@ export function createProfile(o) {
 
   /* ---------------- KARRIERE-hubben ---------------- */
   const tabs = [{ id: 'profil', label: 'PROFIL', render: renderProfile }]; let cur = 'profil', hub = null;
+  // v26.14: faner samles i få grupper (sidenavigation) – opgaver = missioner + trofæer, social = venner + fraktion. Butikken er flyttet ud i sin egen skærm.
+  const IC = {
+    profil: '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>',
+    opgaver: '<svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18"/><path d="M8 9l2 2 3-3M8 16l2 2 3-3M15 10h2M15 17h2"/></svg>',
+    mastery: '<svg viewBox="0 0 24 24"><path d="M12 2l3 6.5 7 .8-5.2 4.8 1.5 7L12 17.6 5.7 21l1.5-7L2 9.3l7-.8z"/></svg>',
+    social: '<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.4"/><circle cx="17.5" cy="9.5" r="2.6"/><path d="M2.5 20c0-3.8 2.9-6 6.5-6s6.5 2.2 6.5 6M15.5 14.4c3.4-.4 6 1.4 6 5"/></svg>',
+    hideout: '<svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7M5.5 9.5V21h13V9.5M10 21v-6h4v6"/></svg>'
+  };
+  const GROUPS = [['profil', 'PROFIL', ['profil']], ['opgaver', 'OPGAVER', ['missioner', 'trofaeer']], ['mastery', 'MASTERY', ['mastery']], ['social', 'SOCIAL', ['venner', 'fraktion']], ['hideout', 'HIDEOUT', ['hideout']]];
   function addTab(id, label, render, click, after) { if (!tabs.some(t => t.id === id)) tabs.push({ id, label, render, click, after }); }   // after(hub): efter tegning (3D/canvas)
   function open(tab) {
     if (!hub) { hub = document.createElement('div'); hub.id = 'career'; hub.className = 'settings hidden'; document.body.appendChild(hub);
       hub.addEventListener('mousedown', e => { if (e.target === hub) close(); });
       hub.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return;
-        if (b.dataset.close !== undefined) return close(); if (b.dataset.ctab) { cur = b.dataset.ctab; return render(); }
+        if (b.dataset.close !== undefined) return close(); if (b.dataset.ctab === '__shop') { close(); if (o.openShop) o.openShop(); return; } if (b.dataset.ctab) { cur = b.dataset.ctab; return render(); }
         for (const k of ['title', 'card', 'badge']) if (b.dataset[k] !== undefined && (b.dataset[k] === '' || has(k, b.dataset[k]))) { D[k] = b.dataset[k]; save(); render(); o.onLevel && o.onLevel(); }
         const t = tabs.find(t => t.id === cur); if (t && t.click) t.click(b); });
       window.addEventListener('keydown', e => { if (isOpen() && e.code === 'Escape') { e.stopPropagation(); close(); } }, true); }
+    if (tab === 'butik') { if (o.openShop) o.openShop(); return; }
     if (tab) cur = tab; hub.classList.remove('hidden'); render();
   }
   function close() { if (hub) { hub.classList.add('hidden'); hub.innerHTML = ''; } }
   const isOpen = () => !!(hub && !hub.classList.contains('hidden'));
+  let lastGroup = '';
   function render() {
-    const t = tabs.find(x => x.id === cur) || tabs[0];
-    hub.innerHTML = `<div class="st-panel cr-panel"><div class="st-head"><h2>KARRIERE</h2><div class="iv-tabs">${tabs.map(x => `<button data-ctab="${x.id}" class="${x.id === t.id ? 'sel' : ''}">${x.label}</button>`).join('')}</div><button class="btn btn-tiny btn-ghost" data-close>LUK (ESC)</button></div><div class="cr-body">${t.render()}</div></div>`;
+    const t = tabs.find(x => x.id === cur) || tabs[0], has = id => tabs.some(x => x.id === id);
+    const gs = GROUPS.map(([id, label, ids]) => ({ id, label, ids: ids.filter(has) })).filter(g => g.ids.length), g = gs.find(x => x.ids.includes(t.id)) || gs[0];
+    const L = lv(), r = P.rankOf(L.level), enter = g.id !== lastGroup || !hub.dataset.ready; lastGroup = g.id; hub.dataset.ready = '1';
+    const seg = g.ids.length > 1 ? `<div class="cr2-seg">${g.ids.map(id => `<button data-ctab="${id}" class="${id === t.id ? 'sel' : ''}">${tabs.find(x => x.id === id).label}</button>`).join('')}</div>` : '';
+    hub.innerHTML = `<div class="st-panel cr-panel cr2"><div class="st-head"><h2>KARRIERE</h2>
+        <div class="cr2-me" style="--rc:${r.col}">${emblem(L.level, 26)}<span><b>LEVEL ${L.level}</b><small>${r.label}</small></span><em><i>◎</i>${D.coins || 0}</em></div>
+        <button class="btn btn-tiny btn-ghost" data-close>LUK (ESC)</button></div>
+      <div class="cr2-wrap"><nav class="cr2-rail">${gs.map((x, i) => `<button data-ctab="${x.ids[0]}" class="${x.id === g.id ? 'sel' : ''}" style="--i:${i}"><i>${IC[x.id] || ''}</i><span>${x.label}</span></button>`).join('')}<div class="cr2-rail-foot"><button data-ctab="__shop"><i>◎</i><span>SHOP</span><small>${D.coins || 0}</small></button></div></nav>
+        <div class="cr2-main">${seg}<div class="cr-body${enter ? ' enter' : ''}" data-tab="${t.id}">${t.render()}</div></div></div></div>`;
     if (t.after) try { t.after(hub); } catch (e) { console.warn('[karriere]', e); }
   }
   function card(big) {

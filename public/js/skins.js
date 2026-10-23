@@ -65,16 +65,21 @@ export const GUNS = ['ak47', 'm4a1', 'famas', 'galil', 'mac10', 'mp9', 'mp7', 'u
 // model-fil pr. våben (fiveseven deler Glock-modellen; granater har hold-varianter)
 export const GUN_FILE = { ak47: 'ak47', m4a1: 'm4a1', famas: 'famas', galil: 'galil', tec9: 'tec9', mp5: 'mp5', mac10: 'mac10', mp9: 'mp9', mp7: 'mp7', ump45: 'ump45', p90: 'p90', awp: 'awp', usp: 'usp', glock: 'glock', fiveseven: 'glock', deagle: 'deagle',
   he: { hij: 'he_east', swat: 'he_west' }, smoke: { hij: 'smoke_east', swat: 'smoke_west' }, flash: 'flash', incgren: 'incgren', molotov: 'molotov' };
-// v26.12: MVP-musikkits – korte temaer (syntetiseret i audio.js) der afspilles for alle spillere når du er rundens MVP
+// v26.14: MVP-musikkits – rigtige numre (Pixabay Content License, klippet til takt og 'drop' med tools/sounds/mvp_cut.py) der afspilles for alle når du er rundens MVP.
+// price > 0: købes for mønter i BUTIKKEN (de gratis følger med fra start). Numrene er listet i CREDITS.md.
 export const KITS = [
-  { id: 'none', name: 'Standard', desc: 'Ingen ekstra musik', rarity: 'base' },
-  { id: 'funk', name: 'Funk Squad', desc: 'Slap-bas og horn-stabs', rarity: 'mil' },
-  { id: 'chiptune', name: '8-bit Fanfare', desc: 'Retro-sejrsmelodi', rarity: 'mil' },
-  { id: 'synthwave', name: 'Neon Nights', desc: 'Synthwave i 80\'er-stil', rarity: 'res' },
-  { id: 'trap', name: 'Trap Gold', desc: '808-bas, hi-hats og klokker', rarity: 'res' },
-  { id: 'war', name: 'Krigstrommer', desc: 'Tunge trommer og messing', rarity: 'cls' },
-  { id: 'bassdrop', name: 'Bass Drop', desc: 'Opbygning og sub-drop', rarity: 'cov' },
-  { id: 'orchestra', name: 'Orkester-hit', desc: 'Filmisk slag med paukerul', rarity: 'gold' }
+  { id: 'none', name: 'Standard', desc: 'Ingen ekstra musik', rarity: 'base', price: 0 },
+  { id: 'funk', name: 'Funk Squad', desc: 'Slap-bas, horn-stabs og et groove der ikke stopper', rarity: 'mil', price: 0 },
+  { id: 'chiptune', name: '8-bit Fanfare', desc: 'Arcade-sejr i fuld fart', rarity: 'mil', price: 0 },
+  { id: 'hiphop', name: 'Boom Bap', desc: 'Tung old-school trommer og vinyl-vibe', rarity: 'mil', price: 500 },
+  { id: 'synthwave', name: 'Neon Nights', desc: 'Synthwave med nattekørsel i 80\'er-stil', rarity: 'res', price: 600 },
+  { id: 'trap', name: 'Trap Gold', desc: '808-bas, hi-hats og guldkæder', rarity: 'res', price: 700 },
+  { id: 'dnb', name: 'Jungle Run', desc: 'Drum & bass – brudte trommer, dyb sub', rarity: 'res', price: 800 },
+  { id: 'war', name: 'Krigstrommer', desc: 'Tunge krigstrommer og messing', rarity: 'cls', price: 900 },
+  { id: 'rock', name: 'Riff Raid', desc: 'Hård rock med fuld guitarmur', rarity: 'cls', price: 1000 },
+  { id: 'bassdrop', name: 'Bass Drop', desc: 'Dubstep-drop der ryster højttalerne', rarity: 'cov', price: 1200 },
+  { id: 'techno', name: 'Rave Protocol', desc: 'Hård techno – 138 BPM uden nåde', rarity: 'cov', price: 1300 },
+  { id: 'orchestra', name: 'Orkester-hit', desc: 'Filmisk trailer med paukerul og messing', rarity: 'gold', price: 1500 }
 ];
 export const KIT_BY_ID = Object.fromEntries(KITS.map(k => [k.id, k]));
 export const defaultAgent = side => side === 'hij' ? 'hij4:olive' : 'swat:navy';

@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="/css/hub.css">
 <style>html.i18n-wait body { visibility: hidden; }</style>
 <script>setTimeout(function () { document.documentElement.classList.remove("i18n-wait"); }, 4000);</script>
 <script src="/shared/bureau_data.js"></script>
@@ -21,7 +22,7 @@
 
 <!-- ============================================================ HOVEDMENU ============================================================ -->
 <section id="scr-menu" class="screen">
-  <div class="lang-pick"><button id="btnTrailer" class="btn btn-ghost btn-tiny" title="Trailer">▶ TRAILER</button><label for="langSel" class="lang-ic" title="Sprog / Language">🌐</label><select id="langSel" class="st-sel" aria-label="Sprog"></select></div>
+  <div class="lang-pick"><button id="btnSettings" class="btn btn-ghost btn-tiny hub-gear" title="Indstillinger (crosshair, mus, lyd)"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M12 8.6a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8zm8.2 4.4c.04-.33.07-.66.07-1s-.03-.67-.07-1l2.1-1.64a.5.5 0 0 0 .12-.64l-2-3.46a.5.5 0 0 0-.61-.22l-2.49 1a7.3 7.3 0 0 0-1.73-1l-.38-2.65A.5.5 0 0 0 14.7 2h-4a.5.5 0 0 0-.5.42l-.38 2.65c-.62.25-1.2.58-1.73 1l-2.49-1a.5.5 0 0 0-.61.22l-2 3.46a.5.5 0 0 0 .12.64L4.8 11c-.04.33-.07.66-.07 1s.03.67.07 1l-2.1 1.64a.5.5 0 0 0-.12.64l2 3.46c.13.22.39.3.61.22l2.49-1c.53.42 1.11.75 1.73 1l.38 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.38-2.65c.62-.25 1.2-.58 1.73-1l2.49 1c.22.09.48 0 .61-.22l2-3.46a.5.5 0 0 0-.12-.64z"/></svg><span>INDSTILLINGER</span></button><button id="btnTrailer" class="btn btn-ghost btn-tiny" title="Trailer">▶ TRAILER</button><label for="langSel" class="lang-ic" title="Sprog / Language">🌐</label><select id="langSel" class="st-sel" aria-label="Sprog"></select></div>
   <canvas id="logo3d" class="logo3d"></canvas>
   <!-- v21: spiller-hjørnet – din valgte agent i 3D (klik = inventar) -->
   <aside id="menuAgent" class="m-agent">
@@ -55,11 +56,8 @@
     </div>
 
     <div class="menu-actions">
-      <button id="btnCreate" class="btn btn-primary">LAV PARTY</button>
-      <button id="btnShowJoin" class="btn btn-ghost">JOIN</button>
-      <button id="btnSettings" class="btn btn-ghost btn-icon" title="Indstillinger (crosshair, mus, lyd)">⚙ INDSTILLINGER</button>
-      <button id="btnInventory" class="btn btn-ghost btn-icon" title="Agenter og våben-skins">◆ INVENTAR</button>
-      <button id="btnCareer" class="btn btn-ghost btn-icon" title="Level, rank, missioner, trofæer">★ KARRIERE</button>
+      <button id="btnCreate" class="btn btn-primary btn-xl"><b>LAV PARTY</b><small>start en kamp med venner og bots</small></button>
+      <button id="btnShowJoin" class="btn btn-ghost btn-xl"><b>JOIN</b><small>kom ind med en 4-cifret kode</small></button>
     </div>
     <div id="pfStrip" class="pf-slot" title="Åbn KARRIERE"></div>
 
@@ -70,6 +68,13 @@
 
     <p id="menuErr" class="err-msg"></p>
   </div>
+  <!-- v26.14: hub-dock – butik, opgaver (missioner + trofæer), inventar og karriere som levende fliser nederst på forsiden -->
+  <nav id="hubDock" class="hub-dock" aria-label="Hub">
+    <button id="btnShop" class="hd-tile shop" style="--i:0"><span class="hd-ic"><svg viewBox="0 0 32 32" width="30" height="30"><circle cx="16" cy="16" r="12" fill="#ffd23a" stroke="#0a0a0a" stroke-width="2.6"/><circle cx="16" cy="16" r="7.4" fill="none" stroke="#0a0a0a" stroke-width="2"/><path d="M16 11.5v9M13.6 13.6h3.7a1.6 1.6 0 0 1 0 3.2h-2.6a1.6 1.6 0 0 0 0 3.2h3.7" fill="none" stroke="#0a0a0a" stroke-width="1.8" stroke-linecap="round"/></svg></span><b>SHOP</b><span id="hdCoins" class="hd-sub">0 mønter</span><em id="hdDeal" class="hd-ribbon hidden">TILBUD</em></button>
+    <button id="btnTasks" class="hd-tile tasks" style="--i:1"><span class="hd-ic"><svg viewBox="0 0 32 32" width="30" height="30"><rect x="5" y="4" width="22" height="24" fill="#f4f4f2" stroke="#0a0a0a" stroke-width="2.6"/><path d="M9.5 12l2.3 2.3 4-4M9.5 20.5l2.3 2.3 4-4" fill="none" stroke="#ff2b1f" stroke-width="2.6" stroke-linecap="square"/><path d="M18 12.5h5M18 21h5" stroke="#0a0a0a" stroke-width="2.4"/></svg></span><b>OPGAVER</b><span id="hdTasks" class="hd-sub">missioner · trofæer</span><div id="hdBars" class="hd-bars"></div></button>
+    <button id="btnInventory" class="hd-tile inv" style="--i:2"><span class="hd-ic"><svg viewBox="0 0 32 32" width="30" height="30"><path d="M16 3l11 6v14l-11 6-11-6V9z" fill="#f4f4f2" stroke="#0a0a0a" stroke-width="2.6" stroke-linejoin="round"/><path d="M5 9l11 6 11-6M16 15v14" fill="none" stroke="#0a0a0a" stroke-width="2.2"/><path d="M16 15l11-6" stroke="#ff2b1f" stroke-width="2.2"/></svg></span><b>INVENTAR</b><span class="hd-sub">agenter · skins · musik</span></button>
+    <button id="btnCareer" class="hd-tile career" style="--i:3"><span class="hd-ic" id="hdEmblem"></span><b>KARRIERE</b><span id="hdLevel" class="hd-sub">level · rank · stats</span><div class="hd-xp"><i id="hdXp"></i></div></button>
+  </nav>
   <div class="menu-foot">
     <span class="hint hint-touch">TOUCH &nbsp;·&nbsp; JOYSTICK TIL VENSTRE &nbsp;·&nbsp; TRÆK FOR AT KIGGE &nbsp;·&nbsp; HOLD SKYD/KAST · SLIP FOR AT KASTE</span>
     <span class="hint hint-mouse">MUS + TASTATUR &nbsp;·&nbsp; WASD BEVÆG &nbsp;·&nbsp; VENSTREKLIK SKYD / HOLD FOR KAST &nbsp;·&nbsp; HØJREKLIK UNDERHÅNDSKAST &nbsp;·&nbsp; 3 KNIV · 4 GRANATER · Q FORRIGE · F INSPICÉR</span>

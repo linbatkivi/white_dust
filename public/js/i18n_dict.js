@@ -736,7 +736,7 @@ export const DICT = {
 "已向队伍发出请求："
 ],
 "KØBT": [
-"PURCHASED",
+"BOUGHT",
 "ACHETÉ",
 "COMPRADO",
 "GEKAUFT",
@@ -5791,7 +5791,7 @@ export const DICT = {
 ],
 "Ingen ekstra musik": [
 "No extra music",
-"Aucune musique en plus",
+"Pas de musique supplémentaire",
 "Sin música extra",
 "Keine zusätzliche Musik",
 "无额外音乐"
@@ -5812,10 +5812,10 @@ export const DICT = {
 ],
 "8-bit Fanfare": [
 "8-bit Fanfare",
-"Fanfare 8 bits",
-"Fanfarria de 8 bits",
+"Fanfare 8-bit",
+"Fanfarria 8 bits",
 "8-Bit-Fanfare",
-"8位号角"
+"8 位号角"
 ],
 "Retro-sejrsmelodi": [
 "Retro victory tune",
@@ -5829,7 +5829,7 @@ export const DICT = {
 "Neon Nights",
 "Neon Nights",
 "Neon Nights",
-"霓虹之夜"
+"Neon Nights"
 ],
 "Synthwave i 80'er-stil": [
 "80s-style synthwave",
@@ -5843,7 +5843,7 @@ export const DICT = {
 "Trap Gold",
 "Trap Gold",
 "Trap Gold",
-"陷阱黄金"
+"Trap Gold"
 ],
 "808-bas, hi-hats og klokker": [
 "808 bass, hi-hats and bells",
@@ -5871,7 +5871,7 @@ export const DICT = {
 "Bass Drop",
 "Bass Drop",
 "Bass Drop",
-"低音下坠"
+"Bass Drop"
 ],
 "Opbygning og sub-drop": [
 "Build-up and sub drop",
@@ -6208,5 +6208,278 @@ export const DICT = {
 "Petición enviada al equipo: {0}",
 "Wunsch an das Team gesendet: {0}",
 "已向队伍发出请求：{0}"
+],
+"start en kamp med venner og bots": [
+"start a match with friends and bots",
+"lancez une partie avec des amis et des bots",
+"empieza una partida con amigos y bots",
+"starte ein Match mit Freunden und Bots",
+"与好友和机器人开始比赛"
+],
+"kom ind med en 4-cifret kode": [
+"join with a 4-digit code",
+"rejoignez avec un code à 4 chiffres",
+"únete con un código de 4 dígitos",
+"mit einem 4-stelligen Code beitreten",
+"使用 4 位代码加入"
+],
+"SHOP": [
+"SHOP",
+"BOUTIQUE",
+"TIENDA",
+"SHOP",
+"商店"
+],
+"{0} mønter": [
+"{0} coins",
+"{0} pièces",
+"{0} monedas",
+"{0} Münzen",
+"{0} 金币"
+],
+"TILBUD −{0} %": [
+"DEAL −{0} %",
+"OFFRE −{0} %",
+"OFERTA −{0} %",
+"ANGEBOT −{0} %",
+"特价 −{0}%"
+],
+"OPGAVER": [
+"TASKS",
+"TÂCHES",
+"TAREAS",
+"AUFGABEN",
+"任务"
+],
+"missioner · trofæer": [
+"missions · trophies",
+"missions · trophées",
+"misiones · trofeos",
+"Missionen · Trophäen",
+"任务 · 奖杯"
+],
+"{0} / {1} missioner klaret · {2} trofæer": [
+"{0} / {1} missions done · {2} trophies",
+"{0} / {1} missions terminées · {2} trophées",
+"{0} / {1} misiones hechas · {2} trofeos",
+"{0} / {1} Missionen geschafft · {2} Trophäen",
+"已完成 {0} / {1} 个任务 · {2} 座奖杯"
+],
+"agenter · skins · musik": [
+"agents · skins · music",
+"agents · skins · musique",
+"agentes · skins · música",
+"Agenten · Skins · Musik",
+"角色 · 皮肤 · 音乐"
+],
+"level · rank · stats": [
+"level · rank · stats",
+"niveau · rang · stats",
+"nivel · rango · estadísticas",
+"Level · Rang · Statistiken",
+"等级 · 段位 · 数据"
+],
+"Level {0} · {1}": [
+"Level {0} · {1}",
+"Niveau {0} · {1}",
+"Nivel {0} · {1}",
+"Level {0} · {1}",
+"等级 {0} · {1}"
+],
+"SOCIAL": [
+"SOCIAL",
+"SOCIAL",
+"SOCIAL",
+"SOZIAL",
+"社交"
+],
+"ALT": [
+"ALL",
+"TOUT",
+"TODO",
+"ALLES",
+"全部"
+],
+"MVP-MUSIK": [
+"MVP MUSIC",
+"MUSIQUE MVP",
+"MÚSICA MVP",
+"MVP-MUSIK",
+"MVP 音乐"
+],
+"DAGENS TILBUD": [
+"TODAY'S DEALS",
+"OFFRES DU JOUR",
+"OFERTAS DEL DÍA",
+"ANGEBOTE DES TAGES",
+"今日特价"
+],
+"skifter om {0}": [
+"changes in {0}",
+"change dans {0}",
+"cambia en {0}",
+"wechselt in {0}",
+"{0} 后更换"
+],
+"Kun kosmetik – ingen indflydelse på kampen. Tilbud skifter ved midnat.": [
+"Cosmetics only – no effect on the match. Deals change at midnight.",
+"Cosmétiques uniquement – aucune influence sur la partie. Les offres changent à minuit.",
+"Solo cosméticos: sin efecto en la partida. Las ofertas cambian a medianoche.",
+"Nur Kosmetik – kein Einfluss auf das Match. Angebote wechseln um Mitternacht.",
+"仅限外观 – 不影响比赛。特价在午夜更换。"
+],
+"✓ I BRUG": [
+"✓ IN USE",
+"✓ ÉQUIPÉ",
+"✓ EN USO",
+"✓ AKTIV",
+"✓ 使用中"
+],
+"✓ KØBT": [
+"✓ BOUGHT",
+"✓ ACHETÉ",
+"✓ COMPRADO",
+"✓ GEKAUFT",
+"✓ 已购买"
+],
+"Prøvelyt": [
+"Preview",
+"Écouter un extrait",
+"Escuchar muestra",
+"Probehören",
+"试听"
+],
+"Du ejer ikke dette tema endnu – du hører en prøve.": [
+"You don't own this theme yet – you're hearing a preview.",
+"Vous ne possédez pas encore ce thème – vous écoutez un extrait.",
+"Aún no tienes este tema: estás oyendo una muestra.",
+"Du besitzt dieses Thema noch nicht – du hörst eine Probe.",
+"你还没有这个主题 – 当前为试听。"
+],
+"KØB I BUTIKKEN": [
+"BUY IN THE SHOP",
+"ACHETER À LA BOUTIQUE",
+"COMPRAR EN LA TIENDA",
+"IM SHOP KAUFEN",
+"前往商店购买"
+],
+"{0} mønter i BUTIKKEN": [
+"{0} coins in the SHOP",
+"{0} pièces à la BOUTIQUE",
+"{0} monedas en la TIENDA",
+"{0} Münzen im SHOP",
+"商店售价 {0} 金币"
+],
+"Standard": [
+"Standard",
+"Standard",
+"Estándar",
+"Standard",
+"默认"
+],
+"Slap-bas, horn-stabs og et groove der ikke stopper": [
+"Slap bass, horn stabs and a groove that never stops",
+"Slap bass, cuivres et un groove qui ne s'arrête jamais",
+"Bajo slap, metales y un groove que no para",
+"Slap-Bass, Bläser-Stabs und ein Groove, der nie aufhört",
+"击弦贝斯、铜管短音和永不停歇的律动"
+],
+"Arcade-sejr i fuld fart": [
+"Arcade victory at full speed",
+"Victoire d'arcade à pleine vitesse",
+"Victoria arcade a toda velocidad",
+"Arcade-Sieg mit Vollgas",
+"全速街机胜利曲"
+],
+"Tung old-school trommer og vinyl-vibe": [
+"Heavy old-school drums and a vinyl vibe",
+"Batterie old-school lourde et ambiance vinyle",
+"Batería old school pesada y ambiente de vinilo",
+"Schwere Old-School-Drums und Vinyl-Vibe",
+"厚重的老派鼓点与黑胶氛围"
+],
+"Synthwave med nattekørsel i 80'er-stil": [
+"Synthwave night drive in 80s style",
+"Synthwave, conduite de nuit façon années 80",
+"Synthwave de conducción nocturna al estilo ochentero",
+"Synthwave-Nachtfahrt im 80er-Stil",
+"80 年代风格的合成器浪潮夜驾"
+],
+"808-bas, hi-hats og guldkæder": [
+"808 bass, hi-hats and gold chains",
+"Basses 808, hi-hats et chaînes en or",
+"Bajos 808, hi-hats y cadenas de oro",
+"808-Bass, Hi-Hats und Goldketten",
+"808 贝斯、踩镲与金链子"
+],
+"Drum & bass – brudte trommer, dyb sub": [
+"Drum & bass – broken drums, deep sub",
+"Drum & bass – batterie cassée, sub profond",
+"Drum & bass: batería rota, sub profundo",
+"Drum & Bass – gebrochene Drums, tiefer Sub",
+"鼓打贝斯 – 碎拍与深沉低音"
+],
+"Tunge krigstrommer og messing": [
+"Heavy war drums and brass",
+"Lourds tambours de guerre et cuivres",
+"Pesados tambores de guerra y metales",
+"Schwere Kriegstrommeln und Blech",
+"沉重的战鼓与铜管"
+],
+"Hård rock med fuld guitarmur": [
+"Hard rock with a full wall of guitars",
+"Hard rock avec un mur de guitares",
+"Hard rock con un muro de guitarras",
+"Hardrock mit voller Gitarrenwand",
+"吉他墙全开的硬摇滚"
+],
+"Dubstep-drop der ryster højttalerne": [
+"A dubstep drop that shakes the speakers",
+"Un drop dubstep qui fait trembler les enceintes",
+"Un drop de dubstep que hace temblar los altavoces",
+"Ein Dubstep-Drop, der die Boxen zum Beben bringt",
+"震动音箱的 Dubstep 掉落"
+],
+"Hård techno – 138 BPM uden nåde": [
+"Hard techno – 138 BPM, no mercy",
+"Techno dure – 138 BPM sans pitié",
+"Techno duro: 138 BPM sin piedad",
+"Harter Techno – 138 BPM ohne Gnade",
+"硬核 Techno – 138 BPM，毫不留情"
+],
+"Filmisk trailer med paukerul og messing": [
+"Cinematic trailer with timpani roll and brass",
+"Trailer cinématographique avec roulement de timbales et cuivres",
+"Tráiler cinematográfico con redoble de timbales y metales",
+"Filmischer Trailer mit Paukenwirbel und Blech",
+"带定音鼓与铜管的电影预告曲"
+],
+"Boom Bap": [
+"Boom Bap",
+"Boom Bap",
+"Boom Bap",
+"Boom Bap",
+"Boom Bap"
+],
+"Jungle Run": [
+"Jungle Run",
+"Jungle Run",
+"Jungle Run",
+"Jungle Run",
+"Jungle Run"
+],
+"Riff Raid": [
+"Riff Raid",
+"Riff Raid",
+"Riff Raid",
+"Riff Raid",
+"Riff Raid"
+],
+"Rave Protocol": [
+"Rave Protocol",
+"Rave Protocol",
+"Rave Protocol",
+"Rave Protocol",
+"Rave Protocol"
 ]
 };

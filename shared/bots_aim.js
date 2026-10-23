@@ -16,7 +16,7 @@ function createAim(skill) {
     recoil: 0, ph: [Math.random() * 9, Math.random() * 9, Math.random() * 9, Math.random() * 9],
     /* nyt mål: 'fresh' = første gang målet ses → reaktionsforsinkelse; ellers glider ønsket retning bare med */
     setWant(yaw, pitch, t, fresh) {
-      if (fresh) { A.react = t + (0.15 + (1 - A.skill) * 0.07 + Math.random() * 0.03) * 1000; A.since = t; }
+      if (fresh) { A.react = t + (0.19 + (1 - A.skill) * 0.15 + Math.random() * 0.07) * 1000; A.since = t; }
       A.ty = yaw; A.tp = pitch;
     },
     /* én tidsstep: ønsket retning følger først efter reaktionstiden */
@@ -24,7 +24,7 @@ function createAim(skill) {
       if (t >= A.react) { A.wy = A.ty; A.wp = A.tp; }
       const ey = wrap(A.wy - A.yaw), ep = A.wp - A.pitch;
       // hånd-rystelse + rod (rod aftager 1,6 s efter målet blev set)
-      const settle = Math.max(0, 1 - (t - A.since) / 1600), tremor = (0.0026 + (1 - A.skill) * 0.006) * (0.5 + settle * 1.2);
+      const settle = Math.max(0, 1 - (t - A.since) / 1600), tremor = (0.0034 + (1 - A.skill) * 0.0085) * (0.5 + settle * 1.2);
       const ny = (Math.sin(t * 0.011 + A.ph[0]) + 0.6 * Math.sin(t * 0.027 + A.ph[1])) * tremor, np = (Math.sin(t * 0.013 + A.ph[2]) + 0.6 * Math.sin(t * 0.031 + A.ph[3])) * tremor;
       const w0 = 15 + 9 * A.skill, z = 0.74;                                        // egenfrekvens (rad/s) og dæmpning
       const big = Math.min(1, Math.abs(ey) / 0.6), cap = (5 + 9 * A.skill) * (0.4 + big);        // fartgrænse – store drej er hurtigere
@@ -39,12 +39,12 @@ function createAim(skill) {
     error() { return Math.hypot(wrap(A.ty - A.yaw) * 0.9, A.tp - A.pitch); },
     kick(w) {                                                                           // et skud er afgivet
       A.recoil += (w.recoil || 0.01) * (0.8 + Math.random() * 0.5) * 1.8;
-      const comp = 0.55 + 0.37 * A.skill; A.pitch -= (w.recoil || 0.01) * 1.8 * comp * 0.9 * 0.5;   // aktiv modtræk (den halve del direkte)
+      const comp = 0.42 + 0.4 * A.skill; A.pitch -= (w.recoil || 0.01) * 1.8 * comp * 0.9 * 0.5;   // aktiv modtræk (den halve del direkte)
     },
     /* retning for et skud (enhedsvektor); spredning vokser ved bevægelse/hop og aftager ved nedhuk */
     dir(w, speed, crouch, air) {
-      const res = A.recoil * (1 - (0.55 + 0.37 * A.skill)), mv = Math.min(1, speed / 6);
-      const sd = (w.spread || 0.006) * (1 + mv * 7 + (air ? 10 : 0)) * (crouch ? 0.6 : 1) * (1.15 - A.skill * 0.25);
+      const res = A.recoil * (1 - (0.42 + 0.4 * A.skill)), mv = Math.min(1, speed / 6);
+      const sd = (w.spread || 0.006) * (1 + mv * 7 + (air ? 10 : 0)) * (crouch ? 0.6 : 1) * (1.5 - A.skill * 0.38);
       const yaw = A.yaw + gauss() * sd, pitch = A.pitch + res + gauss() * sd, cp = Math.cos(pitch);
       return [-Math.sin(yaw) * cp, Math.sin(pitch), -Math.cos(yaw) * cp];
     }

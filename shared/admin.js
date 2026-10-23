@@ -21,6 +21,7 @@ module.exports = function createAdmin(S) {
     'round.restart'(room) { if (!inGame(room)) return no('ingen kamp i gang'); room.round = Math.max(0, room.round - 1); room.paused = false; S.newRound(room); return ok('runden genstartet'); },
     'round.pause'(room) { if (!inGame(room)) return no('ingen kamp i gang'); room.paused = true; ev(room, { k: 'adm', c: 'pause', v: 1 }); return ok('runden er pauset'); },
     'round.resume'(room) { room.paused = false; ev(room, { k: 'adm', c: 'pause', v: 0 }); return ok('runden genoptaget'); },
+    'round.skipbuy'(room) { if (room.phase !== 'buy') return no('ikke i købsfasen'); room.phaseEnd = S.now(); return ok('købsfasen sprunget over'); },
     'round.extend'(room, p, [s]) { const n = num(s, -600, 3600); if (n === null) return no('sekunder skal være et tal'); room.phaseEnd += n * 1000; return ok((n >= 0 ? '+' : '') + n + ' s på rundeuret'); },
     'round.win'(room, p, [t]) { const sd = side(t); if (!sd) return no('hold: hijackers | defenders'); if (room.phase !== 'live' && room.phase !== 'buy') return no('kun i buy/live'); room.phase = 'live'; S.endRound(room, sd, 'admin'); return ok('runden gik til ' + sd); },
     'round.forceend'(room) { if (!inGame(room)) return no('ingen kamp i gang'); S.newRound(room); return ok('runden afsluttet uden vinder'); },
@@ -82,6 +83,11 @@ module.exports = function createAdmin(S) {
     'bot.remove'(room, p, [id]) { const q = room.players.get(+id | 0); if (!q || !q.isBot) return no('ingen bot med det id'); S.removePlayer(room, q); return ok('bot fjernet'); },
     'bot.removeall'(room) { let n = 0; for (const q of [...room.players.values()]) if (q.isBot) { S.removePlayer(room, q); n++; } return ok(n + ' bots fjernet'); },
     'bot.killall'(room) { let n = 0; for (const q of [...room.players.values()]) if (q.isBot && q.alive) { S.damage(room, q, 99999, null, 'admin', false); n++; } return ok(n + ' bots elimineret'); },
+    'bot.difficulty'(room, p, [dif]) {
+      const sk = /^(easy|let)$/i.test(dif) ? 0.45 : /^(hard|svær|expert)$/i.test(dif) ? 0.97 : /^[0-9.]+$/.test(String(dif || '')) ? Math.max(0.3, Math.min(1, +dif)) : /^normal$/i.test(dif) ? 0.75 : null;
+      if (sk === null) return no('sværhed: easy | normal | hard | 0.3–1'); let n = 0;
+      for (const q of room.players.values()) if (q.isBot && q.bot) { q.bot.skill = sk; if (q.bot.aim) q.bot.aim.skill = sk; n++; } return ok(n + ' bots: dygtighed ' + sk);
+    },
     'bot.freeze'(room) { room.botFreeze = !room.botFreeze; return ok('bot-AI ' + (room.botFreeze ? 'FROSSET' : 'kører')); },
     'bot.fill'(room) {
       const cap = Math.floor((room.maxPlayers || 10) / 2); let n = 0;

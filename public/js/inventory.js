@@ -69,7 +69,7 @@ export function createInventory(opt) {
     const list = tab === 'agents'
       ? S.AGENTS[side].map(a => a.variants.map(v => card(inv.agent[side] === a.id + ':' + v.id, v.rarity, a.name, v.name, `data-agent="${a.id}:${v.id}"`)).join('')).join('')
       : tab === 'kits'
-        ? S.KITS.map(k => card(inv.kit === k.id, k.rarity, k.name, k.desc, `data-kit="${k.id}"`)).join('')
+        ? S.KITS.map(k => { const own = !k.price || (opt.owns && opt.owns('kit:' + k.id)); return card(inv.kit === k.id, k.rarity, (own ? '' : '🔒 ') + k.name, own ? k.desc : k.desc + ' · ' + k.price + ' mønter i BUTIKKEN', `data-kit="${k.id}"${own ? '' : ' data-locked="1"'}`); }).join('')
       : tab === 'knives'
         ? S.KNIVES.map(k => card(kn.model.id === k.id, k.rarity, '★ ' + k.name, k.fin, `data-kmodel="${k.id}"`)).join('')
         : S.WEAPON_SKINS.map(s => card(skinOf(gun, side) === s.id, s.rarity, s.name, WNAME[gun], `data-skin="${s.id}"`)).join('');
@@ -101,8 +101,11 @@ export function createInventory(opt) {
   el.addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.close !== undefined) return close();
-    if (b.dataset.kitplay !== undefined) { if (opt.playKit) opt.playKit(inv.kit); return; }
-    if (b.dataset.kit) { inv.kit = b.dataset.kit; if (opt.playKit) opt.playKit(inv.kit); changed(); return; }
+    if (b.dataset.kitplay !== undefined) { if (opt.playKit) opt.playKit(previewKit || inv.kit); return; }
+    if (b.dataset.kit) {
+      if (b.dataset.locked) { previewKit = b.dataset.kit; if (opt.playKit) opt.playKit(previewKit); if (opt.openShop) { const kk = b.dataset.kit; el.querySelector('.iv-note').innerHTML = 'Du ejer ikke dette tema endnu – du hører en prøve. <button class="btn btn-tiny" data-kitshop="' + kk + '">KØB I BUTIKKEN</button>'; } return; }
+      previewKit = null; inv.kit = b.dataset.kit; if (opt.playKit) opt.playKit(inv.kit); changed(); return; }
+    if (b.dataset.kitshop) { close(); if (opt.openShop) opt.openShop('kit'); return; }
     if (b.dataset.tab) { tab = b.dataset.tab; enterK = 'tab'; render(); return; }
     if (b.dataset.side) { side = b.dataset.side; enterK = 'tab'; if (tab === 'skins' && WTEAM[gun] && WTEAM[gun] !== side) gun = side === 'hij' ? 'ak47' : 'm4a1'; render(); return; }
     if (b.dataset.gun) { gun = b.dataset.gun; render(); return; }
@@ -113,12 +116,12 @@ export function createInventory(opt) {
   });
   el.addEventListener('mousedown', e => { if (e.target === el) close(); });
   function changed() { inv = S.sanitize(inv); save(); render(); if (opt.onChange) opt.onChange(inv); }
-  let enterK = '';
+  let enterK = '', previewKit = null;
   function doOpen(t) { if (t) tab = t; enterK = 'open'; open = true; el.classList.remove('hidden'); render(); t0 = 0; cancelAnimationFrame(raf); raf = requestAnimationFrame(loop); }
   function close() { open = false; el.classList.add('hidden'); cancelAnimationFrame(raf); if (R) { R.dispose(); R.forceContextLoss && R.forceContextLoss(); R = null; } el.innerHTML = ''; }
   window.addEventListener('keydown', e => { if (open && e.code === 'Escape') { e.stopPropagation(); close(); } }, true);
   return {
-    get: () => inv, open: doOpen, close, isOpen: () => open, refresh: () => { if (open) setPreview(); },
+    get: () => inv, setKit: id => { inv.kit = id; changed(); }, open: doOpen, close, isOpen: () => open, refresh: () => { if (open) setPreview(); },
     agentKey: s => inv.agent[s], skin: (id, team) => skinOf(id, team),
     skinName: (id, team) => id === 'knife' ? knifeKey().name : (S.SKIN_BY_ID[skinOf(id, team)] || {}).name || null,
     knife: () => knifeKey().key

@@ -25,7 +25,8 @@ const GRACE_GAME = 25000, GRACE_LOBBY = 8000;
 const SNAP_MS = 50;
 // v26.12: fysiske/destruerbare props. a: 'b' knuses · 'k' vælter/flyver · 's' gnister (forbliver) · r = træfradius, h = højde
 let Bots; try { Bots = require('./shared/bots.js')({ WD, now: () => now(), r2: v => r2(v), makePlayer: (...a) => makePlayer(...a), onShoot: (...a) => onShoot(...a), onBuy: (...a) => onBuy(...a),
-  onThrow: (...a) => onThrow(...a), onSwitch: (...a) => onSwitch(...a), startReload: (...a) => startReload(...a) }); } catch (e) { console.error('bots utilgængelige:', e.message); Bots = { fill: (r, T) => T, spawn() {}, tick() {}, noise() {}, onKill() {}, remove() {}, prepare() {} }; }      // v26.12: computerstyrede spillere (aldrig fatalt)
+  onThrow: (...a) => onThrow(...a), onSwitch: (...a) => onSwitch(...a), startReload: (...a) => startReload(...a),
+  radio: (room, p, txt) => botRadio(room, p, txt), ping: (room, p, q) => botPing(room, p, q) }); } catch (e) { console.error('bots utilgængelige:', e.message); Bots = { fill: (r, T) => T, spawn() {}, tick() {}, noise() {}, onKill() {}, remove() {}, prepare() {} }; }      // v26.12: computerstyrede spillere (aldrig fatalt)
 const BANS = new Map();
 let Admin; try { Admin = require('./shared/admin.js')({ WD, now: () => now(), r2: v => r2(v), sendP: (...a) => sendP(...a), send: (...a) => send(...a), newRound: r => newRound(r), endRound: (...a) => endRound(...a), startGame: (...a) => startGame(...a),
   giveItem: (...a) => giveItem(...a), damage: (...a) => damage(...a), tpMsg: q => tpMsg(q), sendSelf: q => sendSelf(q), removePlayer: (...a) => removePlayer(...a), resetLoadout: q => resetLoadout(q), Bots, lobbyMsg: r => lobbyMsg(r),
@@ -180,6 +181,16 @@ function onChat(room, p, m) {
   const team = !!m.tm && !!p.side;
   const out = JSON.stringify({ t: 'chat', id: p.id, n: p.name, s: txt, tm: team ? 1 : 0, side: p.side || null, dead: room.phase !== 'lobby' && p.side && !p.alive ? 1 : 0 });
   for (const q of room.players.values()) if (!team || q.side === p.side) sendP(q, out);
+}
+// v26.14: bots melder over radioen og sætter 'fjende'-markører til menneskelige makkere (så de mærker at botterne snakker sammen)
+function botRadio(room, p, txt) {
+  if (!p.side || !p.alive) return;
+  const out = JSON.stringify({ t: 'chat', id: p.id, n: p.name, s: String(txt).slice(0, 60), tm: 1, side: p.side, dead: 0, radio: 1 });
+  for (const q of room.players.values()) if (!q.isBot && q.side === p.side && q.ws) sendP(q, out);
+}
+function botPing(room, p, e) {
+  room._bpT = room._bpT || {}; if (!p.side || !p.alive || now() - (p.lastPing || 0) < 6000 || now() - (room._bpT[p.side] || 0) < 3500) return; p.lastPing = room._bpT[p.side] = now();
+  for (const q of room.players.values()) if (!q.isBot && q.side === p.side && q.ws) sendP(q, { t: 'ev', k: 'ping', i: p.id, x: r2(e.x), y: r2(e.y + 1.0), z: r2(e.z), pk: 'enemy' });
 }
 function sendP(p, obj) { if (p.ws) send(p.ws, obj); }
 

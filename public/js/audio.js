@@ -331,7 +331,9 @@ export function createAudio() {
   function detail(kind, pos) {
     if (!ok() || (pos && far(pos, 55))) return; const t = ctx.currentTime, d = out(pos, 3, 55);
     if (kind === 'drip') { const f = 1200 + Math.random() * 1100; tone(d, t, 0.1, f, f * 0.4, 'sine', 0.16); noise(d, t, 0.03, 4200, 3, 'bandpass', 0.05, 0.02); if (Math.random() < 0.5) tone(d, t + 0.09, 0.08, f * 0.8, f * 0.35, 'sine', 0.05); }
-    else if (kind === 'frog') { const n = 2 + (Math.random() * 3 | 0); for (let i = 0; i < n; i++) { const f = 360 + Math.random() * 90; tone(d, t + i * 0.13, 0.1, f, f * 0.8, 'sawtooth', 0.06); noise(d, t + i * 0.13, 0.08, 900, 4, 'bandpass', 0.04, 0.07); } }
+    else if (kind === 'frog') { const n = 2 + (Math.random() * 3 | 0); for (let i = 0; i < n; i++) { const f = 300 + Math.random() * 60; tone(d, t + i * 0.15, 0.09, f, f * 0.85, 'triangle', 0.035); } }
+    else if (kind === 'koi') { const f = 240 + Math.random() * 90; tone(d, t, 0.14, f * 1.6, f * 0.6, 'sine', 0.1); noise(d, t, 0.12, 700, 0.6, 'lowpass', 0.07, 0.1); if (Math.random() < 0.4) { tone(d, t + 0.11, 0.1, f * 1.3, f * 0.55, 'sine', 0.05); } }
+    else if (kind === 'trickle') { for (let k = 0; k < 4; k++) { const f = 700 + Math.random() * 600; tone(d, t + k * (0.05 + Math.random() * 0.05), 0.06, f, f * 0.55, 'sine', 0.025); } }
     else if (kind === 'bird') { const f0 = 2600 + Math.random() * 1800, n = 3 + (Math.random() * 5 | 0); for (let i = 0; i < n; i++) tone(d, t + i * 0.11, 0.08, f0 * (1 + 0.25 * Math.sin(i * 1.7)), f0 * (1.2 + 0.15 * Math.random()), 'sine', 0.1); }
     else if (kind === 'owl') { tone(d, t, 0.35, 420, 380, 'sine', 0.12); tone(d, t + 0.5, 0.45, 400, 330, 'sine', 0.12); }
     else if (kind === 'monkey') { for (let i = 0; i < 6; i++) tone(d, t + i * 0.09, 0.07, 700 + Math.random() * 500, 1200, 'sawtooth', 0.045); }
@@ -344,7 +346,7 @@ export function createAudio() {
     else if (kind === 'smash_paper') { noise(d, t, 0.35, 5200, 0.6, 'bandpass', 0.14, 0.3); noise(d, t + 0.05, 0.25, 7800, 0.7, 'highpass', 0.06, 0.2); }
     else if (kind === 'spark') { for (let k = 0; k < 6; k++) { noise(d, t + k * 0.03 + Math.random() * 0.02, 0.03, 4200 + Math.random() * 3000, 1.5, 'highpass', 0.18, 0.025); } tone(d, t, 0.12, 120, 90, 'sawtooth', 0.07); }
     else if (kind === 'hiss') { noise(d, t, 1.1, 6500, 0.5, 'highpass', 0.18, 1.0); }
-    else if (kind === 'splash') { noise(d, t, 0.25, 1300, 0.5, 'bandpass', 0.3, 0.22); for (let k = 0; k < 5; k++) tone(d, t + 0.02 + k * 0.03, 0.06, 800 + Math.random() * 1500, 380, 'sine', 0.07); }
+    else if (kind === 'splash') { noise(d, t, 0.22, 900, 0.5, 'lowpass', 0.14, 0.18); for (let k = 0; k < 3; k++) tone(d, t + 0.02 + k * 0.04, 0.07, 500 + Math.random() * 500, 250, 'sine', 0.035); }
   }
   /* ---------------- v26.12: MVP-MUSIKKITS – korte syntetiserede fanfarer der afspilles for ALLE når ejeren er rundens MVP ---------------- */
   const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
@@ -397,9 +399,27 @@ export function createAudio() {
       for (let i = 0; i < 8; i++) { kick(d, t + i * b, 0.6); snare(d, t + (i + 0.5) * b, i % 2 ? 0.7 : 0); hat(d, t + i * 0.5 * b, 0.5); }
     }
   };
-  let kitT = 0;
+  let kitT = 0, kitSrc = null; const KITBUF = {}, KITLOAD = {};
+  const KITFILES = new Set(['funk', 'chiptune', 'synthwave', 'trap', 'war', 'bassdrop', 'orchestra', 'dnb', 'hiphop', 'rock', 'techno']);   // v26.14: rigtige, klippede numre (tools/sounds/mvp_cut.py) – synth-kittet nedenfor er kun nødløsning
+  function loadKit(id) {
+    if (KITBUF[id]) return Promise.resolve(KITBUF[id]); if (!ctx || !KITFILES.has(id)) return Promise.resolve(null);
+    return KITLOAD[id] || (KITLOAD[id] = fetch('/assets/sounds/mvp_' + id + '.mp3').then(r => r.arrayBuffer()).then(ab => new Promise((res, rej) => ctx.decodeAudioData(ab, res, rej))).then(b => (KITBUF[id] = b)).catch(() => null));
+  }
+  function preloadKits(ids) { if (!ctx) return; for (const id of ids || KITFILES) loadKit(id); }
   function kit(id) {
-    const f = KIT[id]; if (!f || !ok()) return false;
+    if (!ok()) return false;
+    const f = KIT[id], hasFile = KITFILES.has(id); if (!f && !hasFile) return false;
+    const playBuf = b => {
+      if (!ctx) return; const t = ctx.currentTime, g = ctx.createGain(); g.gain.value = 1.0; g.connect(master);
+      if (kitSrc) { try { kitSrc.stop(); } catch (e) {} }
+      const src = ctx.createBufferSource(); src.buffer = b; src.connect(g); src.start(t + 0.04); kitSrc = src;
+      musicBus.gain.cancelScheduledValues(t); musicBus.gain.setTargetAtTime(0, t, 0.06);
+      clearTimeout(kitT); kitT = setTimeout(() => { if (ctx) musicBus.gain.setTargetAtTime(VOL.music * 0.55, ctx.currentTime, 0.4); }, (b.duration + 0.4) * 1000);
+    };
+    if (hasFile) { if (KITBUF[id]) { playBuf(KITBUF[id]); return true; } loadKit(id).then(b => { if (b) playBuf(b); else if (f) kitSynth(f); }); return true; }
+    return kitSynth(f);
+  }
+  function kitSynth(f) {
     // baggrundsmusikken skrues helt ned mens temaet spiller, så man kun hører MVP-musikken
     const t = ctx.currentTime, g = ctx.createGain(); g.gain.value = 0.9; g.connect(master);
     musicBus.gain.cancelScheduledValues(t); musicBus.gain.setTargetAtTime(0, t, 0.06);
@@ -572,15 +592,9 @@ export function createAudio() {
       const lv = ctx.createBufferSource(); lv.buffer = noiseBuf; lv.loop = true; lv.playbackRate.value = 1.6; const lb = ctx.createBiquadFilter(); lb.type = 'bandpass'; lb.frequency.value = 2600; lb.Q.value = 0.5; const lgn = ctx.createGain(); lgn.gain.value = 0.012;
       lv.connect(lb); lb.connect(lgn); lgn.connect(g); lv.start(t); nodes.push(lv);
     }
-    if (id === 'niseko') {                            // v26.13: sensommernat i en japansk landsby – fårekyllinger, rislende kanal og fjerne vindklokker
-      for (const [f, am, v] of [[4100, 13, 0.0045], [4700, 17, 0.004], [3400, 11, 0.0035]]) {
-        const o = ctx.createOscillator(); o.frequency.value = f; const ag = ctx.createGain(); ag.gain.value = v; const mo = ctx.createOscillator(); mo.frequency.value = am; const mg = ctx.createGain(); mg.gain.value = v;
-        mo.connect(mg); mg.connect(ag.gain); const sl = ctx.createOscillator(); sl.frequency.value = 0.06 + Math.random() * 0.08; const sg = ctx.createGain(); sg.gain.value = v * 0.8; sl.connect(sg); sg.connect(ag.gain);
-        o.connect(ag); ag.connect(g); o.start(t); mo.start(t); sl.start(t); nodes.push(o, mo, sl);
-      }
-      const wr = ctx.createBufferSource(); wr.buffer = noiseBuf; wr.loop = true; wr.playbackRate.value = 1.1; const wb = ctx.createBiquadFilter(); wb.type = 'bandpass'; wb.frequency.value = 1400; wb.Q.value = 0.55;
-      const wgn = ctx.createGain(); wgn.gain.value = 0.011; wr.connect(wb); wb.connect(wgn); wgn.connect(g); wr.start(t); nodes.push(wr);
-      const wl2 = ctx.createOscillator(); wl2.frequency.value = 0.19; const wlg = ctx.createGain(); wlg.gain.value = 500; wl2.connect(wlg); wlg.connect(wb.frequency); wl2.start(t); nodes.push(wl2);
+    if (id === 'niseko') {                            // v26.13: sensommernat – fårekyllinger som korte kvidrerækker (ingen konstante toner) og en lav, blød kanalrislen
+      const wr = ctx.createBufferSource(); wr.buffer = noiseBuf; wr.loop = true; wr.playbackRate.value = 0.55; const wb = ctx.createBiquadFilter(); wb.type = 'lowpass'; wb.frequency.value = 520; wb.Q.value = 0.3;
+      const wgn = ctx.createGain(); wgn.gain.value = 0.014; wr.connect(wb); wb.connect(wgn); wgn.connect(g); wr.start(t); nodes.push(wr);
     }
     let alive = true;
     const dripT = setInterval(() => {                   // fugtigt dryp (valkyrie) / vanddråber (niseko)
@@ -593,7 +607,20 @@ export function createAudio() {
       for (let k = 0; k < 2 + (Math.random() < 0.5 ? 1 : 0); k++) { const o = ctx.createOscillator(), gg = ctx.createGain(); o.type = 'sine'; o.frequency.value = base * (1 + k * 0.5 + Math.random() * 0.02); const st = tt + k * (0.18 + Math.random() * 0.4);
         gg.gain.setValueAtTime(0.0001, st); gg.gain.exponentialRampToValueAtTime(0.011, st + 0.008); gg.gain.exponentialRampToValueAtTime(0.0001, st + 2.4); o.connect(gg); gg.connect(g); o.start(st); o.stop(st + 2.5); }
     }, 8000 + Math.random() * 9000);
-    amb = { id, g, nodes, files, stop() { alive = false; clearInterval(dripT); if (chimeT) clearInterval(chimeT); } };
+    let cricketT = null;
+    if (id === 'niseko') {                              // hver 'fårekylling' er en lille gruppe pulser med egen tonehøjde, og de kvidrer hver for sig (aldrig én vedvarende tone)
+      const bugs = [3700, 4300, 4900, 5400].map(f => ({ f, next: ctx.currentTime + Math.random() * 3 }));
+      cricketT = setInterval(() => {
+        if (!alive || !ctx) return; const tt = ctx.currentTime;
+        for (const b of bugs) {
+          if (b.next > tt + 0.3) continue; const n = 3 + (Math.random() * 4 | 0), gap = 0.07 + Math.random() * 0.03; let st = Math.max(tt, b.next);
+          for (let k = 0; k < n; k++) { const o = ctx.createOscillator(), gg = ctx.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(b.f * (1 + (Math.random() - 0.5) * 0.015), st + k * gap);
+            gg.gain.setValueAtTime(0.0001, st + k * gap); gg.gain.linearRampToValueAtTime(0.0042, st + k * gap + 0.012); gg.gain.exponentialRampToValueAtTime(0.0001, st + k * gap + 0.05); o.connect(gg); gg.connect(g); o.start(st + k * gap); o.stop(st + k * gap + 0.06); }
+          b.next = st + n * gap + 0.35 + Math.random() * 2.4;
+        }
+      }, 250);
+    }
+    amb = { id, g, nodes, files, stop() { alive = false; clearInterval(dripT); if (chimeT) clearInterval(chimeT); if (cricketT) clearInterval(cricketT); } };
   }
   function stopAmbience() {
     if (!amb || !ctx) { amb = null; return; }
@@ -632,5 +659,5 @@ export function createAudio() {
   // v26.7: lyd-udtag til videooptagelse (MediaRecorder): hele mixet efter kompressoren
   let tapDest = null;
   function tap() { if (!ctx) build(); if (!ctx) return null; if (!tapDest) { tapDest = ctx.createMediaStreamDestination(); comp.connect(tapDest); } return tapDest.stream; }
-  return { tap, duck, loaded, cine, cinePreload, playMusic, stopMusic, musicTime, musicPlaying, init, setListener, setRoom, setEmitters, detail, kit, heart, emit, set onEvent(f) { onEvent = f; }, shot, step, impact, door, beep, boom, hiss, click, pin, throwSnd, bounce, flashbang, tinnitus, glass, ignite, fizzle, fireLoop, setVolume, setVolumes, music, ambience, stopAmbience, announce, get ready() { return ok(); }, set enabled(v) { enabled = v; } };
+  return { tap, duck, loaded, cine, cinePreload, playMusic, stopMusic, musicTime, musicPlaying, init, setListener, setRoom, setEmitters, detail, kit, preloadKits, heart, emit, set onEvent(f) { onEvent = f; }, shot, step, impact, door, beep, boom, hiss, click, pin, throwSnd, bounce, flashbang, tinnitus, glass, ignite, fizzle, fireLoop, setVolume, setVolumes, music, ambience, stopAmbience, announce, get ready() { return ok(); }, set enabled(v) { enabled = v; } };
 }

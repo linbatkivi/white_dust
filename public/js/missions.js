@@ -138,5 +138,6 @@ export function createMissions(o) {
         <div class="ms-grid">${SEASON.list.map(m => card(m, 's')).join('')}</div></section></div>`;
   }
   Pf.addTab('missioner', 'MISSIONER', render);
-  return { onVisit, render, active };
+  const daily = () => { const M = state(); return active().d.map(m => ({ id: m.id, t: txt(m), p: M.prog[m.id] || 0, n: m.n, done: !!M.done[m.id] })); };
+  return { onVisit, render, active, daily };
 }

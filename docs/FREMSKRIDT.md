@@ -74,3 +74,10 @@ Venner og fraktioner udveksler data direkte mellem spillerne via PeerJS (ingen n
 - **Grafik**: huse som parceller langs gangene med fælles tagprofil (machiya, butikker, værtshuse, kura, helligdom), klippede hække med kirsebær-/ahorn-/fyr-/piletræer, torii, stenlanterner, lanternesnore, blåregn, kanban, bonsai, raket zen-grus; bagt lys (lanterner, lyste skærmvinduer, måneskin realtid).
 - **Vand**: planar spejling af lanterner/huse (`waterfx.js`), svømmende koi (`koi.js`), vadbare damme; ingen regn på banen. Lyd: fårekyllinger, rislende vand, vindklokker.
 - **QA**: nav-test, visuals-test, Blender-QA (usynlige hitbokser / synligt i fri rute), bot-kørsel; pipeline i `tools/niseko/`.
+
+## v26.14 (okt 2026)
+- **Bots med hjerne:** forskellige ruter pr. bot (A* med straf på de foregående), roller (entry/support/lurker/carrier · anker/info/roamer), fælles viden med callouts og forsinkelse, strategi pr. runde (default/rush/split/slow/fake), skulder-peeks bag sikre vinkler, tilbagetrækning til dækning, rydning af vinkler i spring, udstyr før man går ind på et forsvaret site, radio + markører til menneskelige makkere. Svagere sigte: reaktionstid 0,2–0,4 s, perifert syn med sandsynlighed, mere spredning. Test: `node test/sim/botsim.js <bane> <runder> <fart>` (+ `test/sim/plot.py` tegner ruterne på radaren).
+- **Admin-konsol:** åbner ikke pausemenuen, forslag dækker ikke loggen, `help <gruppe>`, nye kommandoer (round.skipbuy, bot.difficulty, server.maps).
+- **Niseko-lyd:** fårekyllinger som korte kvidrerækker (ingen konstant hyletone), blød kanalrislen, blødere frø/koi/vand-lyde.
+- **MVP-musik:** 11 rigtige, klippede numre (`tools/sounds/mvp_cut.py`) i stedet for korte synth-jingles; 9 af dem kan købes for mønter i butikken.
+- **Ny forside, karriere og shop:** store LAV PARTY/JOIN, hub-dock (Shop · Opgaver · Inventar · Karriere), indstillinger som lille knap i hjørnet, karrierens sidenavigation (missioner + trofæer under én fane), shoppen som egen skærm med tilbud, nedtælling og prøvelytning.
