@@ -204,12 +204,15 @@ export function createFx(THREE, o) {
     for (let i = 0; i < 26; i++) { const a = R() * 6.28, d = w * (0.28 + R() * 0.2), r = w * (0.02 + R() * 0.06); c.fillStyle = 'rgba(88,3,3,.9)'; c.beginPath(); c.arc(w / 2 + Math.cos(a) * d, h / 2 + Math.sin(a) * d, r, 0, 7); c.fill(); }
   }, 128);
   const poolGeo = new THREE.PlaneGeometry(1, 1); poolGeo.rotateX(-Math.PI / 2); const pools = [];
-  function pool(x, y, z, r) {
-    const m = new THREE.Mesh(poolGeo, new THREE.MeshBasicMaterial({ map: bloodTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, opacity: 0.94, color: 0xb31414 }));
+  function pool(x, y, z, r, color, op) {
+    const m = new THREE.Mesh(poolGeo, new THREE.MeshBasicMaterial({ map: bloodTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, opacity: op || 0.94, color: color === undefined ? 0xb31414 : color }));
     m.position.set(x, y + 0.014 + pools.length * 0.0003, z); m.rotation.y = Math.random() * 6.28; m.scale.set(r * 0.4, 1, r * 0.4); m.renderOrder = 2; scene.add(m);
     pools.push({ m, r, t: 0 }); if (pools.length > 80) { const q = pools.shift(); scene.remove(q.m); q.m.material.dispose(); }
   }
   const wallGeo = new THREE.PlaneGeometry(1, 1); const splats = [];
+  function puff(x, y, z, vx, vy, vz, r, g, b, life) {                             // v26.12: generel røg-/gaspuf (slukker, damp)
+    imps.push({ k: 1, x, y, z, vx, vy, vz, t: 0, life: life || 0.8, r, g, b, rot: Math.random() * 6 }); if (imps.length > 420) imps.splice(0, imps.length - 420);
+  }
   function wallSplat(x, y, z, nx, nz, r) {                                    // v26.12: blodstænk på væg (normal nx,nz)
     const m = new THREE.Mesh(wallGeo, new THREE.MeshBasicMaterial({ map: bloodTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, opacity: 0.9, color: 0xa81212 }));
     m.position.set(x + nx * 0.012, y, z + nz * 0.012); m.rotation.y = Math.atan2(nx, nz); m.rotation.z = Math.random() * 6.28; m.scale.set(r, r * (0.6 + Math.random() * 0.8), 1); m.renderOrder = 2; scene.add(m);
@@ -256,5 +259,5 @@ export function createFx(THREE, o) {
     LSmoke.end(cam); LFire.end(cam); LDot.end(cam); LGlow.end(cam);
   }
   function clear() { for (const s of [...systems]) s.remove(); pops.length = 0; trail.length = 0; imps.length = 0; for (const q of pools) { scene.remove(q.m); q.m.material.dispose(); } pools.length = 0; }
-  return { smoke, fire, flashPop, trailFlame, impact, blood, pool, wallSplat, shards, update, clear, setThermal };
+  return { smoke, fire, flashPop, trailFlame, impact, blood, pool, wallSplat, puff, shards, update, clear, setThermal };
 }

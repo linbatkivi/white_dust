@@ -23,6 +23,29 @@ const TIMES = FAST
 const MAX_PLAYERS = 10, WIN_ROUNDS = 7, HALF = 6, START_MONEY = WD.ECON.start, MAX_MONEY = WD.ECON.max;
 const GRACE_GAME = 25000, GRACE_LOBBY = 8000;
 const SNAP_MS = 50;
+// v26.12: fysiske/destruerbare props. a: 'b' knuses · 'k' vælter/flyver · 's' gnister (forbliver) · r = træfradius, h = højde
+const Bots = require('./bots/brain')({ WD, now: () => now(), r2: v => r2(v), makePlayer: (...a) => makePlayer(...a), onShoot: (...a) => onShoot(...a), onBuy: (...a) => onBuy(...a),
+  onThrow: (...a) => onThrow(...a), onSwitch: (...a) => onSwitch(...a), startReload: (...a) => startReload(...a) });      // v26.12: computerstyrede spillere
+const DPT = {
+  planter_pot_clay: { a: 'b', r: 0.34, h: 0.55 }, ceramic_pot: { a: 'b', r: 0.3, h: 0.5 }, wicker_basket_01: { a: 'k', r: 0.3, h: 0.45 }, wooden_bucket_01: { a: 'k', r: 0.26, h: 0.4 },
+  wooden_crate_01: { a: 'k', r: 0.42, h: 0.5 }, wooden_crate_02: { a: 'k', r: 0.42, h: 0.5 }, korean_fire_extinguisher_01: { a: 'k', r: 0.16, h: 0.55 },
+  coffee_cup: { a: 'b', r: 0.07, h: 0.1 }, paper_stack: { a: 'k', r: 0.2, h: 0.1 }, keyboard_mouse: { a: 'k', r: 0.3, h: 0.05 }, classic_laptop: { a: 'k', r: 0.22, h: 0.05 }, office_chair: { a: 'k', r: 0.4, h: 0.9 }
+};
+const DPCACHE = {};
+function dpropsFor(mapId) {
+  if (DPCACHE[mapId] !== undefined) return DPCACHE[mapId];
+  let out = [];
+  try {
+    const raw = JSON.parse(fs.readFileSync(path.join(__dirname, 'public', 'assets', mapId, 'dprops.json'), 'utf8'));
+    raw.forEach((e, i) => {
+      if (e.st) { const c = e.c; out.push({ i, st: 1, m: e.m, x: c[0], y: c[1], z: c[2], hx: c[3] / 2, hy: c[4] / 2, hz: c[5] / 2 }); return; }
+      const T = DPT[e.m]; if (!T) { out.push(null); return; }
+      out.push({ i, st: 0, m: e.m, a: T.a, x: e.p[0], y: e.p[1] + T.h / 2, z: e.p[2], r: T.r, h: T.h });
+    });
+  } catch (e) { out = []; }
+  return (DPCACHE[mapId] = out);
+}
+let LAMPS = {}; try { LAMPS = JSON.parse(fs.readFileSync(path.join(__dirname, 'shared', 'lamps.json'), 'utf8')); } catch (e) {}   // v26.12: lampernes positioner (kan skydes ned/svinge)
 const netStats = { snapBytes: 0, snaps: 0, skipped: 0 };      // v26.12: netværksstatistik
 
 const { WEAPONS, ECON } = WD;
@@ -205,6 +228,7 @@ function resetLoadout(p) {
 function cleanCos(c) {
   const out = { agent: {}, skins: {} };
   if (!c || typeof c !== 'object') return out;
+  if (typeof c.kit === 'string' && /^[a-z0-9_]{1,16}$/.test(c.kit)) out.kit = c.kit;     // v26.12: MVP-musikkit
   for (const s of ['swat', 'hij']) { const v = c.agent && c.agent[s]; if (typeof v === 'string' && /^[a-z0-9_]{1,16}:[a-z0-9_]{1,16}$/.test(v)) out.agent[s] = v; }
   if (c.skins && typeof c.skins === 'object') for (const k of Object.keys(WD.WEAPONS)) { const v = c.skins[k]; if (typeof v === 'string' && /^[a-z0-9_]{1,24}$/.test(v)) out.skins[k] = v; }
   return out;
@@ -216,7 +240,7 @@ function cleanProf(c) {
   return { lvl: Math.max(1, Math.min(100, Math.floor(+c.lvl) || 1)), t: id(c.t), c: id(c.c), b: id(c.b), n: id(c.n), f: id(c.f), u: id(c.u), m: typeof c.m === 'string' && /^[a-z0-9:,]{0,300}$/.test(c.m) ? c.m : '' };
 }
 function lobbyMsg(room) {
-  return { t: 'lobby', ph: room.phase, map: room.map, maps: WD.MAP_LIST, veto: room.vetoMode !== 'host', code: room.code, host: room.hostId, max: MAX_PLAYERS, cap: MAX_PLAYERS / 2, players: [...room.players.values()].map(p => ({ id: p.id, name: p.name, team: p.pref, cos: p.cos || null, prof: p.prof || null })) };
+  return { t: 'lobby', ph: room.phase, map: room.map, maps: WD.MAP_LIST, veto: room.vetoMode !== 'host', bots: room.botsOn === undefined ? !(process.env.WD_TEST && !process.env.WD_BOTS) : room.botsOn, code: room.code, host: room.hostId, max: MAX_PLAYERS, cap: MAX_PLAYERS / 2, players: [...room.players.values()].map(p => ({ id: p.id, name: p.name, team: p.pref, cos: p.cos || null, prof: p.prof || null })) };
 }
 function sendSelf(p) {
   sendP(p, { t: 'self', hp: p.hp, money: p.money, alive: p.alive, side: p.side, inv: p.inv, cur: p.cur, ammo: p.ammo, bought: p.bought });
@@ -224,7 +248,7 @@ function sendSelf(p) {
 function roundMsg(room) {
   return {
     t: 'round', map: room.map, n: room.round, ph: room.phase, ms: Math.max(0, Math.round(room.phaseEnd - now())), score: [room.score.swat, room.score.hij], half: room.swapped,
-    intro: room.introEnd ? Math.max(0, Math.round(room.introEnd - now())) : 0, ev: room.event || null, panes: (room.panes || []).map(p => p.st),
+    intro: room.introEnd ? Math.max(0, Math.round(room.introEnd - now())) : 0, ev: room.event || null, panes: (room.panes || []).map(p => p.st), dpb: [...(room.dpState || new Map())].filter(([i]) => room.dp && room.dp[i] && !room.dp[i].st).map(([i]) => [i, room.dp[i].a]), lampb: [...(room.lampHit || [])],
     players: [...room.players.values()].filter(p => p.side).map(p => ({ id: p.id, name: p.name, side: p.side, cos: p.cos || null, prof: p.prof || null }))
   };
 }
@@ -332,6 +356,7 @@ function handle(ws, m) {
     case 'start':
       if (p.id === room.hostId && room.phase === 'lobby') { if (room.vetoMode !== 'host' && (!FAST || m.veto)) startVeto(room); else startGame(room); }   // tests: afstemning kun med {veto:1}
       break;
+    case 'bots': if (p.id === room.hostId && room.phase === 'lobby') { room.botsOn = !!m.on; room.bcast(lobbyMsg(room)); } break;     // v26.12: værten slår bots til/fra
     case 'vmode':   // v20: værten vælger banevalg: 'premier' (holdene stemmer baner ud) eller 'host' (værten vælger)
       if (p.id === room.hostId && room.phase === 'lobby') { room.vetoMode = m.mode === 'host' ? 'host' : 'premier'; room.bcast(lobbyMsg(room)); }
       break;
@@ -403,11 +428,14 @@ function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.fl
 
 // manuelt holdvalg (p.pref); uden valg fordeles spillerne så holdene bliver lige store
 function assignTeams(room) {
+  Bots.remove(room);                                                     // v26.12: gamle bots fra en tidligere kamp fjernes
   const ps = [...room.players.values()];
   const hij = ps.filter(p => p.pref === 'hij'), swat = ps.filter(p => p.pref === 'swat');
   for (const p of shuffle(ps.filter(p => !p.pref))) {
     if (hij.length < swat.length) hij.push(p); else if (swat.length < hij.length) swat.push(p); else (Math.random() < 0.5 ? hij : swat).push(p);
   }
+  if (room.botsOn === undefined) room.botsOn = !(process.env.WD_TEST && !process.env.WD_BOTS);     // tests kører uden bots (medmindre WD_BOTS=1)
+  if (room.botsOn !== false) return Bots.fill(room, { hij, swat });      // bots udfylder op til 5 pr. hold (solo og få spillere)
   if (ps.length > 1 && (!hij.length || !swat.length)) return null;
   return { hij, swat };
 }
@@ -415,6 +443,7 @@ function startGame(room, teams) {
   const T = teams || assignTeams(room);
   if (!T) { const h = room.players.get(room.hostId); if (h) sendP(h, { t: 'notice', msg: 'Begge hold skal have mindst én spiller' }); return false; }
   room.W = WD.buildWorld(room.map); room.event = null;   // banen låses ved spilstart (skifter ikke af sig selv)
+  try { Bots.prepare(room); } catch (e) { console.error('bots-prep:', e); }
   T.hij.forEach(p => { p.side = 'hij'; }); T.swat.forEach(p => { p.side = 'swat'; });
   const ps = [...room.players.values()];
   ps.forEach(p => {
@@ -423,7 +452,7 @@ function startGame(room, teams) {
   room.score = { swat: 0, hij: 0 }; room.round = 0; room.lossStreak = { swat: 0, hij: 0 }; room.swapped = false;
   // v20: kampen starter først når ALLE har indlæst banen (eller efter TIMES.load sekunder, så én hængende klient ikke blokerer)
   room.phase = 'loading'; room.phaseEnd = now() + TIMES.load * 1000;
-  ps.forEach(p => { p.loaded = false; });
+  ps.forEach(p => { p.loaded = !!p.isBot; });
   room.bcast(loadMsg(room));
   return true;
 }
@@ -441,7 +470,7 @@ function startVeto(room) {
   room.phase = 'veto';
   fixVetoTurn(room); room.bcast(vetoMsg(room));
 }
-function vetoTeam(room, side) { return [...room.players.values()].filter(q => q.vside === side && q.connected); }
+function vetoTeam(room, side) { return [...room.players.values()].filter(q => q.vside === side && q.connected && !q.isBot); }
 function fixVetoTurn(room) {                       // tomt hold => det andet hold banner
   const v = room.veto; if (!vetoTeam(room, v.turn).length) v.turn = v.turn === 'hij' ? 'swat' : 'hij';
 }
@@ -495,7 +524,7 @@ function newRound(room) {
   // v22: kampens første runde starter med intro-cutscenen (holdene ankommer) – købsfasen forlænges, og der kan ikke købes imens
   room.introEnd = room.round === 1 && TIMES.intro > 0 ? t + TIMES.intro * 1000 : 0;
   if (room.introEnd) room.phaseEnd += TIMES.intro * 1000;
-  room.grenades = []; room.smokes = []; room.fires = []; room.sensors = []; room.panes = ((room.W.data && room.W.data.panes) || []).map(p => Object.assign({ st: 0 }, p)); room.bomb = newBomb(); room.drops = []; room.requests = [];
+  room.grenades = []; room.smokes = []; room.fires = []; room.sensors = []; room.panes = ((room.W.data && room.W.data.panes) || []).map(p => Object.assign({ st: 0 }, p)); room.bomb = newBomb(); room.drops = []; room.requests = []; room.lampHit = new Set(); room.dp = dpropsFor(room.W.id || room.map); room.dpState = new Map();
   room.planter = 0; room.defuser = 0; room.snapHist = [];
   const idx = { swat: 0, hij: 0 };
   const hijs = [];
@@ -599,7 +628,7 @@ function afterRoundEnd(room) {
 }
 
 function backToLobby(room) {
-  room.veto = null; for (const q of room.players.values()) q.vside = null;
+  Bots.remove(room); room.veto = null; for (const q of room.players.values()) q.vside = null;
   room.phase = 'lobby'; room.grenades = []; room.smokes = []; room.fires = []; room.sensors = []; room.bomb = newBomb(); room.drops = [];
   for (const p of [...room.players.values()]) {
     if (!p.connected) { removePlayer(room, p); continue; }
@@ -612,9 +641,9 @@ function removePlayer(room, p) {
   if (p.alive) { p.alive = false; if (p.inv && p.inv.bomb) dropBomb(room, p); dropLoot(room, p); }
   room.players.delete(p.id);
   if (room.bomb.defuser === p.id) { room.bomb.defuser = 0; room.bomb.defT = 0; }
-  if (!room.players.size) { rooms.delete(room.code); return; }
+  if (!room.players.size || ![...room.players.values()].some(q => !q.isBot)) { rooms.delete(room.code); return; }
   if (room.hostId === p.id) {
-    const nh = [...room.players.values()].find(q => q.connected) || room.players.values().next().value;
+    const nh = [...room.players.values()].find(q => q.connected && !q.isBot) || [...room.players.values()].find(q => !q.isBot) || room.players.values().next().value;
     room.hostId = nh.id;
   }
   room.bcast(lobbyMsg(room));   // ny vært skal også kende sin rolle midt i et spil
@@ -866,7 +895,7 @@ function onShoot(room, p, m) {
   const d = unit(m.d);
   if (!d) return;
   log.push(t);
-  p.lastShot = t; am.mag--;
+  p.lastShot = t; am.mag--; if (!p.isBot) Bots.noise(room, p, 'shot');
   const o = validOrigin(p, m.o);
   // lag-kompensation: klienten sender det SERVER-tidspunkt den viste modstanderne ved (interpoleret snapshot-tid) – ofrene spoles tilbage dertil
   const st = Math.max(t - 400, Math.min(t, Number.isFinite(+m.st) ? +m.st : t));
@@ -876,6 +905,7 @@ function onShoot(room, p, m) {
   const noWallHit0 = tw >= range - 1e-6;   // raycastWorld returns `range` itself (not Infinity) when nothing was hit
   const pr = room.panes && room.panes.length ? paneRay(room, o, d, Math.min(tw, range)) : null;     // glas foran væggen?
   const twp = pr ? pr.t : tw, noWallHit = pr ? false : noWallHit0;
+  lampShot(room, o, d, Math.min(twp, range)); dpShot(room, o, d, Math.min(twp, range));
   let best = null, victim = null;
   for (const q of room.players.values()) {
     if (q === p || !q.alive || q.side === p.side) continue;
@@ -961,6 +991,7 @@ function damage(room, victim, dmg, attacker, weapon, hs) {
   }
   if (victim.act) cancelAct(room, victim);
   victim.use = false; victim.reloadEnd = 0;
+  try { Bots.onKill(room, victim, attacker); } catch (e) {}
   if (victim.inv.bomb) dropBomb(room, victim);
   dropLoot(room, victim);
   room.bcast({ t: 'ev', k: 'kill', a: attacker ? attacker.id : 0, v: victim.id, w: weapon, hs: !!hs,
@@ -1039,6 +1070,7 @@ function dropBomb(room, p) {
   }
 }
 function startAct(room, p, kind) {
+  Bots.noise(room, p, kind === 'plant' ? 'plant' : 'defuse');
   p.act = kind; p.actT = 0; p.actX = p.x; p.actZ = p.z;
   sendP(p, { t: 'act', k: kind, dur: kind === 'plant' ? TIMES.plant : defNeed(p) });
 }
@@ -1231,6 +1263,7 @@ function updateProjectiles(room, t, dt) {
     if (g.type === 'sensor') { placeSensor(room, g, t); continue; }
     if (g.type === 'he') {
       room.bcast({ t: 'ev', k: 'boom', x: r2(g.x), y: r2(g.y), z: r2(g.z) });
+      lampBlast(room, g); dpBlast(room, g); Bots.noise(room, null, 'boom', g);
       for (const pn of room.panes || []) if (pn.st < 2 && Math.hypot((pn.x0 + pn.x1) / 2 - g.x, (pn.z0 + pn.z1) / 2 - g.z) < 7) hitPane(room, pn, 2);
       const owner = room.players.get(g.owner);
       for (const q of room.players.values()) {
@@ -1292,6 +1325,7 @@ function tickRoom(room, t, dt) {
   if (room.phase === 'lobby') return;
   if (room.phase === 'veto') { tickVeto(room, t); return; }
   if (room.phase === 'loading') { if (t >= room.phaseEnd) newRound(room); else checkLoaded(room); return; }   // frakoblede spillere blokerer ikke
+  if (room.phase === 'buy' || room.phase === 'live') { try { Bots.tick(room, t, dt); } catch (e) { console.error('bots:', e); } }
   if (room.phase === 'buy') {
     if (t >= room.phaseEnd) { room.phase = 'live'; room.phaseEnd = t + TIMES.round * 1000; room.liveStart = t; }
   } else if (room.phase === 'live') {
@@ -1326,6 +1360,67 @@ function tickRoom(room, t, dt) {
   if (rooms.has(room.code) && room.phase !== 'lobby' && t - room.lastSnap >= SNAP_MS - 4) { room.lastSnap = t; sendSnap(room, t); }
 }
 
+function lampShot(room, o, d, tMax) {                                    // v26.12: skud mod lamper – de rives løs og svinger (kun visuelt, alle ser det)
+  const L = LAMPS[room.W.id]; if (!L || !L.length) return;
+  let best = -1, bt = tMax;
+  for (let i = 0; i < L.length; i++) {
+    const l = L[i]; if (room.lampHit.has(i)) continue;
+    const vx = l[0] - o[0], vy = l[1] - o[1], vz = l[2] - o[2], t = vx * d[0] + vy * d[1] + vz * d[2];
+    if (t < 0.5 || t > bt) continue;
+    const cx = vx - d[0] * t, cy = vy - d[1] * t, cz = vz - d[2] * t;
+    if (cx * cx + cy * cy + cz * cz < 0.09) { best = i; bt = t; }
+  }
+  if (best < 0) return;
+  room.lampHit.add(best); const l = L[best];
+  room.bcast({ t: 'ev', k: 'lamp', i: best, x: l[0], y: l[1], z: l[2], q: l[3], dx: r2(d[0]), dz: r2(d[2]) });
+}
+function dpShot(room, o, d, tMax) {                                        // v26.12: skud mod fysiske props
+  const L = room.dp; if (!L || !L.length) return;
+  const tNow = now(); let best = null, bt = tMax;
+  for (const e of L) {
+    if (!e) continue;
+    const dead = room.dpState.get(e.i);
+    if (e.st) { if (dead && tNow - dead < 7000) continue; }
+    else if (dead) continue;
+    if (e.st) {                                                          // statiske (bagte) genstande: stråle mod æsken
+      let t0 = 0.3, t1 = bt, ok = true;
+      for (const [ox, dx, c, h] of [[o[0], d[0], e.x, e.hx], [o[1], d[1], e.y, e.hy], [o[2], d[2], e.z, e.hz]]) {
+        if (Math.abs(dx) < 1e-9) { if (ox < c - h || ox > c + h) { ok = false; break; } continue; }
+        let ta = (c - h - ox) / dx, tb = (c + h - ox) / dx; if (ta > tb) { const q = ta; ta = tb; tb = q; }
+        if (ta > t0) t0 = ta; if (tb < t1) t1 = tb; if (t0 > t1) { ok = false; break; }
+      }
+      if (ok && t0 < bt) { best = e; bt = t0; }
+      continue;
+    }
+    const vx = e.x - o[0], vy = e.y - o[1], vz = e.z - o[2], t = vx * d[0] + vy * d[1] + vz * d[2];
+    if (t < 0.3 || t > bt) continue;
+    const cx = vx - d[0] * t, cy = vy - d[1] * t, cz = vz - d[2] * t;
+    if (cx * cx + cy * cy + cz * cz < e.r * e.r) { best = e; bt = t; }
+  }
+  if (!best) return;
+  room.dpState.set(best.i, tNow);
+  const a = best.st ? 's' : best.a;
+  room.bcast({ t: 'ev', k: 'dp', i: best.i, a, dx: r2(d[0]), dz: r2(d[2]), hy: r2(o[1] + d[1] * bt - best.y), v: 1, hp: [r2(o[0] + d[0] * bt), r2(o[1] + d[1] * bt), r2(o[2] + d[2] * bt)] });
+}
+function dpBlast(room, g) {
+  const L = room.dp; if (!L) return;
+  for (const e of L) {
+    if (!e || (e.st ? false : room.dpState.get(e.i))) continue;
+    const dx = e.x - g.x, dy = e.y - g.y, dz = e.z - g.z, dd = Math.hypot(dx, dy, dz);
+    if (dd > 7 || !WD.losClear(room.W, g.x, g.y + 0.2, g.z, e.x, e.y, e.z)) continue;
+    room.dpState.set(e.i, now());
+    room.bcast({ t: 'ev', k: 'dp', i: e.i, a: e.st ? 's' : (e.a === 'b' ? 'b' : 'k'), dx: r2(dx / (dd || 1)), dz: r2(dz / (dd || 1)), hy: 0.4, v: Math.max(0.4, 1.5 - dd / 5) });
+  }
+}
+function lampBlast(room, g) {                                              // eksplosioner ryster lamper i nærheden
+  const L = LAMPS[room.W.id]; if (!L) return;
+  for (let i = 0; i < L.length; i++) {
+    const l = L[i]; if (room.lampHit.has(i)) continue;
+    const dx = l[0] - g.x, dz = l[2] - g.z, dy = l[1] - g.y, dd = Math.hypot(dx, dy, dz);
+    if (dd > 7 || !WD.losClear(room.W, g.x, g.y + 0.2, g.z, l[0], l[1] - 0.1, l[2])) continue;
+    room.lampHit.add(i); room.bcast({ t: 'ev', k: 'lamp', i, x: l[0], y: l[1], z: l[2], q: l[3], dx: r2(dx / (dd || 1)), dz: r2(dz / (dd || 1)), b: 1 });
+  }
+}
 function sendSnap(room, t) {
   const P = [], SP = new Map();
   for (const p of room.players.values()) {

@@ -10,8 +10,16 @@ const NCOMP = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4, MAT4: 16 };
 
 export async function loadGLTF(THREE, url, maxAniso) {
   const base = url.slice(0, url.lastIndexOf('/') + 1);
-  const g = await (await fetch(url)).json();
-  const bufs = await Promise.all((g.buffers || []).map(b => fetch(base + b.uri).then(r => { if (!r.ok) throw new Error(b.uri + ' ' + r.status); return r.arrayBuffer(); })));
+  let g, bufs;
+  if (/\.glb(\?|$)/.test(url)) {                                            // v26.12: GLB (JSON + BIN i én fil; indlejrede billeder → blob-url)
+    const ab = await (await fetch(url)).arrayBuffer(), dv = new DataView(ab); let off = 12, bin = null;
+    while (off < ab.byteLength) { const len = dv.getUint32(off, true), typ = dv.getUint32(off + 4, true); if (typ === 0x4E4F534A) g = JSON.parse(new TextDecoder().decode(new Uint8Array(ab, off + 8, len))); else if (typ === 0x004E4942) bin = ab.slice(off + 8, off + 8 + len); off += 8 + len; }
+    bufs = [bin];
+    for (const im of g.images || []) if (im.bufferView !== undefined) { const v = g.bufferViews[im.bufferView]; im.uri = URL.createObjectURL(new Blob([new Uint8Array(bin, v.byteOffset || 0, v.byteLength)], { type: im.mimeType || 'image/png' })); }
+  } else {
+    g = await (await fetch(url)).json();
+    bufs = await Promise.all((g.buffers || []).map(b => fetch(base + b.uri).then(r => { if (!r.ok) throw new Error(b.uri + ' ' + r.status); return r.arrayBuffer(); })));
+  }
   const acc = i => {
     const a = g.accessors[i], v = g.bufferViews[a.bufferView], T = COMP[a.componentType], n = NCOMP[a.type];
     const off = (v.byteOffset || 0) + (a.byteOffset || 0), stride = v.byteStride || 0, el = n * T.BYTES_PER_ELEMENT;
@@ -26,7 +34,7 @@ export async function loadGLTF(THREE, url, maxAniso) {
     if (!info) return null;
     const t0 = g.textures[info.index], img = g.images[t0.source];
     const key = img.uri + (srgb ? '|s' : '|l');
-    if (!texCache.has(key)) texCache.set(key, loader.loadAsync(base + img.uri).then(t => { t.flipY = false; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace; t.anisotropy = Math.min(8, maxAniso || 1); return t; }));
+    if (!texCache.has(key)) texCache.set(key, loader.loadAsync(img.uri.startsWith('blob:') ? img.uri : base + img.uri).then(t => { t.flipY = false; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace; t.anisotropy = Math.min(8, maxAniso || 1); return t; }));
     return texCache.get(key);
   };
   const mats = await Promise.all((g.materials || [{}]).map(async m => {

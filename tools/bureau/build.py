@@ -56,7 +56,7 @@ def building(G):
         pts = [G.VIS.v[i] for i in f]; sz = MATS[m].get('size') or 1.0
         uv = [(u / sz, v / sz) for (u, v) in G.VIS.uv[k]]
         (det if m in DETAIL else walls).poly(pts, m, uv=uv)
-    walls.build(coll('walls')); det.build(coll('structures'))
+    walls.build(coll('walls')); det.build(coll('structures'))   # (v26.12: afrunding af vægge gav 1,3 mio. trekanter i Bureau – slået fra)
 
 # ---------------------------------------------------------------- inventar (Poly Haven + egne modeller), reduceret og bagt med
 TARGET = {'covered_car': 6000, 'pachira_aquatica_01': 2600, 'sofa_02': 2400, 'sofa_03': 2400, 'modern_arm_chair_01': 1600, 'horse_statue_01': 3000,
@@ -125,9 +125,15 @@ def model_obj(path):
     coll('lib').objects.link(ob); ob.hide_render = True
     vs = [v.co for v in ob.data.vertices]; mnz = min(v.z for v in vs)
     _lib[path] = (ob, mnz); return _lib[path]
+DYN = {'korean_fire_extinguisher_01', 'coffee_cup', 'paper_stack', 'keyboard_mouse', 'classic_laptop', 'office_chair'}      # v26.12: fysiske props (bages ikke ind)
+STATIC_HIT = {'server_rack', 'wall_tv', 'monitor_code', 'monitor_cctv', 'security_camera_01', 'power_box_01', 'utility_box_01', 'utility_box_02', 'portable_generator'}   # kan skydes til gnister (forbliver bagt)
+DYNOUT = []
 def furnish(props):
     n = 0; t0 = time.time()
     for p in props:
+        base = os.path.basename(p['m']).rsplit('.', 1)[0]
+        if base in STATIC_HIT and 'c' in p: DYNOUT.append({'m': base, 'st': 1, 'p': p['p'], 'yaw': p['yaw'], 'c': p['c']})
+        if base in DYN and 'c' not in p: DYNOUT.append({'m': base, 'c': '/custom/' in p['m'], 'p': p['p'], 'yaw': p['yaw'], 's': 1.0}); continue
         rel = p['m'].replace('res://assets/models/custom/', 'cache/custom/').replace('res://assets/models/', 'cache/models/')
         path = os.path.join(HERE, rel)
         if not os.path.exists(path): continue
@@ -202,6 +208,7 @@ def main():
         # lygternes glorier/glans i regnen (night.js): kun lamperne udenfor på tagterrassen
         out = []                                                                    # (lygternes glorier lignede en måne på himlen – fra)
         json.dump({'lights': out}, open(os.path.join(bake.DST, 'lights.json'), 'w'))
+        json.dump(DYNOUT, open(os.path.join(bake.DST, 'dprops.json'), 'w'), separators=(',', ':'))
     else:
         bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT, 'bureau_clay.blend'))
 

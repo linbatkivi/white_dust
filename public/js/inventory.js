@@ -33,6 +33,7 @@ export function createInventory(opt) {
     if (!R) return;
     if (obj) { scene.remove(obj.group || obj); obj = null; }
     const floor = scene.getObjectByName('floor');
+    if (tab === 'kits') { floor.visible = false; return; }
     if (tab === 'agents') {
       const C = opt.chars(); if (!C) return;
       const h = C.buildHuman(side, inv.agent[side]); C.setBake(h, [0.05, 0.05, 0.05, 1]);
@@ -67,27 +68,30 @@ export function createInventory(opt) {
     const cur = tab === 'agents' ? S.agentOf(inv.agent[side], side) : null, sk = S.SKIN_BY_ID[skinOf(gun, side)], kn = knifeKey();
     const list = tab === 'agents'
       ? S.AGENTS[side].map(a => a.variants.map(v => card(inv.agent[side] === a.id + ':' + v.id, v.rarity, a.name, v.name, `data-agent="${a.id}:${v.id}"`)).join('')).join('')
+      : tab === 'kits'
+        ? S.KITS.map(k => card(inv.kit === k.id, k.rarity, k.name, k.desc, `data-kit="${k.id}"`)).join('')
       : tab === 'knives'
         ? S.KNIVES.map(k => card(kn.model.id === k.id, k.rarity, '★ ' + k.name, k.fin, `data-kmodel="${k.id}"`)).join('')
         : S.WEAPON_SKINS.map(s => card(skinOf(gun, side) === s.id, s.rarity, s.name, WNAME[gun], `data-skin="${s.id}"`)).join('');
-    const guns = tab === 'knives'
+    const guns = tab === 'knives' || tab === 'kits'
       ? ''
       : S.GUNS.map(g => `<button class="iv-gun${g === gun ? ' sel' : ''}" data-gun="${g}">${WNAME[g]}<small>${S.SKIN_BY_ID[skinOf(g, side)].name}</small></button>`).join('');
-    const title = tab === 'agents' ? `${cur.agent.name}<small>${cur.variant.name}</small>` : tab === 'knives' ? `★ ${kn.model.name}<small>${kn.finish.name}</small>` : `${WNAME[gun]}<small>${sk.name}</small>`;
-    const rr = tab === 'agents' ? rar(cur.variant.rarity) : tab === 'knives' ? rar(kn.finish.rarity) : rar(sk.rarity);
+    const kitCur = S.KIT_BY_ID[inv.kit] || S.KITS[0];
+    const title = tab === 'kits' ? `${kitCur.name}<small>${kitCur.desc}</small>` : tab === 'agents' ? `${cur.agent.name}<small>${cur.variant.name}</small>` : tab === 'knives' ? `★ ${kn.model.name}<small>${kn.finish.name}</small>` : `${WNAME[gun]}<small>${sk.name}</small>`;
+    const rr = tab === 'kits' ? rar(kitCur.rarity) : tab === 'agents' ? rar(cur.variant.rarity) : tab === 'knives' ? rar(kn.finish.rarity) : rar(sk.rarity);
     const ent = enterK; enterK = '';                                   // v21: indgangs-animation kun ved åbning / faneskift (ikke ved hvert klik)
     el.innerHTML = `<div class="st-panel iv-panel${ent ? ' enter-' + ent : ''}">
-      <div class="st-head"><h2>INVENTAR</h2><div class="iv-tabs"><button data-tab="agents" class="${tab === 'agents' ? 'sel' : ''}">AGENTER</button><button data-tab="skins" class="${tab === 'skins' ? 'sel' : ''}">VÅBEN-SKINS</button><button data-tab="knives" class="${tab === 'knives' ? 'sel' : ''}">★ KNIVE</button></div><button class="btn btn-tiny" data-close>LUK (ESC)</button></div>
+      <div class="st-head"><h2>INVENTAR</h2><div class="iv-tabs"><button data-tab="agents" class="${tab === 'agents' ? 'sel' : ''}">AGENTER</button><button data-tab="skins" class="${tab === 'skins' ? 'sel' : ''}">VÅBEN-SKINS</button><button data-tab="knives" class="${tab === 'knives' ? 'sel' : ''}">★ KNIVE</button><button data-tab="kits" class="${tab === 'kits' ? 'sel' : ''}">♪ MUSIK</button></div><button class="btn btn-tiny" data-close>LUK (ESC)</button></div>
       <div class="iv-body">
         <div class="iv-left">
-          <div class="iv-side"><button data-side="swat" class="${side === 'swat' ? 'sel swat' : 'swat'}">SWAT</button><button data-side="hij" class="${side === 'hij' ? 'sel hij' : 'hij'}">HIJACKERS</button></div>
+          <div class="iv-side" ${tab === 'kits' ? 'style="display:none"' : ''}><button data-side="swat" class="${side === 'swat' ? 'sel swat' : 'swat'}">SWAT</button><button data-side="hij" class="${side === 'hij' ? 'sel hij' : 'hij'}">HIJACKERS</button></div>
           ${tab === 'skins' ? `<div class="iv-guns">${guns}</div>` : ''}
           <div class="iv-list">${list}</div>
         </div>
         <div class="iv-right">
           <div class="iv-prev"><canvas id="ivCanvas"></canvas><div class="iv-rar" style="border-color:${rr.col};color:${rr.col}">${rr.name}</div></div>
           <div class="iv-title" style="--rc:${rr.col}">${title}</div>
-          <div class="iv-note">${tab === 'agents' ? 'Din figur når du spiller som ' + (side === 'hij' ? 'Hijacker' : 'SWAT') + '. Alle spillere ser dit valg.' : tab === 'knives' ? 'Din kniv (tast 3). Du løber 10 % hurtigere med kniven i hånden – og et knivdrab giver $1500. Tryk F i spillet for at inspicere den.' : 'Skin på ' + WNAME[gun] + '. Vises i første person og hos de andre spillere.'}</div>
+          <div class="iv-note">${tab === 'kits' ? 'Dit MVP-tema: afspilles for ALLE spillere når du bliver rundens MVP. <button class="btn btn-tiny" data-kitplay>▶ AFSPIL</button>' : tab === 'agents' ? 'Din figur når du spiller som ' + (side === 'hij' ? 'Hijacker' : 'SWAT') + '. Alle spillere ser dit valg.' : tab === 'knives' ? 'Din kniv (tast 3). Du løber 10 % hurtigere med kniven i hånden – og et knivdrab giver $1500. Tryk F i spillet for at inspicere den.' : 'Skin på ' + WNAME[gun] + '. Vises i første person og hos de andre spillere.'}</div>
         </div>
       </div></div>`;
     const cv = el.querySelector('#ivCanvas');
@@ -97,6 +101,8 @@ export function createInventory(opt) {
   el.addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.close !== undefined) return close();
+    if (b.dataset.kitplay !== undefined) { if (opt.playKit) opt.playKit(inv.kit); return; }
+    if (b.dataset.kit) { inv.kit = b.dataset.kit; if (opt.playKit) opt.playKit(inv.kit); changed(); return; }
     if (b.dataset.tab) { tab = b.dataset.tab; enterK = 'tab'; render(); return; }
     if (b.dataset.side) { side = b.dataset.side; enterK = 'tab'; if (tab === 'skins' && WTEAM[gun] && WTEAM[gun] !== side) gun = side === 'hij' ? 'ak47' : 'm4a1'; render(); return; }
     if (b.dataset.gun) { gun = b.dataset.gun; render(); return; }

@@ -5747,6 +5747,153 @@ export const DICT = {
 "Sandfarbenes Hemd",
 "沙色衬衫"
 ],
+"BOTS: TIL": [
+"BOTS: ON",
+"BOTS : OUI",
+"BOTS: SÍ",
+"BOTS: AN",
+"机器人：开"
+],
+"BOTS: FRA": [
+"BOTS: OFF",
+"BOTS : NON",
+"BOTS: NO",
+"BOTS: AUS",
+"机器人：关"
+],
+"Bots udfylder tomme pladser op til 5 mod 5": [
+"Bots fill empty slots up to 5 v 5",
+"Les bots comblent les places vides jusqu'à 5 contre 5",
+"Los bots completan los huecos hasta 5 contra 5",
+"Bots füllen freie Plätze bis 5 gegen 5 auf",
+"机器人会补满空位，最多5对5"
+],
+"♪ MUSIK": [
+"♪ MUSIC",
+"♪ MUSIQUE",
+"♪ MÚSICA",
+"♪ MUSIK",
+"♪ 音乐"
+],
+"Dit MVP-tema: afspilles for ALLE spillere når du bliver rundens MVP.": [
+"Your MVP theme: plays for ALL players when you are the round MVP.",
+"Ton thème MVP : joué pour TOUS les joueurs quand tu es le MVP de la manche.",
+"Tu tema MVP: suena para TODOS los jugadores cuando eres el MVP de la ronda.",
+"Dein MVP-Thema: wird für ALLE Spieler abgespielt, wenn du MVP der Runde bist.",
+"你的MVP主题曲：当你成为本回合MVP时，所有玩家都会听到。"
+],
+"▶ AFSPIL": [
+"▶ PLAY",
+"▶ JOUER",
+"▶ REPRODUCIR",
+"▶ ABSPIELEN",
+"▶ 播放"
+],
+"Ingen ekstra musik": [
+"No extra music",
+"Aucune musique en plus",
+"Sin música extra",
+"Keine zusätzliche Musik",
+"无额外音乐"
+],
+"Funk Squad": [
+"Funk Squad",
+"Funk Squad",
+"Funk Squad",
+"Funk Squad",
+"Funk Squad"
+],
+"Slap-bas og horn-stabs": [
+"Slap bass and horn stabs",
+"Basse slap et cuivres",
+"Bajo slap y metales",
+"Slap-Bass und Bläser",
+"拍击贝斯与铜管"
+],
+"8-bit Fanfare": [
+"8-bit Fanfare",
+"Fanfare 8 bits",
+"Fanfarria de 8 bits",
+"8-Bit-Fanfare",
+"8位号角"
+],
+"Retro-sejrsmelodi": [
+"Retro victory tune",
+"Mélodie de victoire rétro",
+"Melodía de victoria retro",
+"Retro-Siegesmelodie",
+"复古胜利旋律"
+],
+"Neon Nights": [
+"Neon Nights",
+"Neon Nights",
+"Neon Nights",
+"Neon Nights",
+"霓虹之夜"
+],
+"Synthwave i 80'er-stil": [
+"80s-style synthwave",
+"Synthwave façon années 80",
+"Synthwave estilo años 80",
+"Synthwave im 80er-Stil",
+"80年代风格合成波"
+],
+"Trap Gold": [
+"Trap Gold",
+"Trap Gold",
+"Trap Gold",
+"Trap Gold",
+"陷阱黄金"
+],
+"808-bas, hi-hats og klokker": [
+"808 bass, hi-hats and bells",
+"Basse 808, charleys et cloches",
+"Bajo 808, hi-hats y campanas",
+"808-Bass, Hi-Hats und Glocken",
+"808贝斯、踩镲与钟声"
+],
+"Krigstrommer": [
+"War Drums",
+"Tambours de guerre",
+"Tambores de guerra",
+"Kriegstrommeln",
+"战鼓"
+],
+"Tunge trommer og messing": [
+"Heavy drums and brass",
+"Tambours lourds et cuivres",
+"Tambores pesados y metales",
+"Schwere Trommeln und Blech",
+"沉重的鼓声与铜管"
+],
+"Bass Drop": [
+"Bass Drop",
+"Bass Drop",
+"Bass Drop",
+"Bass Drop",
+"低音下坠"
+],
+"Opbygning og sub-drop": [
+"Build-up and sub drop",
+"Montée et sub drop",
+"Subida y sub drop",
+"Aufbau und Sub-Drop",
+"铺垫与重低音"
+],
+"Orkester-hit": [
+"Orchestra Hit",
+"Coup d'orchestre",
+"Golpe de orquesta",
+"Orchester-Hit",
+"管弦乐重击"
+],
+"Filmisk slag med paukerul": [
+"Cinematic hit with timpani roll",
+"Coup cinématographique avec roulement de timbales",
+"Golpe cinematográfico con redoble de timbales",
+"Filmischer Schlag mit Paukenwirbel",
+"电影式重击与定音鼓滚奏"
+],
 "Grøn {0}": [
 "Green {0}",
 "Vert {0}",

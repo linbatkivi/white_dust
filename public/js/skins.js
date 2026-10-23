@@ -65,6 +65,18 @@ export const GUNS = ['ak47', 'm4a1', 'famas', 'galil', 'mac10', 'mp9', 'mp7', 'u
 // model-fil pr. våben (fiveseven deler Glock-modellen; granater har hold-varianter)
 export const GUN_FILE = { ak47: 'ak47', m4a1: 'm4a1', famas: 'famas', galil: 'galil', tec9: 'tec9', mp5: 'mp5', mac10: 'mac10', mp9: 'mp9', mp7: 'mp7', ump45: 'ump45', p90: 'p90', awp: 'awp', usp: 'usp', glock: 'glock', fiveseven: 'glock', deagle: 'deagle',
   he: { hij: 'he_east', swat: 'he_west' }, smoke: { hij: 'smoke_east', swat: 'smoke_west' }, flash: 'flash', incgren: 'incgren', molotov: 'molotov' };
+// v26.12: MVP-musikkits – korte temaer (syntetiseret i audio.js) der afspilles for alle spillere når du er rundens MVP
+export const KITS = [
+  { id: 'none', name: 'Standard', desc: 'Ingen ekstra musik', rarity: 'base' },
+  { id: 'funk', name: 'Funk Squad', desc: 'Slap-bas og horn-stabs', rarity: 'mil' },
+  { id: 'chiptune', name: '8-bit Fanfare', desc: 'Retro-sejrsmelodi', rarity: 'mil' },
+  { id: 'synthwave', name: 'Neon Nights', desc: 'Synthwave i 80\'er-stil', rarity: 'res' },
+  { id: 'trap', name: 'Trap Gold', desc: '808-bas, hi-hats og klokker', rarity: 'res' },
+  { id: 'war', name: 'Krigstrommer', desc: 'Tunge trommer og messing', rarity: 'cls' },
+  { id: 'bassdrop', name: 'Bass Drop', desc: 'Opbygning og sub-drop', rarity: 'cov' },
+  { id: 'orchestra', name: 'Orkester-hit', desc: 'Filmisk slag med paukerul', rarity: 'gold' }
+];
+export const KIT_BY_ID = Object.fromEntries(KITS.map(k => [k.id, k]));
 export const defaultAgent = side => side === 'hij' ? 'hij4:olive' : 'swat:navy';
 
 /* ---- v26.5: KNIVE – brugerens færdige modeller med deres egne teksturer (tools/knives/import.py → assets/weapons/knives/knife_<id>.glb).
@@ -93,10 +105,11 @@ export function agentOf(key, side) {
 }
 // inventar-valg -> gyldigt objekt (bruges af både klient og server)
 export function sanitize(inv) {
-  const out = { agent: { swat: defaultAgent('swat'), hij: defaultAgent('hij') }, skins: {} };
+  const out = { agent: { swat: defaultAgent('swat'), hij: defaultAgent('hij') }, skins: {}, kit: 'none' };
   if (!inv || typeof inv !== 'object') return out;
   for (const side of ['swat', 'hij']) if (inv.agent && typeof inv.agent[side] === 'string') out.agent[side] = agentOf(inv.agent[side].slice(0, 40), side).key;
   if (inv.skins && typeof inv.skins === 'object') for (const g of GUNS) { const s = inv.skins[g]; if (typeof s === 'string' && SKIN_BY_ID[s]) out.skins[g] = s; }
+  if (typeof inv.kit === 'string' && KIT_BY_ID[inv.kit]) out.kit = inv.kit;
   if (inv.skins && typeof inv.skins.knife === 'string') out.skins.knife = knifeOf(inv.skins.knife.slice(0, 40)).key;
   return out;
 }

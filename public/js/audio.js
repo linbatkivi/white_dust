@@ -338,7 +338,68 @@ export function createAudio() {
     else if (kind === 'rustle') { const dur = 0.7 + Math.random() * 1.2; noise(d, t, dur, 3000, 0.4, 'bandpass', 0.07, dur); noise(d, t + 0.2, dur, 6500, 0.5, 'highpass', 0.03, dur); }
     else if (kind === 'creak') { const os = ctx.createOscillator(); os.type = 'sawtooth'; os.frequency.setValueAtTime(160, t); os.frequency.linearRampToValueAtTime(230 + Math.random() * 60, t + 0.5); const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 600; bp.Q.value = 5; const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.05, t + 0.15); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.7); os.connect(bp); bp.connect(g); g.connect(d); os.start(t); os.stop(t + 0.75); }
     else if (kind === 'stonefall') { noise(d, t, 0.05, 1500, 1.2, 'bandpass', 0.2, 0.04); noise(d, t + 0.12, 0.04, 2300, 1.5, 'bandpass', 0.12, 0.03); noise(d, t + 0.19, 0.03, 3000, 2, 'bandpass', 0.08, 0.025); }
+    else if (kind === 'smash_ceramic') { noise(d, t, 0.09, 3400, 0.9, 'bandpass', 0.5, 0.08); noise(d, t + 0.02, 0.25, 5200, 1.2, 'highpass', 0.2, 0.2); for (let k = 0; k < 7; k++) tone(d, t + 0.03 + k * 0.045 + Math.random() * 0.02, 0.05, 2400 + Math.random() * 2600, 1500, 'triangle', 0.07); tone(d, t, 0.08, 220, 110, 'sine', 0.3); }
+    else if (kind === 'smash_wood') { noise(d, t, 0.07, 700, 1.2, 'bandpass', 0.5, 0.06); tone(d, t, 0.12, 150, 70, 'triangle', 0.36); for (let k = 0; k < 3; k++) tone(d, t + 0.06 + k * 0.07, 0.05, 260 + Math.random() * 120, 160, 'triangle', 0.1); }
+    else if (kind === 'smash_metal') { tone(d, t, 0.45, 640, 600, 'triangle', 0.18); tone(d, t, 0.35, 1190, 1130, 'sine', 0.1); noise(d, t, 0.05, 3000, 2, 'bandpass', 0.3, 0.04); tone(d, t + 0.18, 0.3, 560, 520, 'triangle', 0.08); }
+    else if (kind === 'smash_paper') { noise(d, t, 0.35, 5200, 0.6, 'bandpass', 0.14, 0.3); noise(d, t + 0.05, 0.25, 7800, 0.7, 'highpass', 0.06, 0.2); }
+    else if (kind === 'spark') { for (let k = 0; k < 6; k++) { noise(d, t + k * 0.03 + Math.random() * 0.02, 0.03, 4200 + Math.random() * 3000, 1.5, 'highpass', 0.18, 0.025); } tone(d, t, 0.12, 120, 90, 'sawtooth', 0.07); }
+    else if (kind === 'hiss') { noise(d, t, 1.1, 6500, 0.5, 'highpass', 0.18, 1.0); }
     else if (kind === 'splash') { noise(d, t, 0.25, 1300, 0.5, 'bandpass', 0.3, 0.22); for (let k = 0; k < 5; k++) tone(d, t + 0.02 + k * 0.03, 0.06, 800 + Math.random() * 1500, 380, 'sine', 0.07); }
+  }
+  /* ---------------- v26.12: MVP-MUSIKKITS – korte syntetiserede fanfarer der afspilles for ALLE når ejeren er rundens MVP ---------------- */
+  const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
+  function nt(d, t, midi, dur, type, vol, f1) { return tone(d, t, dur, mtof(midi), f1 ? mtof(midi) * f1 : 0, type, vol); }
+  function seq(d, t0, bpm, notes, type, vol) { const b = 60 / bpm; for (const [beat, midi, len] of notes) nt(d, t0 + beat * b, midi, Math.max(0.06, len * b), type, vol); }
+  function kick(d, t, v) { tone(d, t, 0.32, 140, 38, 'sine', 0.9 * v); noise(d, t, 0.03, 1800, 0.8, 'lowpass', 0.25 * v, 0.03); }
+  function snare(d, t, v) { noise(d, t, 0.16, 2400, 0.7, 'bandpass', 0.5 * v, 0.14); tone(d, t, 0.09, 220, 160, 'triangle', 0.3 * v); }
+  function hat(d, t, v, open) { noise(d, t, open ? 0.14 : 0.04, 9000, 0.7, 'highpass', 0.14 * v, open ? 0.12 : 0.035); }
+  function tom(d, t, f, v) { tone(d, t, 0.38, f * 1.35, f * 0.7, 'sine', 0.8 * v); noise(d, t, 0.04, 600, 1, 'lowpass', 0.25 * v, 0.04); }
+  const KIT = {
+    synthwave(d, t) {
+      const bpm = 112, b = 60 / bpm; const ch = [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]];
+      ch.forEach((c, i) => { const t1 = t + i * 2 * b; for (const m of c) nt(d, t1, m + 12, 2 * b * 0.95, 'sawtooth', 0.05); nt(d, t1, c[0] - 12, 2 * b, 'sawtooth', 0.12, 1);
+        for (let k = 0; k < 8; k++) nt(d, t1 + k * 0.25 * b, c[k % 3] + 24, 0.2 * b, 'square', 0.035); kick(d, t1, 0.8); kick(d, t1 + b, 0.7); snare(d, t1 + b, 0.7); hat(d, t1 + 0.5 * b, 0.6); hat(d, t1 + 1.5 * b, 0.6, true); });
+      nt(d, t + 8 * b, 69, 3 * b, 'sawtooth', 0.09, 1);
+    },
+    chiptune(d, t) {
+      const bpm = 150; seq(d, t, bpm, [[0, 72, 0.5], [0.5, 76, 0.5], [1, 79, 0.5], [1.5, 84, 1], [2.5, 79, 0.5], [3, 84, 2], [5, 83, 0.5], [5.5, 86, 0.5], [6, 91, 2.5]], 'square', 0.1);
+      seq(d, t, bpm, [[0, 48, 1], [1, 55, 1], [2, 48, 1], [3, 55, 1], [4, 53, 1], [5, 59, 1], [6, 55, 3]], 'triangle', 0.2);
+      for (let k = 0; k < 9; k++) { hat(d, t + k * 0.4, 0.8); if (k % 2 === 0) kick(d, t + k * 0.4, 0.5); }
+    },
+    trap(d, t) {
+      const b = 60 / 140; kick(d, t, 1.1); tone(d, t, 1.1, 50, 38, 'sine', 0.7);
+      for (let i = 0; i < 16; i++) hat(d, t + i * 0.25 * b, 0.6 + (i % 4 === 0 ? 0.4 : 0), false);
+      for (let i = 0; i < 6; i++) hat(d, t + 4 * b + i * 0.125 * b, 0.5 + i * 0.08);
+      snare(d, t + 2 * b, 1); snare(d, t + 6 * b, 1); kick(d, t + 3.5 * b, 0.9); kick(d, t + 5 * b, 0.9); tone(d, t + 5 * b, 1.4, 55, 36, 'sine', 0.75);
+      seq(d, t, 140, [[0, 76, 0.5], [0.75, 79, 0.5], [1.5, 83, 1], [3, 81, 0.5], [3.75, 79, 0.5], [4.5, 76, 1.5]], 'triangle', 0.16);
+    },
+    war(d, t) {
+      const b = 60 / 96; const pat = [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.25, 3.5, 3.75]; pat.forEach((x, i) => tom(d, t + x * b, i % 2 ? 95 : 70, 0.9));
+      for (let k = 0; k < 4; k++) tom(d, t + (4 + k * 0.25) * b, 60 + k * 8, 1);
+      [[48, 55, 60], [50, 57, 62]].forEach((c, i) => { for (const m of c) nt(d, t + (4 + i * 2) * b, m, 2.2 * b, 'sawtooth', 0.07, 1.03); });
+      noise(d, t + 4 * b, 0.9, 700, 0.4, 'lowpass', 0.25, 0.9);
+    },
+    orchestra(d, t) {
+      noise(d, t, 0.5, 400, 0.5, 'lowpass', 0.9, 0.5); for (const m of [36, 43, 48, 51, 55, 60, 63]) nt(d, t, m, 2.6, 'sawtooth', 0.07, 0.99);
+      for (let k = 0; k < 14; k++) tom(d, t + 0.3 + k * 0.07, 80, 0.4 + k * 0.03);
+      for (const m of [67, 72, 75]) nt(d, t + 2.3, m, 2.4, 'sawtooth', 0.06, 1.01); tom(d, t + 2.3, 65, 1.2); noise(d, t + 2.3, 0.7, 5000, 0.5, 'highpass', 0.2, 0.7);
+    },
+    bassdrop(d, t) {
+      noise(d, t, 2.0, 1200, 0.5, 'highpass', 0.0001, 2.0); const os = nt(d, t, 55, 2.0, 'sawtooth', 0.12); os.frequency.exponentialRampToValueAtTime(880, t + 2.0);
+      for (let k = 0; k < 16; k++) hat(d, t + 1.2 + k * 0.05, 0.4 + k * 0.03);
+      const t1 = t + 2.1; kick(d, t1, 1.3); tone(d, t1, 2.2, 55, 41, 'sine', 0.9); const w = nt(d, t1, 41, 2.4, 'sawtooth', 0.22); for (let k = 0; k < 10; k++) w.frequency.setValueAtTime(41 * (k % 2 ? 1.5 : 1), t1 + k * 0.22);
+      noise(d, t1, 1.2, 150, 0.8, 'lowpass', 0.8, 1.2);
+    },
+    funk(d, t) {
+      const b = 60 / 108; const bass = [[0, 40], [0.75, 40], [1.5, 43], [2, 45], [2.75, 43], [3.5, 40], [4, 38], [4.75, 38], [5.5, 41], [6, 43]];
+      bass.forEach(([x, m]) => nt(d, t + x * b, m + 12, 0.35 * b, 'sawtooth', 0.16, 0.97));
+      [[0.5, 64], [2.5, 67], [4.5, 62], [6.5, 66]].forEach(([x, m]) => { for (const q of [m, m + 4, m + 7]) nt(d, t + x * b, q + 12, 0.22 * b, 'square', 0.05); });
+      for (let i = 0; i < 8; i++) { kick(d, t + i * b, 0.6); snare(d, t + (i + 0.5) * b, i % 2 ? 0.7 : 0); hat(d, t + i * 0.5 * b, 0.5); }
+    }
+  };
+  function kit(id) {
+    const f = KIT[id]; if (!f || !ok()) return false;
+    const g = ctx.createGain(); g.gain.value = 0.8; g.connect(musicBus); try { f(g, ctx.currentTime + 0.05); } catch (e) { console.warn('kit', e); } return true;
   }
   // faste lydkilder i banen (vandbassiner osv.): [{ x, y, z, kinds:[navn…], rate: pr. sekund }] – et lille planlægnings-løb sørger for tilfældige hændelser
   let emitters = [], emTimer = null;
@@ -550,5 +611,5 @@ export function createAudio() {
   // v26.7: lyd-udtag til videooptagelse (MediaRecorder): hele mixet efter kompressoren
   let tapDest = null;
   function tap() { if (!ctx) build(); if (!ctx) return null; if (!tapDest) { tapDest = ctx.createMediaStreamDestination(); comp.connect(tapDest); } return tapDest.stream; }
-  return { tap, duck, loaded, cine, cinePreload, playMusic, stopMusic, musicTime, musicPlaying, init, setListener, setRoom, setEmitters, detail, heart, emit, set onEvent(f) { onEvent = f; }, shot, step, impact, door, beep, boom, hiss, click, pin, throwSnd, bounce, flashbang, tinnitus, glass, ignite, fizzle, fireLoop, setVolume, setVolumes, music, ambience, stopAmbience, announce, get ready() { return ok(); }, set enabled(v) { enabled = v; } };
+  return { tap, duck, loaded, cine, cinePreload, playMusic, stopMusic, musicTime, musicPlaying, init, setListener, setRoom, setEmitters, detail, kit, heart, emit, set onEvent(f) { onEvent = f; }, shot, step, impact, door, beep, boom, hiss, click, pin, throwSnd, bounce, flashbang, tinnitus, glass, ignite, fizzle, fireLoop, setVolume, setVolumes, music, ambience, stopAmbience, announce, get ready() { return ok(); }, set enabled(v) { enabled = v; } };
 }

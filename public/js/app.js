@@ -38,6 +38,8 @@ import { createFactions } from '/js/factions.js';
 import { createHideout } from '/js/hideout.js';
 import { createFriends } from '/js/friends.js';
 import { createNight } from '/js/night.js';
+import { createDProps } from '/js/dprops.js';
+import { createChisel } from '/js/chisel.js';
 import * as SK from '/js/skins.js';
 import { createInventory } from '/js/inventory.js';
 import { buildAK47 } from '/js/procguns.js';
@@ -73,7 +75,7 @@ fitUI();
 /* ---- indstillinger (crosshair, mus, volumen) – anvendes i realtid ---- */
 const Settings = createSettings({ onChange: applySettings });
 // v11.3: inventar (agenter + våben-skins). Ændringer sendes til serveren og anvendes straks på førstepersonsvåbnet.
-const Inv = createInventory({ THREE, skins: SK, chars: () => Renderer.chars(), weap: () => Renderer.weap(), weaponCode: id => (WD.WEAPONS[id] || {}).code || 0,
+const Inv = createInventory({ THREE, skins: SK, playKit: id => { try { Audio.init && Audio.init(); Audio.kit(id); } catch (e) {} }, chars: () => Renderer.chars(), weap: () => Renderer.weap(), weaponCode: id => (WD.WEAPONS[id] || {}).code || 0,
   onChange: inv => { if (Net.connected) Net.send({ t: 'cos', c: inv }); Renderer.onCosmetics(); } });
 const uiOpen = () => Settings.isOpen() || Inv.isOpen() || Chat.isOpen() || Profile.isOpen();
 function applySettings(S) {
@@ -638,6 +640,7 @@ Net.on('joined', m => {
   if (P2P.on && !Net.target) P2P.host(m.code, Net.localUrl()).catch(() => UI.toast('Dine venner kan ikke joine lige nu – tjek dit internet', 6000));
 });
 /* ---- v20: PREMIER-banevalg (holdene bandlyser baner på skift; den sidste spilles) ---- */
+{ const bb = $('btnBots'); if (bb) bb.addEventListener('click', () => { if (Game.host === Game.meId) Net.send({ t: 'bots', on: !Game.botsOn }); }); }
 for (const b of document.querySelectorAll('[data-vmode]')) b.addEventListener('click', () => { if (Game.host === Game.meId) Net.send({ t: 'vmode', mode: b.dataset.vmode }); });
 const Veto = { last: null, end: 0, raf: 0, total: 15000 };
 function hideVeto() { $('veto').classList.add('hidden'); $('veto').classList.remove('done'); cancelAnimationFrame(Veto.raf); Veto.last = null; }
@@ -724,7 +727,8 @@ Net.on('lobby', m => {
   else if (total > 1) msg = 'Holdene er balancerede (' + h + ' mod ' + sw + ')';
   bal.textContent = msg; bal.classList.toggle('warn', warn);
   const amHost = m.host === Game.meId;
-  Game.vetoMode = m.veto !== false; hideVeto();
+  Game.vetoMode = m.veto !== false; Game.botsOn = m.bots !== false; hideVeto();
+  { const bb = $('btnBots'); if (bb) { bb.classList.toggle('sel', Game.botsOn); bb.disabled = !amHost; bb.textContent = Game.botsOn ? 'BOTS: TIL' : 'BOTS: FRA'; } }
   if (m.maps) { Game.maps = m.maps; renderMapCards(m.maps, m.map, amHost); }
   $('btnStart').classList.toggle('hidden', !amHost);
   $('lobbyHint').textContent = amHost ? (total < 2 ? 'Vent på flere spillere, eller start alene for at teste.' : 'Klar til at starte!') : 'Venter på at værten starter spillet…';
@@ -747,7 +751,7 @@ Net.on('round', m => {
   Game.stabbing = false; Game.hurts.length = 0;
   Game.reloading = null; Game.firing = false; Game.scoped = false; Game.nade = null; Game.sprayN = 0; Game.punch.yaw = Game.punch.pitch = 0; endFlash();
   hideActBar(); BuyMenu.build();
-  Renderer.onRoundStart(); Renderer.buildPanes(m.panes);
+  Renderer.onRoundStart(); Renderer.buildPanes(m.panes); Renderer.dpState(m.dpb, m.lampb);
   // v22: kampstart => intro-cutscene (holdet ankommer); serveren holder købsfasen åben imens
   if (m.intro > 600 && Game.side) {
     Game.introUntil = performance.now() + m.intro;
@@ -871,7 +875,7 @@ Net.on('ev', m => {
     case 'fire': Renderer.onFirePop(m); break;
     case 'fireout': Renderer.onFireOut(m); break;
     case 'sensor': Renderer.onSensor(m); break;
-    case 'sensorbreak': Renderer.onSensorBreak(m); break; case 'bleed': Renderer.onBleed(m); break;
+    case 'sensorbreak': Renderer.onSensorBreak(m); break; case 'bleed': Renderer.onBleed(m); break; case 'dp': Renderer.onDp(m); break; case 'lamp': Renderer.onLamp(m); break;
     case 'sense': Renderer.onSense(m); break;
     case 'sbeep': Renderer.onSbeep(m); break;
     case 'pane': Renderer.onPane(m); break;
@@ -886,7 +890,7 @@ Net.on('ev', m => {
 /* ---- snapshot ---- */
 /* ---- v26.10: REPLAY – de seneste runder optages (snapshots + hændelser) og kan afspilles med fri kamera ---- */
 const Rec = { cur: null, rounds: [], lastSt: 0 };
-const REC_EV = new Set(['bleed', 'shot', 'throw', 'smoke', 'flash', 'boom', 'explode', 'fire', 'fireout', 'bounce', 'plant', 'kill', 'melee', 'sensor', 'sensorbreak', 'defuse', 'pane']);
+const REC_EV = new Set(['bleed', 'dp', 'lamp', 'shot', 'throw', 'smoke', 'flash', 'boom', 'explode', 'fire', 'fireout', 'bounce', 'plant', 'kill', 'melee', 'sensor', 'sensorbreak', 'defuse', 'pane']);
 function recRound(n, map) {
   if (Rec.cur && Rec.cur.frames.length > 20) { Rec.rounds.push(Rec.cur); while (Rec.rounds.length > 5) Rec.rounds.shift(); }
   Rec.cur = { n, map, frames: [], ev: [] };
@@ -1734,6 +1738,7 @@ const HUD = {
     const cond = { elim: swat ? 'All Hijackers Eliminated' : 'All SWAT Operators Eliminated', bomb: 'Bomb Detonated', defuse: 'Bomb Defused by ' + (by ? escapeHtml(by) + ' (SWAT)' : 'SWAT'), time: 'Time Expired – Target Saved' }[m.reason] || '';
     // v21: ny rundeafslutning – bånd i holdfarven, titlen slår ind bogstav for bogstav, MVP skyder bullseye i 3D (MvpStage)
     const won = Game.side === m.win, mvpP = m.mvp ? Game.players.get(m.mvp.id) : null;
+    if (mvpP && mvpP.cos && mvpP.cos.kit && mvpP.cos.kit !== 'none') setTimeout(() => Audio.kit(mvpP.cos.kit), 900);     // v26.12: MVP'ens musikkit høres af alle
     const why = m.mvp ? (m.mvp.why === 'defuse' ? 'desarmerede bomben' : m.mvp.why === 'plant' ? 'plantede bomben' : m.mvp.k ? m.mvp.k + ' drab' + (m.mvp.dmg ? ' · ' + m.mvp.dmg + ' skade' : '') : 'overlevede') : '';
     const letters = [...team].map((c, i) => `<span style="--i:${i}">${c}</span>`).join('');
     el.className = 're rx ' + (swat ? 're-swat swat' : 're-hij hij') + (won ? ' re-won' : ' re-lost');
@@ -1900,7 +1905,7 @@ const Renderer = (() => {
     // fjedre (masse-fjeder-dæmper): sway følger musens inerti, kick = fysisk rekyl bagud mod kameraet + opad
     sway: { x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0 }, kick: { z: 0, vz: 0, r: 0, vr: 0, s: 0, vs: 0 }
   };
-  let flashLight = null, flashLightT = 0, fireLights = [];
+  let flashLight = null, flashLightT = 0, fireLights = [], lampLights = [], DP = null;
   const bombObj = { dropped: null, planted: null, carry: null, beepT: 0 };
   const fireSys = new Map(), smokeSys = new Map(), nadeModels = {};
 
@@ -1989,7 +1994,7 @@ const Renderer = (() => {
     sunFar.shadow.needsUpdate = true;                       // statisk skyggekort gentegnes kun når banen skiftes
     mapId = W.id;
     if (DEV) console.log('[dev] bane', W.id, 'bygget på', Math.round(performance.now() - t0), 'ms', 'verden', worldGroup.userData.tris, 'tri, dekor', decorGroup.userData.tris, 'tri, bagte punkter', worldGroup.userData.bakeN);
-    buildPanes(); loading = false; $('loadingMap').classList.add('hidden');
+    buildPanes(); if (DP) DP.load(W.id); loading = false; $('loadingMap').classList.add('hidden');
     if (W.id !== mapId) loadMap(); else tryLoadAck();
   }
 
@@ -2118,6 +2123,9 @@ const Renderer = (() => {
     scene.add(sunFar); scene.add(sunFar.target);
     flashLight = new THREE.PointLight(0xffc880, 0, 9, 2); scene.add(flashLight);    // altid til stede (intensitet 0) => ingen shader-genkompilering
     for (let i = 0; i < 2; i++) { const l = new THREE.PointLight(0xff8030, 0, 10, 2); scene.add(l); fireLights.push(l); }   // ild-lys-pulje
+    for (let i = 0; i < 3; i++) { const l = new THREE.PointLight(0xffe9c8, 0, 13, 1.7); scene.add(l); lampLights.push(l); }       // v26.12: svingende lamper (altid til stede => ingen genkompilering)
+    DP = createDProps({ THREE, WD, scene, getW: () => W, getV: () => V, get fxs() { return fxs; }, audio: Audio, pulse: (x, y, z, i, c, d) => pulseLight(x, y, z, i, c, d), lightPool: lampLights, maxAniso: renderer.capabilities.getMaxAnisotropy(),
+      onThud: (p, m, k) => Audio.detail(/chair|extinguisher/.test(m) ? 'smash_metal' : 'stonefall', { x: p.x, y: p.y, z: p.z }) });
 
     // førstepersons-scene (eget lys + mundingsild-lys der oplyser hænder og våben)
     vmScene = new THREE.Scene(); vmCam = new THREE.PerspectiveCamera(64, innerWidth / innerHeight, 0.01, 10);
@@ -2219,6 +2227,7 @@ const Renderer = (() => {
   function onCosmetics() { tryLoadAck(); document.dispatchEvent(new Event('wd:cos')); if (vmScene) for (const k in vm.models) vmScene.remove(vm.models[k]); vm.models = {}; vm.cur = null; for (const [, r] of remoteModels) r.wantKey = null; if (Inv.isOpen()) Inv.refresh(); }
 
   function onRoundStart() {
+    for (const k in vm.models) { try { chiselOn(vm.models[k], k); } catch (e) {} }   // v26.12: nye stats ridses ind
     for (const [, o] of Game.grenadesFly) scene.remove(o.mesh);
     Game.grenadesFly.clear(); resetGear();
     for (const [, f] of fireSys) f.remove(); fireSys.clear();
@@ -2393,6 +2402,9 @@ const Renderer = (() => {
     sensorObjs.set(m.id, { mesh, side: m.s, x: m.x, y: m.y, z: m.z, led: null });
     Audio.click('switch');
   }
+  function onDp(m) { if (DP) DP.apply(m, false); }
+  function onLamp(m) { if (DP) DP.lamp(m, false); }
+  function dpState(dpb, lampb) { if (!DP) return; DP.reset(); DP.applyState(dpb || [], lampb || []); }
   function onBleed(m) {                                                        // v26.12: blodspor fra hårdt sårede
     if (!fxs || Settings.get().blood === false) return;
     fxs.pool(m.x + (Math.random() - 0.5) * 0.3, m.y, m.z + (Math.random() - 0.5) * 0.3, 0.35 + Math.random() * 0.3);
@@ -2614,8 +2626,8 @@ const Renderer = (() => {
 
     // granater i luften (interpoleret mellem snapshots)
     const flyIds = new Set();
-    for (const row of s1.g) {
-      const [gid, type, gx, gy, gz] = row, pr = s0.g.find(q => q[0] === gid) || row;
+    for (const row of (s1.g || [])) {
+      const [gid, type, gx, gy, gz] = row, pr = (s0.g || []).find(q => q[0] === gid) || row;
       flyIds.add(gid);
       let o = Game.grenadesFly.get(gid);
       if (!o) { const mesh = nadeMesh(type); scene.add(mesh); o = { mesh, type }; Game.grenadesFly.set(gid, o); }
@@ -2626,7 +2638,7 @@ const Renderer = (() => {
 
     // røg (billboards + dybdeskrivende kerne)
     const smIds = new Set();
-    for (const [sid, sx, sy, sz, msLeft, msAge] of s1.sm) {
+    for (const [sid, sx, sy, sz, msLeft, msAge] of (s1.sm || [])) {
       smIds.add(sid);
       let o = smokeSys.get(sid);
       if (!o) { o = fxs.smoke(sx, sy, sz); smokeSys.set(sid, o); }
@@ -2736,7 +2748,7 @@ const Renderer = (() => {
       case 'shot': onShotFx(m); break; case 'throw': onRemoteThrow(m); break; case 'smoke': onSmokePop(m); break; case 'flash': onFlashPop(m); break;
       case 'boom': onBoom(m); break; case 'explode': onExplode(m); break; case 'fire': onFirePop(m); break; case 'fireout': onFireOut(m); break;
       case 'bounce': Audio.bounce({ x: m.x, y: m.y, z: m.z }, m.w); break; case 'plant': onPlant(m); break; case 'kill': onKillFx(m); break; case 'melee': onRemoteMelee(m); break;
-      case 'sensor': onSensor(m); break; case 'sensorbreak': onSensorBreak(m); break; case 'bleed': onBleed(m); break; case 'pane': onPane(m); break;
+      case 'sensor': onSensor(m); break; case 'sensorbreak': onSensorBreak(m); break; case 'bleed': onBleed(m); break; case 'dp': onDp(m); break; case 'lamp': onLamp(m); break; case 'pane': onPane(m); break;
     }
   }
   function replayStep(dt) {
@@ -3030,6 +3042,8 @@ const Renderer = (() => {
   const VM_POS = { rifle: [0.19, -0.165, -0.47], awp: [0.19, -0.17, -0.47], pistol: [0.13, -0.15, -0.42], nade: [0.2, -0.2, -0.36], molotov: [0.2, -0.27, -0.46], famas: [0.18, -0.17, -0.47], knife: [0.12, -0.15, -0.31] };   // v13: hænder/arme synlige
   vm.POS = VM_POS;
   vm.ROT = { rifle: [0.05, 0.11, -0.05], awp: [0.04, 0.1, -0.04], famas: [0.05, 0.11, -0.05], pistol: [-0.1, 0.07, -0.03], nade: [0, 0.06, -0.03], knife: [0, 0.06, -0.03] };   // hvile-rotation pr. type                                           // (dev: kan justeres live)
+  let _chisel = null;
+  function chiselOn(g, id) { if (!_chisel) _chisel = createChisel(THREE); _chisel.attach(g, id, Mastery.statsOf(id)); }       // v26.12: stat-gravering i våbnet
   function vmFor(id) {
     const team = Game.side || 'swat';
     if (vm.team !== team) { for (const k in vm.models) vmScene.remove(vm.models[k]); vm.models = {}; vm.team = team; }
@@ -3039,7 +3053,7 @@ const Renderer = (() => {
     if (!vm.models[id]) {
       const g = Weap.viewmodel(id, team, id === 'knife' ? kSkin : Inv.skin(id, team), Mastery.tierOf(id)); if (!g) return null;   // dit valgte skin (inventar) · v26.6: mastery-charm
       g.traverse(n => { for (const m of (Array.isArray(n.material) ? n.material : [n.material])) if (m && m.isMeshStandardMaterial) { m.envMap = vmEnvTex() || envTex; m.needsUpdate = true; } });   // v26: eget studiemiljø til våbnene
-      g.visible = false; vmScene.add(g); vm.models[id] = g;
+      g.visible = false; vmScene.add(g); vm.models[id] = g; try { chiselOn(g, id); } catch (e) { console.warn('chisel', e); }
     }
     return vm.models[id];
   }
@@ -3398,7 +3412,7 @@ const Renderer = (() => {
       V.update(dt, performance.now() / 1000, camera.position, decorGroup); fxObj.update(dt, performance.now() / 1000, camera.position);
       if (night) night.update(dt, camera.position, performance.now() / 1000);
       camera.updateMatrixWorld(); _fw.set(0, 0, -1).applyQuaternion(camera.quaternion); _up.set(0, 1, 0).applyQuaternion(camera.quaternion); Audio.setListener(camera.position, _fw, _up); probeRoom(camera.position); tickThermal(dt); tickPings(); tickFootprints(); Audio.heart(Game.self.alive && Game.self.hp > 0 && Game.self.hp < 35 ? 1 - Game.self.hp / 35 : 0);
-      fxs.update(dt, camera.position);
+      fxs.update(dt, camera.position); if (DP) DP.update(dt);
       if (++shadowTick >= gfx.every) { shadowTick = 0; followShadow(); sun.shadow.needsUpdate = true; }   // skyggekort + placering opdateres sammen
     }
     if (Game.cineFull) return;                                        // v22: MVP-filmen dækker skærmen – spar GPU'en
@@ -3448,7 +3462,7 @@ const Renderer = (() => {
   }
   const api = { canvas: () => renderer.domElement, setEvent, event: () => EV.cur, get camera() { return camera; }, intro: () => (ensureChars(), Intro), bombCine: () => BombCine, deferEnd: (m, info) => { if (BombCine && BombCine.active) { pendingEnd = m; return true; }
       if (info && RoundCine && !Game.cineFull) { try { if (RoundCine.start(info)) { pendingEnd = m; m._cine = true; return true; } } catch (e) { console.warn('rundefilm', e); } } return false; },
-    roundCine: () => RoundCine, introReady: () => introLoaded, setQuality, gunIcon, get gfx() { return gfxName; }, get pr() { return prCur; }, get perf() { return perf; }, chars: () => (ensureChars(), Chars), weap: () => (ensureChars(), Weap), onCosmetics, mapReady: () => !loading && mapId === W.id, cosReady: () => COS.ready, setCine, init, loadMap, flinchAim, onRoundStart, onShotFx, inspect, onRemoteMelee, onMeleeWall, onPlant, onExplode, onBoom, onSmokePop, onFlashPop, onFirePop, onFireOut, onSensor, onSensorBreak, onBleed, onSense, onSbeep, toggleThermal, ping, onPing, onPane, buildPanes, snapKiller, fpStep, onKillFx, replayStart, replayStop, replayAvailable, get replayActive() { return Rep.active; }, onRemoteThrow, onThrowLocal, onPinPull, onWeaponChange, mouseDelta, shake, skinName, get mapId() { return mapId; } };
+    roundCine: () => RoundCine, introReady: () => introLoaded, setQuality, gunIcon, get gfx() { return gfxName; }, get pr() { return prCur; }, get perf() { return perf; }, chars: () => (ensureChars(), Chars), weap: () => (ensureChars(), Weap), onCosmetics, mapReady: () => !loading && mapId === W.id, cosReady: () => COS.ready, setCine, init, loadMap, flinchAim, onRoundStart, onShotFx, inspect, onRemoteMelee, onMeleeWall, onPlant, onExplode, onBoom, onSmokePop, onFlashPop, onFirePop, onFireOut, onSensor, onSensorBreak, onBleed, onDp, onLamp, dpState, get dp() { return DP; }, onSense, onSbeep, toggleThermal, ping, onPing, onPane, buildPanes, snapKiller, fpStep, onKillFx, replayStart, replayStop, replayAvailable, get replayActive() { return Rep.active; }, onRemoteThrow, onThrowLocal, onPinPull, onWeaponChange, mouseDelta, shake, skinName, get mapId() { return mapId; } };
   if (DEV) {   // v14: kontaktark over førstepersonsvåben (kun dev) – hvert våben renderes alene på neutral baggrund
     const sideCam = new THREE.PerspectiveCamera(30, 1.6, 0.01, 10);
     api.vmSheet = (ids, cols, tw, th, side) => {

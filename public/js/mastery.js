@@ -14,8 +14,8 @@ export function createMastery(o) {
   const levelOf = id => lvl((st()[id] || {}).xp || 0);
   const tierOf = id => { const L = levelOf(id); return L >= 10 ? 3 : L >= 6 ? 2 : L >= 3 ? 1 : 0; };
   const TN = ['', 'BRONZE', 'SØLV', 'GULD'];
-  function add(id, xp, kills, hs) {
-    if (!WD.WEAPONS[id]) return; const S = st(), e = S[id] = S[id] || { xp: 0, k: 0, hs: 0 };
+  function add(id, xp, kills, hs, rw) {
+    if (!WD.WEAPONS[id]) return; const S = st(), e = S[id] = S[id] || { xp: 0, k: 0, hs: 0 }; e.rw = (e.rw || 0) + (rw || 0);
     const L0 = lvl(e.xp), t0 = tierOf(id); e.xp += xp; e.k += kills || 0; e.hs += hs || 0; const L1 = lvl(e.xp), t1 = tierOf(id);
     if (L1 > L0) Pf.toast('MASTERY · ' + NAME(id), 'Level ' + L1, t1 > t0 ? TN[t1] + '-charm låst op' + (t1 === 3 ? ' + mastery-inspect (F)' : '') : '');
     if (t1 > t0 && o.onTier) o.onTier(id, t1);
@@ -27,11 +27,12 @@ export function createMastery(o) {
       let xp = 0; for (const k of L) xp += (w === 'knife' ? 200 : 100) + (k.hs ? 40 : 0);
       if (L.length > 1) xp += 50 * (L.length - 1);
       if (rf.mvp && ks.length && ks[ks.length - 1].w === w) xp += 150;
-      add(w, xp, L.length, L.filter(k => k.hs).length);
+      add(w, xp, L.length, L.filter(k => k.hs).length, rf.won ? 1 : 0);
     }
     Pf.save();
   });
   // kompakt til de andre spillere: "ak47:3,usp:1" (kun våben med charm)
+  const statsOf = id => { const e = st()[id] || {}; return { lv: levelOf(id), k: e.k || 0, hs: e.hs || 0, rw: e.rw || 0, name: NAME(id) }; };
   const packed = () => IDS.map(id => [id, tierOf(id)]).filter(x => x[1]).map(x => x[0] + ':' + x[1]).join(',');
   const parse = s => { const m = {}; if (typeof s === 'string') for (const p of s.split(',')) { const [a, b] = p.split(':'); if (WD.WEAPONS[a]) m[a] = Math.max(0, Math.min(3, +b || 0)); } return m; };
   function render() {
@@ -43,5 +44,5 @@ export function createMastery(o) {
           <div class="mx-t">${[3, 6, 10].map((g, i) => `<i class="${L >= g ? 'on' : ''}" style="--tc:${['#c07a45', '#c3c9d0', '#e4ae39'][i]}">${g}</i>`).join('')}</div></div></div>`; }).join('')}</div></div>`;
   }
   Pf.addTab('mastery', 'MASTERY', render);
-  return { tierOf, levelOf, packed, parse, IDS };
+  return { tierOf, levelOf, statsOf, packed, parse, IDS };
 }
