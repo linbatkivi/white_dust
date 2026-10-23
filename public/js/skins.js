@@ -58,24 +58,6 @@ export const AGENTS = {
       { id: 'sand', name: 'Sandfarvet skjorte', rarity: 'mil', col: {} },
       { id: 'jungle', name: 'Jungle', rarity: 'res', col: { Top: 0x5f6b4a, Pants: 0x555f3f, Boonie: 0x4f5a3b, Scarf: 0x6a6f4c } },
       { id: 'snow', name: 'Sne', rarity: 'gold', col: { Top: 0xcfd2d0, Pants: 0xbfc3c0, Boonie: 0xdde0dc, Scarf: 0x40434a, Strap: 0x6a5a48 } }
-    ] },
-    // v22: bygget på samme krop som SWAT (tools/chars/hij_cgt.py) – materialer: Top Pants Mask Gloves Boots Vest Mag Shemagh Beanie Armband Skin
-    { id: 'hij', name: 'Hijacker', model: 'hij', variants: [
-      { id: 'olive', name: 'Oliven feltjakke', rarity: 'base', col: {} },
-      { id: 'black', name: 'Sort', rarity: 'mil', col: { Top: 0x3e4044, Pants: 0x4a4d55, Vest: 0x55564c } },
-      { id: 'urban', name: 'Urban grå', rarity: 'res', col: { Top: 0x7d8086, Pants: 0x5d6168, Vest: 0x6b6d6a, Mask: 0x2a2b2e } },
-      { id: 'red', name: 'Rød maske', rarity: 'cls', col: { Top: 0x4c4f53, Mask: 0x8a2a2e, Vest: 0x4f4c44 } }
-    ] },
-    { id: 'hij2', name: 'Hijacker (shemagh)', model: 'hij2', variants: [
-      { id: 'sand', name: 'Ørken', rarity: 'mil', col: {} },
-      { id: 'olive', name: 'Oliven', rarity: 'res', col: { Top: 0x7a7f5f, Pants: 0x6e7356, Vest: 0x7c7c5d } },
-      { id: 'black', name: 'Sort shemagh', rarity: 'cls', col: { Shemagh: 0x5a5a5a, Top: 0x55575a, Pants: 0x4c4f55, Vest: 0x4a4b46 } },
-      { id: 'night', name: 'Nat', rarity: 'cov', col: { Shemagh: 0x9fb0d0, Top: 0x3c4458, Pants: 0x353b4a, Vest: 0x3d4250, Mask: 0x23252b } }
-    ] },
-    { id: 'hij3', name: 'Hijacker-leder', model: 'hij3', variants: [
-      { id: 'leather', name: 'Læderjakke', rarity: 'cls', col: {} },
-      { id: 'black', name: 'Sort', rarity: 'cov', col: { Top: 0x3a3b3e, Vest: 0x2f3033, Beanie: 0x2c2d30 } },
-      { id: 'woodland', name: 'Skov', rarity: 'gold', col: { Vest: 0x646c54, Top: 0x5c6249, Pants: 0x575d47, Beanie: 0x575d47 } }
     ] }
   ]
 };
