@@ -14,6 +14,7 @@ export function createNight(o) {
   const group = new THREE.Group(); group.name = 'night'; o.scene.add(group);
   const timeU = { value: 0 }, camU = { value: new THREE.Vector3() }, flashU = { value: 0 };
   const R = Object.assign({ rate: 1.0, wind: [1.4, 0, 0.6], lightning: true }, o.rain || {});
+  const DRY = !!(o.rain && o.rain.dry);                        // v26.13: tør nat (Niseko) – ingen regn, plask, torden eller regnlyd; kun lampeglorier
 
   // ---------------------------------------------------------------- tag-kort: højeste kollisionsflade pr. celle
   const b = W.bounds, CS = 0.5, NX = Math.ceil((b.x1 - b.x0) / CS) + 2, NZ = Math.ceil((b.z1 - b.z0) / CS) + 2, X0 = b.x0 - CS, Z0 = b.z0 - CS;
@@ -63,7 +64,7 @@ export function createNight(o) {
       void main() { float e = 1.0 - abs( vUv.x * 2.0 - 1.0 ); float t = smoothstep( 0.0, 0.3, vUv.y ) * smoothstep( 1.0, 0.6, vUv.y );
         float a = vA * e * t; if ( a < 0.003 ) discard; gl_FragColor = vec4( vec3( 0.62, 0.68, 0.78 ) * a, a ); }`
   });
-  const rain = new THREE.Mesh(g, rainM); rain.frustumCulled = false; rain.renderOrder = 5; group.add(rain);
+  const rain = new THREE.Mesh(g, rainM); rain.frustumCulled = false; rain.renderOrder = 5; rain.visible = !DRY; group.add(rain);
 
   // ---------------------------------------------------------------- plask (ringe på den øverste flade)
   const NS = 900, gs = new THREE.InstancedBufferGeometry();
@@ -96,7 +97,7 @@ export function createNight(o) {
         #include <fog_fragment>
       }`
   });
-  const spl = new THREE.Mesh(gs, splM); spl.frustumCulled = false; group.add(spl);
+  const spl = new THREE.Mesh(gs, splM); spl.frustumCulled = false; spl.visible = !DRY; group.add(spl);
 
   // ---------------------------------------------------------------- lamper: glorier + glans-pulje
   const lamps = [];
@@ -145,7 +146,7 @@ export function createNight(o) {
   // ---------------------------------------------------------------- lyd: regn ude / inde
   let rainOut = null, rainIn = null, gutter = null, inside = 0;
   function startAudio() {
-    if (rainOut || !o.Audio.cine) return;
+    if (rainOut || !o.Audio.cine || DRY) return;
     rainOut = o.Audio.cine('rain', { loop: true, vol: 0.0001, fadeIn: 2 }); rainIn = o.Audio.cine('rain_in', { loop: true, vol: 0.0001 }); gutter = o.Audio.cine('gutter', { loop: true, vol: 0.0001 });
   }
   if (o.Audio.cinePreload) o.Audio.cinePreload().then(startAudio);
@@ -156,7 +157,7 @@ export function createNight(o) {
     if ((poolT -= dt) <= 0) { poolT = 0.25; updatePool(cam); }
     for (const L of pool) if (L.userData.base) { const f = L.userData.fl; L.intensity = L.userData.base * (1 - f * (0.25 * Math.sin(t * 13 + L.position.x * 7) + 0.15 * Math.sin(t * 23 + L.position.z * 3))); }
     // lyn
-    if (R.lightning) { nextBolt -= dt; if (nextBolt <= 0) { nextBolt = storm ? 6 + Math.random() * 9 : 35 + Math.random() * 40; lightning(); } }   // v26.6: skybrud – lyn langt oftere
+    if (R.lightning && !DRY) { nextBolt -= dt; if (nextBolt <= 0) { nextBolt = storm ? 6 + Math.random() * 9 : 35 + Math.random() * 40; lightning(); } }   // v26.6: skybrud – lyn langt oftere
     let fl = 0;
     if (bolt) {
       bolt.t += dt;

@@ -5908,6 +5908,34 @@ export const DICT = {
 "Fortschritt und gesperrte Trophäen",
 "进度与未解锁奖杯"
 ],
+"Mørk japansk landsby om natten · papirlanterner og måneskin spejlet i kanaler og koi-damme. A-site: zen-have med tempel. B-site: gammelt lagerhus med træbælker og galleri. Mid: kanal med stenbro og en rund koi-dam.": [
+"A dark Japanese village at night · paper lanterns and moonlight mirrored in canals and koi ponds. A site: a zen garden with a shrine. B site: an old warehouse with timber beams and a gallery. Mid: a canal with a stone bridge and a round koi pond.",
+"Un village japonais sombre la nuit · lanternes en papier et clair de lune reflétés dans les canaux et les bassins à koï. Site A : jardin zen avec sanctuaire. Site B : vieil entrepôt aux poutres de bois avec galerie. Mid : canal avec pont de pierre et bassin à koï rond.",
+"Un oscuro pueblo japonés de noche · faroles de papel y luz de luna reflejadas en canales y estanques de koi. Sitio A: jardín zen con santuario. Sitio B: viejo almacén con vigas de madera y galería. Mid: canal con puente de piedra y un estanque de koi redondo.",
+"Ein dunkles japanisches Dorf bei Nacht · Papierlaternen und Mondlicht spiegeln sich in Kanälen und Koi-Teichen. A-Site: Zen-Garten mit Schrein. B-Site: altes Lagerhaus mit Holzbalken und Galerie. Mid: Kanal mit Steinbrücke und rundem Koi-Teich.",
+"夜晚昏暗的日式村庄 · 纸灯笼与月光倒映在运河和锦鲤池中。A点：带神社的禅意花园。B点：有木梁和回廊的古老仓库。中路：带石桥的运河和圆形锦鲤池。"
+],
+"Kom op fra syd: A Main og East Long mod zen-haven og templet i nordøst, B Main og lagerhuset i vest, eller Central Hall og Mid med kanalen i midten. Plant C4 på A eller B.": [
+"Come up from the south: A Main and East Long toward the zen garden and shrine in the northeast, B Main and the warehouse in the west, or Central Hall and Mid with the canal in the middle. Plant the C4 at A or B.",
+"Remonte par le sud : A Main et East Long vers le jardin zen et le sanctuaire au nord-est, B Main et l'entrepôt à l'ouest, ou Central Hall et Mid avec le canal au centre. Pose le C4 en A ou B.",
+"Sube desde el sur: A Main y East Long hacia el jardín zen y el santuario al noreste, B Main y el almacén al oeste, o Central Hall y Mid con el canal en medio. Planta el C4 en A o B.",
+"Komm von Süden: A Main und East Long zum Zen-Garten und Schrein im Nordosten, B Main und das Lagerhaus im Westen oder Central Hall und Mid mit dem Kanal in der Mitte. Platziere das C4 bei A oder B.",
+"从南面推进：经A大道和东长廊前往东北的禅意花园与神社，经B大道前往西边的仓库，或穿过中央大厅和中路（运河在中间）。在A点或B点安放C4。"
+],
+"I starter i nord og er tæt på B (Upper Hall → B Top). Hold templet ved A, lagerhusets galleri ved B, og kanalen i Central Hall.": [
+"You start in the north and are close to B (Upper Hall → B Top). Hold the shrine at A, the warehouse gallery at B, and the canal in Central Hall.",
+"Vous partez du nord, près de B (Upper Hall → B Top). Tenez le sanctuaire en A, la galerie de l'entrepôt en B et le canal dans Central Hall.",
+"Empiezas en el norte, cerca de B (Upper Hall → B Top). Defiende el santuario en A, la galería del almacén en B y el canal en Central Hall.",
+"Ihr startet im Norden und seid nah an B (Upper Hall → B Top). Haltet den Schrein bei A, die Lagerhaus-Galerie bei B und den Kanal in der Central Hall.",
+"你们从北面出发，离B点很近（上厅→B上路）。守住A点的神社、B点仓库的回廊，以及中央大厅的运河。"
+],
+"Niseko": [
+"Niseko",
+"Niseko",
+"Niseko",
+"Niseko",
+"二世谷"
+],
 "Grøn {0}": [
 "Green {0}",
 "Vert {0}",

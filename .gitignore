@@ -1,6 +1,9 @@
 node_modules
 tools/*
 !tools/bureau/
+!tools/niseko/
+tools/niseko/cache/
+tools/niseko/out/
 tools/bureau/cache/
 tools/bureau/out/
 !tools/radar/

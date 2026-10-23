@@ -67,7 +67,7 @@ export async function loadHavn(THREE, renderer, base = '/assets/havn/', maxAniso
       mat = new THREE.MeshBasicMaterial({ map: await tex(d.tex, 'd'), fog: true });
       matCache.set(key, mat); return mat;
     }
-    else if (m.mat === 'water') mat = new THREE.MeshStandardMaterial({ color: 0x1a3b30, roughness: 0.04, metalness: 0.0, envMapIntensity: 1.7, transparent: true, opacity: 0.7, depthWrite: false });
+    else if (m.mat === 'water') mat = new THREE.MeshStandardMaterial({ color: d.color ? new THREE.Color(d.color[0], d.color[1], d.color[2]) : 0x1a3b30, roughness: 0.04, metalness: 0.0, envMapIntensity: d.color ? 0.9 : 1.7, transparent: true, opacity: d.opacity || 0.7, depthWrite: false });
     else {
       mat = new THREE.MeshStandardMaterial(P);
       const tint = d.tint || [1, 1, 1], col = d.color;
@@ -108,6 +108,8 @@ const SKY_REF = { value: 1.0 };                       // himlens bestråling (va
 const IND_TINT = { value: [1, 1, 1] };                // v20: temaets tone på det bagte himmellys (fx varmt sommer-tilbagekast)
 const WATER_T = { value: 0.0 };                       // tid til vandets bølger (opdateres når vandet tegnes)
 export const havnUniforms = { skyRef: SKY_REF, waterTime: WATER_T, indTint: IND_TINT };
+// v26.13: vandets planare spejling (waterfx.js) – texture, matrix og til/fra
+export const waterUniforms = { reflTex: { value: null }, reflMat: { value: null }, reflOn: { value: 0 }, reflGain: { value: 1.0 } };
 // snavs (R), mos/ukrudt i fugerne (G) og vådt (B) pr. hjørne – blandes med højde-proxy (AO + lyshed), så overgangene
 // følger stenenes fuger i stedet for at være bløde pletter: snavs og mos samler sig i fugerne først, vådt mørkner og blankpolerer.
 const BLEND_MAP = `
@@ -182,15 +184,16 @@ export function setSkyRef(v) { SKY_REF.value = v; }
 function patchWater(THREE, mat) {
   mat.userData.water = true;
   mat.onBeforeCompile = sh => {
-    sh.uniforms.uWT = WATER_T;
+    sh.uniforms.uWT = WATER_T; sh.uniforms.uReflTex = waterUniforms.reflTex; sh.uniforms.uReflMat = waterUniforms.reflMat; sh.uniforms.uReflOn = waterUniforms.reflOn; sh.uniforms.uReflGain = waterUniforms.reflGain;
     sh.vertexShader = 'varying vec3 vHvWP;\n' + sh.vertexShader.replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\n  vHvWP = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;');
-    sh.fragmentShader = 'uniform float uWT;\nvarying vec3 vHvWP;\n' + `
+    sh.fragmentShader = 'uniform float uWT, uReflOn, uReflGain;\nuniform sampler2D uReflTex;\nuniform mat4 uReflMat;\nvarying vec3 vHvWP;\n' + `
       vec2 hvWave( vec2 p, vec2 d, float k, float w, float a ) { float ph = dot( p, d ) * k + uWT * w; return d * ( a * k * cos( ph ) ); }
       float hvN( vec2 p ) { vec2 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f );
         float a = fract( sin( dot( i, vec2( 127.1, 311.7 ) ) ) * 43758.5 ), b = fract( sin( dot( i + vec2( 1, 0 ), vec2( 127.1, 311.7 ) ) ) * 43758.5 ),
               c = fract( sin( dot( i + vec2( 0, 1 ), vec2( 127.1, 311.7 ) ) ) * 43758.5 ), d = fract( sin( dot( i + vec2( 1, 1 ), vec2( 127.1, 311.7 ) ) ) * 43758.5 );
         return mix( mix( a, b, f.x ), mix( c, d, f.x ), f.y ); }
     ` + sh.fragmentShader.replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+      vec3 hvNW = vec3( 0.0, 1.0, 0.0 );
       {
         vec2 p = vHvWP.xz;
         vec2 g = hvWave( p, normalize( vec2( 0.8, 0.6 ) ), 1.7, 1.3, 0.012 ) + hvWave( p, normalize( vec2( -0.3, 1.0 ) ), 2.9, 1.9, 0.007 )
@@ -198,7 +201,20 @@ function patchWater(THREE, mat) {
         float e = 0.06, s0 = hvN( p * 3.1 + uWT * 0.35 ), sx = hvN( ( p + vec2( e, 0.0 ) ) * 3.1 + uWT * 0.35 ), sz = hvN( ( p + vec2( 0.0, e ) ) * 3.1 + uWT * 0.35 );
         g += vec2( sx - s0, sz - s0 ) / e * 0.012;
         vec3 nw = normalize( vec3( -g.x, 1.0, -g.y ) );
+        hvNW = nw;
         normal = normalize( ( viewMatrix * vec4( nw, 0.0 ) ).xyz );
-      }`);
+      }`).replace('#include <fog_fragment>', `
+      if ( uReflOn > 0.5 ) {
+        vec3 hvV = normalize( cameraPosition - vHvWP );
+        float hvCos = clamp( dot( hvNW, hvV ), 0.0, 1.0 );
+        float hvF = 0.03 + 0.97 * pow( 1.0 - hvCos, 4.0 );
+        vec4 hvRc = uReflMat * vec4( vHvWP, 1.0 );
+        vec2 hvUv = hvRc.xy / hvRc.w + hvNW.xz * 0.055 * ( 1.0 - 0.4 * hvCos );
+        vec3 hvRefl = texture2D( uReflTex, hvUv ).rgb * uReflGain;
+        float hvK = clamp( hvF * 1.6, 0.0, 1.0 );
+        gl_FragColor.rgb = mix( gl_FragColor.rgb, hvRefl, hvK );
+        gl_FragColor.a = mix( gl_FragColor.a, 1.0, hvK * 0.9 );
+      }
+      #include <fog_fragment>`);
   };
 }

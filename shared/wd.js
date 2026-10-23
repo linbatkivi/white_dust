@@ -12,6 +12,7 @@
   else root.WD = factory();
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
+  let NISEKO_DATA = null; try { NISEKO_DATA = (typeof module === 'object' && module.exports) ? require('./niseko_data.js') : (typeof self !== 'undefined' ? self.WD_NISEKO : null); } catch (e) { NISEKO_DATA = null; }   // v26.12
   let VALKYRIE_DATA = null; try { VALKYRIE_DATA = (typeof module === 'object' && module.exports) ? require('./valkyrie_data.js') : (typeof self !== 'undefined' ? self.WD_VALKYRIE : null); } catch (e) { VALKYRIE_DATA = null; }   // arkiveret 23/10 2026 (wd-arkiv/baner/valkyrie-v26.12)   // v26.8
   const BUREAU_DATA = (typeof module === 'object' && module.exports) ? require('./bureau_data.js') : (typeof self !== 'undefined' ? self.WD_BUREAU : null);   // v26
 
@@ -276,6 +277,14 @@
     const wallBox = (x0, z0, x1, z1, y0, y1, kind, extra) => { const o = { x0, y0, z0, x1, y1, z1, kind: kind || 'wall' }; if (extra) Object.assign(o, extra); boxes.push(o); return o; };
     const solid = (x0, z0, x1, z1, y0, y1) => boxes.push({ x0, y0, z0, x1, y1, z1, kind: 'solid' });
     const slab = (x0, z0, x1, z1, top, th, kind, extra) => { const o = { x0, y0: top - (th || 0.4), z0, x1, y1: top, z1, kind: kind || 'slab' }; if (extra) Object.assign(o, extra); boxes.push(o); return o; };
+    // v26.13: skrå kollisions-prisme – konveks polygon [[x,z],…] ekstruderet y0..y1 (rigtigt skrå vægge/trin i stedet for trappetrin af bokse)
+    const prism = (poly, y0, y1, kind, extra) => {
+      let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+      for (const q of poly) { if (q[0] < x0) x0 = q[0]; if (q[0] > x1) x1 = q[0]; if (q[1] < z0) z0 = q[1]; if (q[1] > z1) z1 = q[1]; }
+      const o = { x0, y0, z0, x1, y1, z1, kind: kind || 'wall', poly };
+      if (extra) Object.assign(o, extra);
+      boxes.push(o); return o;
+    };
     const roof = (x0, z0, x1, z1, y0, kind) => boxes.push({ x0, y0, z0, x1, y1: WALL_TOP, z1, kind: kind || 'ceil' });
     const pillar = (x, z, w, y0, y1, kind) => boxes.push({ x0: x - w / 2, y0, z0: z - w / 2, x1: x + w / 2, y1, z1: z + w / 2, kind: kind || 'wall' });
     // gelænder: tynd kollisionsboks der IKKE stopper kugler/granater (nb) – tegnes som stolper + håndliste
@@ -306,7 +315,7 @@
     // dør (kun visuel + lyd): svinger op når en spiller kommer tæt på. axis: 'x' = døren ligger langs x (man går igennem langs z)
     const door = (x, z, w, axis, y, o) => doors.push(Object.assign({ x, z, w, axis, y, h: 2.5, kind: 'metal', double: false }, o || {}));
 
-    Object.assign(H, { prop, wallBox, solid, slab, roof, pillar, rail, glass, cyl, ladder, stairs, door });
+    Object.assign(H, { prop, wallBox, solid, slab, prism, roof, pillar, rail, glass, cyl, ladder, stairs, door });
 
     spec.props(H);
     const { sites, spawns } = spec.meta(H);
@@ -319,7 +328,7 @@
 
     /* ---- kolliderere: bokse + ramper i én liste ---- */
     const colliders = [];
-    for (const b of boxes) { const c = { x0: b.x0, y0: b.y0, z0: b.z0, x1: b.x1, y1: b.y1, z1: b.z1, k: b.kind }; if (b.nb) c.nb = true; colliders.push(c); }
+    for (const b of boxes) { const c = { x0: b.x0, y0: b.y0, z0: b.z0, x1: b.x1, y1: b.y1, z1: b.z1, k: b.kind }; if (b.nb) c.nb = true; if (b.poly) prismPrep(c, b.poly); colliders.push(c); }
     for (const r of ramps) colliders.push({ x0: r.bx0, y0: r.yBottom, z0: r.bz0, x1: r.bx1, y1: Math.max(r.ya, r.yb), z1: r.bz1, r, k: 'ramp' });
 
     const W = {
@@ -334,6 +343,32 @@
   function buildWorld(id) {
     if (!MAP_REG[id]) id = 'bureau';
     return MAP_REG[id]._W || (MAP_REG[id]._W = makeWorld(id));
+  }
+
+  /* ---------------------------------------------------------------- skrå prismer: konveks polygon i xz, ekstruderet i y
+     c.e = kanter [nx, nz, d] (udadvendt enhedsnormal, d = n·a) til fodaftryks-test (SAT mod spillerens kvadrat), c.pl = planer til strålen */
+  function prismPrep(c, poly) {
+    const n = poly.length; let cx = 0, cz = 0;
+    for (const q of poly) { cx += q[0]; cz += q[1]; } cx /= n; cz /= n;
+    const e = [], pl = [];
+    for (let i = 0; i < n; i++) {
+      const a = poly[i], b = poly[(i + 1) % n]; let nx = b[1] - a[1], nz = a[0] - b[0]; const l = Math.hypot(nx, nz); if (l < 1e-9) continue;
+      nx /= l; nz /= l;
+      if (nx * ((a[0] + b[0]) / 2 - cx) + nz * ((a[1] + b[1]) / 2 - cz) < 0) { nx = -nx; nz = -nz; }
+      const d = nx * a[0] + nz * a[1]; e.push([nx, nz, d]); pl.push([nx, 0, nz, d]);
+    }
+    pl.push([0, 1, 0, c.y1], [0, -1, 0, -c.y0]);
+    c.e = e; c.pl = { planes: pl };
+  }
+  // fodaftryk (kvadrat [x0,x1]×[z0,z1]) rammer collideren i xz? Rører man kun kanten, er det ikke et træf. AABB-kolliderere: bounding box; prismer: SAT.
+  function hitXZ(c, x0, x1, z0, z1) {
+    if (x1 <= c.x0 || x0 >= c.x1 || z1 <= c.z0 || z0 >= c.z1) return false;
+    const e = c.e; if (!e) return true;
+    for (let i = 0; i < e.length; i++) {
+      const n = e[i];
+      if (n[0] * (n[0] > 0 ? x0 : x1) + n[1] * (n[1] > 0 ? z0 : z1) >= n[2] - 1e-9) return false;
+    }
+    return true;
   }
 
   /* ---------------------------------------------------------------- rumligt gitter for kolliderere (4 m celler) */
@@ -393,7 +428,7 @@
     let best = -Infinity;
     for (let i = 0; i < cs.length; i++) {
       const c = cs[i];
-      if (x + R <= c.x0 || x - R >= c.x1 || z + R <= c.z0 || z - R >= c.z1) continue;
+      if (!hitXZ(c, x - R, x + R, z - R, z + R)) continue;
       const t = topAt(c, x - R, x + R, z - R, z + R);
       if (t <= feetY + maxUp && t > best) best = t;
     }
@@ -404,7 +439,7 @@
     const R = PL.R, cs = query(W, x - R, z - R, x + R, z + R);
     for (let i = 0; i < cs.length; i++) {
       const c = cs[i];
-      if (x + R <= c.x0 || x - R >= c.x1 || z + R <= c.z0 || z - R >= c.z1) continue;
+      if (!hitXZ(c, x - R, x + R, z - R, z + R)) continue;
       if (c.y0 >= feetY + H - 1e-4) continue;
       const t = topAt(c, x - R, x + R, z - R, z + R);
       if (t > feetY + stp + 1e-4) return true;
@@ -417,7 +452,7 @@
     for (let i = 0; i < cs.length; i++) {
       const c = cs[i];
       if (c.r) continue;
-      if (x + R <= c.x0 || x - R >= c.x1 || z + R <= c.z0 || z - R >= c.z1) continue;
+      if (!hitXZ(c, x - R, x + R, z - R, z + R)) continue;
       if (c.y0 >= oldTop - 1e-4 && c.y0 < newTop && (best === null || c.y0 < best)) best = c.y0;
     }
     return best;
@@ -427,7 +462,7 @@
     for (let i = 0; i < cs.length; i++) {
       const c = cs[i];
       if (c.r) continue;
-      if (b.x + R <= c.x0 || b.x - R >= c.x1 || b.z + R <= c.z0 || b.z - R >= c.z1) continue;
+      if (!hitXZ(c, b.x - R, b.x + R, b.z - R, b.z + R)) continue;
       if (c.y0 < b.y + PL.H && c.y1 > b.y + PL.HC && c.y0 >= b.y + PL.HC - 1e-4) return false;
     }
     return true;
@@ -679,6 +714,7 @@
         if (c.nb && !all) continue;
         let t = rayAABB(ox, oy, oz, dx, dy, dz, c.x0, c.y0, c.z0, c.x1, c.y1, c.z1, tmp);
         if (t >= best) continue;
+        if (c.pl) { t = rayRamp(ox, oy, oz, dx, dy, dz, c.pl, tmp); if (t >= best) continue; }
         if (c.r) { t = rayRamp(ox, oy, oz, dx, dy, dz, c.r, tmp); if (t >= best) continue; }
         best = t;
         if (out) { out.nx = tmp.nx; out.ny = tmp.ny; out.nz = tmp.nz; out.c = c; }
@@ -765,7 +801,7 @@
     const R = 0.5, cs = query(W, x - R, z - R, x + R, z + R);
     for (const c of cs) {
       if (c.r) continue;
-      if (x + R <= c.x0 || x - R >= c.x1 || z + R <= c.z0 || z - R >= c.z1) continue;
+      if (!hitXZ(c, x - R, x + R, z - R, z + R)) continue;
       if (c.y1 > s.y + 0.03 && c.y0 < s.y + 0.8) return null;                    // prop/væg i bombens rum
     }
     return k;
@@ -835,7 +871,7 @@
   defineMaps(MAP_REG, { TILE, BASE, WALL_TOP });
 
   return {
-    PL, inWater, HIT_MUL, hitMul, plantSpot, inSiteBox, WEAPONS, WEAPON_BY_CODE, HB, sidePistol, SPEED, speedOf, ECON, killReward, lossBonus,
+    PL, hitXZ, prismPrep, inWater, HIT_MUL, hitMul, plantSpot, inSiteBox, WEAPONS, WEAPON_BY_CODE, HB, sidePistol, SPEED, speedOf, ECON, killReward, lossBonus,
     DEFUSE, NADES, NADE_MAX, NADE_TYPE, NADE_BY_TYPE, nadeCount, canTakeNade, BUY, canBuy, THROW, throwVel, SPRAY, sprayAt,
     FIRE, fireZone, fireRadiusAt, inFire, floorBelow, FLASH, flashAmount, segHitsSphere,
     get MAP_LIST() { return MAP_LIST(); },
@@ -847,6 +883,7 @@
   function defineMaps(REG, K) {
     if (BUREAU_DATA) REG.bureau = mapBureau(K);
     if (VALKYRIE_DATA) REG.valkyrie = mapValkyrie(K);
+    if (NISEKO_DATA) REG.niseko = mapNiseko(K);
   }
 
   /* ================================================================ bureau (v26) ================================================================
@@ -863,6 +900,36 @@
       props(H) {
         const { wallBox, stairs, fRamp } = H;
         for (const b of D.boxes) wallBox(b[0], b[1], b[2], b[3], b[4], b[5], b[6]);
+        for (const r of D.ramps) fRamp(r[0], r[1], r[2], r[3], r[4], r[5], r[6]);
+        for (const t of D.stairs) { const [x0, z0, x1, z1, ax, ya, yb, n] = t, lo = Math.min(ya, yb); stairs(x0, z0, x1, z1, ax, yb > ya ? 1 : -1, lo, Math.abs(yb - ya), n, lo - 0.3, 'stone'); }
+        for (const r of D.rails) H.rail(r[0], r[1], r[2], r[3], r[4], r[5], 'metal');
+      },
+      meta(H) {
+        for (const l of D.labels) H.labels.push({ text: l[0], x: l[1], z: l[2], y: l[3], kind: l[0] === 'A' || l[0] === 'B' ? 'site' : undefined });
+        const sites = {}; for (const k in D.sites) { const S = D.sites[k]; sites[k] = { x0: S[0], z0: S[1], x1: S[2], z1: S[3], y: S[4] }; }
+        const sp = p => ({ x: p[0], y: p[3], z: p[1], yaw: p[2] });
+        return { sites, spawns: { hij: D.spawns.hij.map(sp), swat: D.spawns.swat.map(sp) } };
+      }
+    };
+  }
+
+
+  /* ================================================================ niseko (v26.12) ================================================================
+     Gammel japansk landsby om natten – kanal med koi i midten (S-formet), A-site = hævet zen-have med tempel, B-site = lagerhus (kura) med galleri.
+     Genereret af tools/niseko/gen/design.py (shared/niseko_data.js), bygget og bagt i Blender (tools/niseko/). */
+  function mapNiseko() {
+    const D = NISEKO_DATA, G = D.grid;
+    return {
+      id: 'niseko', name: 'Niseko', night: true,
+      brief: { hij: 'Kom op fra syd: A Main og East Long mod zen-haven og templet i nordøst, B Main og lagerhuset i vest, eller Central Hall og Mid med kanalen i midten. Plant C4 på A eller B.', swat: 'I starter i nord og er tæt på B (Upper Hall → B Top). Hold templet ved A, lagerhusets galleri ved B, og kanalen i Central Hall.' },
+      desc: 'Mørk japansk landsby om natten · papirlanterner og måneskin spejlet i kanaler og koi-damme. A-site: zen-have med tempel. B-site: gammelt lagerhus med træbælker og galleri. Mid: kanal med stenbro og en rund koi-dam.',
+      GW: G.GW, GH: G.GH, GX0: G.GX0, GZ0: G.GZ0, data: D, ring: true,
+      layers: [{ id: 'G', yb: -4, yt: WALL_TOP, tiles: { '#': { solid: true }, ' ': { void: true } } }],
+      grid(H) { H.fill(0, 0, G.GW - 1, G.GH - 1, ' '); },
+      props(H) {
+        const { wallBox, stairs, fRamp } = H;
+        for (const b of D.boxes) wallBox(b[0], b[1], b[2], b[3], b[4], b[5], b[6]);
+        for (const p of D.prisms || []) H.prism(p[0], p[1], p[2], p[3]);
         for (const r of D.ramps) fRamp(r[0], r[1], r[2], r[3], r[4], r[5], r[6]);
         for (const t of D.stairs) { const [x0, z0, x1, z1, ax, ya, yb, n] = t, lo = Math.min(ya, yb); stairs(x0, z0, x1, z1, ax, yb > ya ? 1 : -1, lo, Math.abs(yb - ya), n, lo - 0.3, 'stone'); }
         for (const r of D.rails) H.rail(r[0], r[1], r[2], r[3], r[4], r[5], 'metal');

@@ -20,7 +20,9 @@ import { createSettings } from '/js/settings.js';
 import { derivePBR } from '/js/pbr.js';
 import { P2P, PeerSocket } from '/js/p2p.js';
 import { loadThemeAssets } from '/js/assets.js';
-import { havnUniforms } from '/js/havn.js';
+import { havnUniforms, waterUniforms } from '/js/havn.js';
+import { createWaterFx } from '/js/waterfx.js';
+import { createKoi } from '/js/koi.js';
 import { createVictory } from '/js/victory.js';
 import { createLogo3D } from '/js/logo3d.js';
 import { createAgentStage } from '/js/agentstage.js';
@@ -1884,7 +1886,7 @@ $('nameInput').focus();
 const Renderer = (() => {
   let renderer, scene, camera, clock, pmrem = null, post = null, fxs = null;
   let V = null, Chars = null, Weap = null, Intro = null, introLoaded = false, BombCine = null, RoundCine = null, pendingEnd = null, bcHold = false, rcHold = false;
-  let sky = null, hemi, amb, sun, sunFar, worldGroup, decorGroup, doors = null, fxObj = null, mapObjs = [], envTex = null, night = null;
+  let sky = null, hemi, amb, sun, sunFar, worldGroup, decorGroup, doors = null, fxObj = null, mapObjs = [], envTex = null, night = null, waterFx = null, koi = null;
   const remoteModels = new Map();  // id -> render-state
   const tracers = [], flashes = [], tracerPool = [];
   const IMP_MAX = 160, impT = new Float32Array(IMP_MAX).fill(-1); let impMesh = null, impI = 0;   // skudhuller: ét InstancedMesh
@@ -1961,6 +1963,8 @@ const Renderer = (() => {
     for (const g of mapObjs) { scene.remove(g); disposeTree(g); } mapObjs = [];
     if (sky) { scene.remove(sky); disposeTree(sky); sky = null; }
     if (night) { night.dispose(); night = null; }
+    if (waterFx) { waterFx.dispose(); waterFx = null; }
+    if (koi) { koi.dispose(); koi = null; }
     if (fxs) fxs.clear(); fireSys.clear(); smokeSys.clear();
     V = createVisuals(THREE, WD, W, canvasTexture, renderer.capabilities.getMaxAnisotropy(), createThemes, assets);
     const L = V.theme.light, PI = Math.PI, b = W.bounds, cx = (b.x0 + b.x1) / 2, cz = (b.z0 + b.z1) / 2;
@@ -1990,6 +1994,8 @@ const Renderer = (() => {
     // v11: med HDRI (L.ibl) får ALLE PBR-flader miljølys (diffust + glans; bagt himmel-synlighed dæmper det indendørs) – ellers kun metal
     for (const g of [worldGroup, decorGroup, doors.group]) g.traverse(o => { const m = o.material; if (!m || seen.has(m) || !m.isMeshStandardMaterial) return; seen.add(m); const p = m.userData.pbr; const metal = (p && p.metal >= 0.3) || (!p && m.roughness < 0.3); if (metal || L.ibl) { m.envMap = envTex; m.envMapIntensity = metal ? 0.85 : L.ibl; m.needsUpdate = true; } });
     // v25: nat-baner – regn (skjult under tage), plask, lampeglød, glans i våde sten, lyn og torden
+    if (V.theme.water && !/[?&]water=0\b/.test(location.search)) try { waterFx = createWaterFx({ THREE, renderer, scene, root: worldGroup, uniforms: waterUniforms, level: V.theme.water.level, far: V.theme.water.far, scale: V.theme.water.scale }); if (waterFx && V.theme.water.gain) waterUniforms.reflGain.value = V.theme.water.gain; } catch (e) { console.warn('[vand]', e); waterFx = null; }
+    if (V.theme.koi) try { koi = createKoi({ THREE, scene, url: V.theme.koi }); } catch (e) { console.warn('[koi]', e); koi = null; }
     if (V.theme.rain || V.theme.night) try { night = createNight({ THREE, WD, W, scene, Audio, sun, sky, lightsUrl: V.theme.lightsUrl, rain: V.theme.rain }); } catch (e) { console.warn('[nat]', e); night = null; }
     if (minimapCtx) drawMinimapBase();
     try { buildSiteMarks(); } catch (e) { console.warn('[sites] markering', e); }
@@ -3435,12 +3441,14 @@ const Renderer = (() => {
       sky.position.copy(camera.position);
       V.update(dt, performance.now() / 1000, camera.position, decorGroup); fxObj.update(dt, performance.now() / 1000, camera.position);
       if (night) night.update(dt, camera.position, performance.now() / 1000);
+      if (koi) koi.update(dt, camera.position, performance.now() / 1000);
       camera.updateMatrixWorld(); _fw.set(0, 0, -1).applyQuaternion(camera.quaternion); _up.set(0, 1, 0).applyQuaternion(camera.quaternion); Audio.setListener(camera.position, _fw, _up); probeRoom(camera.position); tickThermal(dt); tickPings(); tickFootprints(); Audio.heart(Game.self.alive && Game.self.hp > 0 && Game.self.hp < 35 ? 1 - Game.self.hp / 35 : 0);
       fxs.update(dt, camera.position); if (DP) DP.update(dt);
       if (++shadowTick >= gfx.every) { shadowTick = 0; followShadow(); sun.shadow.needsUpdate = true; }   // skyggekort + placering opdateres sammen
     }
     if (Game.cineFull) return;                                        // v22: MVP-filmen dækker skærmen – spar GPU'en
     // HDR-pipeline (SSAO + bloom + FXAA + ACES) – eller direkte til skærmen hvis post-processing ikke understøttes
+    if (waterFx) { try { waterFx.update(camera); } catch (e) { console.warn('[vand]', e); waterFx.dispose(); waterFx = null; } }   // v26.13: spejling af vandet (kun når vand er i billedet)
     if (!(post && post.render(scene, camera, vmScene, vmCam, vmOn))) {
       renderer.render(scene, camera);
       if (vmOn) { renderer.clearDepth(); renderer.render(vmScene, vmCam); }

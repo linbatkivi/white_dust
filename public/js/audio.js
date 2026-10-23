@@ -549,7 +549,7 @@ export function createAudio() {
     // v20: vinden skruet ned (brugerønske) – fugle og fjern trafik giver liv i stedet
     const wg = ctx.createGain(); wg.gain.value = 0.03; wind.connect(wl); wl.connect(wg); wg.connect(g); wind.start(t); nodes.push(wind);
     const lfo = ctx.createOscillator(); lfo.frequency.value = 0.07; const lg = ctx.createGain(); lg.gain.value = 0.025; lfo.connect(lg); lg.connect(wg.gain); lfo.start(t); nodes.push(lfo);
-    const AMB = { bureau: [0, 0.3], valkyrie: [0.7, 0] }[id] || [0.25, 0.3];             // v26: bureauet – ingen fugle 110 m oppe, byen summer langt nede
+    const AMB = { bureau: [0, 0.3], valkyrie: [0.7, 0], niseko: [0, 0] }[id] || [0.25, 0.3];             // v26: bureauet – ingen fugle 110 m oppe, byen summer langt nede
     let files = false;
     for (const [name, v, lp] of [['amb_birds', AMB[0], 0], ['amb_traffic', AMB[1], 1300]]) {
       const b = buf[name]; if (!b || v <= 0) continue; files = true;
@@ -572,12 +572,28 @@ export function createAudio() {
       const lv = ctx.createBufferSource(); lv.buffer = noiseBuf; lv.loop = true; lv.playbackRate.value = 1.6; const lb = ctx.createBiquadFilter(); lb.type = 'bandpass'; lb.frequency.value = 2600; lb.Q.value = 0.5; const lgn = ctx.createGain(); lgn.gain.value = 0.012;
       lv.connect(lb); lb.connect(lgn); lgn.connect(g); lv.start(t); nodes.push(lv);
     }
+    if (id === 'niseko') {                            // v26.13: sensommernat i en japansk landsby – fårekyllinger, rislende kanal og fjerne vindklokker
+      for (const [f, am, v] of [[4100, 13, 0.0045], [4700, 17, 0.004], [3400, 11, 0.0035]]) {
+        const o = ctx.createOscillator(); o.frequency.value = f; const ag = ctx.createGain(); ag.gain.value = v; const mo = ctx.createOscillator(); mo.frequency.value = am; const mg = ctx.createGain(); mg.gain.value = v;
+        mo.connect(mg); mg.connect(ag.gain); const sl = ctx.createOscillator(); sl.frequency.value = 0.06 + Math.random() * 0.08; const sg = ctx.createGain(); sg.gain.value = v * 0.8; sl.connect(sg); sg.connect(ag.gain);
+        o.connect(ag); ag.connect(g); o.start(t); mo.start(t); sl.start(t); nodes.push(o, mo, sl);
+      }
+      const wr = ctx.createBufferSource(); wr.buffer = noiseBuf; wr.loop = true; wr.playbackRate.value = 1.1; const wb = ctx.createBiquadFilter(); wb.type = 'bandpass'; wb.frequency.value = 1400; wb.Q.value = 0.55;
+      const wgn = ctx.createGain(); wgn.gain.value = 0.011; wr.connect(wb); wb.connect(wgn); wgn.connect(g); wr.start(t); nodes.push(wr);
+      const wl2 = ctx.createOscillator(); wl2.frequency.value = 0.19; const wlg = ctx.createGain(); wlg.gain.value = 500; wl2.connect(wlg); wlg.connect(wb.frequency); wl2.start(t); nodes.push(wl2);
+    }
     let alive = true;
-    const dripT = setInterval(() => {                   // fugtigt dryp (kun valkyrie)
-      if (!alive || id !== 'valkyrie' || !ctx) return; const tt = ctx.currentTime, o = ctx.createOscillator(), gg = ctx.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(1400 + Math.random() * 900, tt); o.frequency.exponentialRampToValueAtTime(500, tt + 0.09);
+    const dripT = setInterval(() => {                   // fugtigt dryp (valkyrie) / vanddråber (niseko)
+      if (!alive || (id !== 'valkyrie' && id !== 'niseko') || !ctx) return; const tt = ctx.currentTime, o = ctx.createOscillator(), gg = ctx.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(1400 + Math.random() * 900, tt); o.frequency.exponentialRampToValueAtTime(500, tt + 0.09);
       gg.gain.setValueAtTime(0.0001, tt); gg.gain.exponentialRampToValueAtTime(0.025, tt + 0.006); gg.gain.exponentialRampToValueAtTime(0.0001, tt + 0.14); o.connect(gg); gg.connect(g); o.start(tt); o.stop(tt + 0.16);
     }, 1900 + Math.random() * 1500);
-    amb = { id, g, nodes, files, stop() { alive = false; clearInterval(dripT); } };
+    let chimeT = null;
+    if (id === 'niseko') chimeT = setInterval(() => {      // furin: en lille vindklokke langt væk
+      if (!alive || !ctx) return; const tt = ctx.currentTime, base = 1700 + Math.random() * 900;
+      for (let k = 0; k < 2 + (Math.random() < 0.5 ? 1 : 0); k++) { const o = ctx.createOscillator(), gg = ctx.createGain(); o.type = 'sine'; o.frequency.value = base * (1 + k * 0.5 + Math.random() * 0.02); const st = tt + k * (0.18 + Math.random() * 0.4);
+        gg.gain.setValueAtTime(0.0001, st); gg.gain.exponentialRampToValueAtTime(0.011, st + 0.008); gg.gain.exponentialRampToValueAtTime(0.0001, st + 2.4); o.connect(gg); gg.connect(g); o.start(st); o.stop(st + 2.5); }
+    }, 8000 + Math.random() * 9000);
+    amb = { id, g, nodes, files, stop() { alive = false; clearInterval(dripT); if (chimeT) clearInterval(chimeT); } };
   }
   function stopAmbience() {
     if (!amb || !ctx) { amb = null; return; }

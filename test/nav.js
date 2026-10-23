@@ -121,6 +121,15 @@ const CFG = {
     ]
   }
   ,
+  niseko: {   // v26.12: japansk landsby – ét niveau + galleri; målene er zonernes midter
+    snap: 3.5,
+    targets: Object.assign({ 'A-site (plant)': [A_PL[0], A_PL[1], W.sites.A.y], 'B-site (plant)': [B_PL[0], B_PL[1], W.sites.B.y] },
+      Object.fromEntries(W.data.labels.filter(l => l[0].length > 1).map(l => [l[0], [l[1], l[2], l[3]]]))),
+    timings: [
+      ['A-site (SWAT) før Hijackers kommer ad East Long', 'swat', [A_PL[0], A_PL[1], W.sites.A.y], 'hij', [57, -9, 0]],
+      ['B-site (SWAT) før Hijackers kommer ad B Main', 'swat', [B_PL[0], B_PL[1], W.sites.B.y], 'hij', [-33, -9.5, 0]]
+    ]
+  },
   valkyrie: {   // v26.8: middelhavsbyen – ét niveau; målene er zonernes midter
     snap: 3.5,
     targets: Object.assign({ 'A-site (plant)': [A_PL[0], A_PL[1], W.sites.A.y], 'B-site (plant)': [B_PL[0], B_PL[1], W.sites.B.y] },

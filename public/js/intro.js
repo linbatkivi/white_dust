@@ -183,7 +183,7 @@ export function createIntro(o) {
     const foot = P.drive < 6 ? planFoot(W, side, P) : null;              // ingen plads til køretøjet => til fods
     const veh = foot ? null : makeVehicle(spec.file);
     const T = Math.max(6, (ms || 12000) / 1000);
-    const th = (o.V() && o.V().theme) || {}, wet = !!th.rain;
+    const th = (o.V() && o.V().theme) || {}, wet = !!(th.rain && !th.rain.dry);
     S = { t: 0, T, side, spec, P, veh, foot, men: [], shot: -1, slow: 1, sounds: [], wet, night: !!th.night, dust: makeDust(wet ? 0x7d8590 : side === 'hij' ? 0xcdb48e : 0xbab4a8), lasers: [], fired: {}, info, startCam: null };
     o.scene().add(S.dust.obj);
     if (veh) { o.scene().add(veh.g); }
@@ -403,7 +403,7 @@ export function createIntro(o) {
     const S0 = H.clone().addScaledVector(fwd, -44).addScaledVector(away, 26).setY(H.y + 22), C0 = H.clone().addScaledVector(fwd, -16).addScaledVector(away, 9).setY(H.y + 6);
     const tD = Math.min(T - 3.6, 8.6);                                          // afgang
     const P = { c: V3((cfg.land || cfg.hover)[0], 0, (cfg.land || cfg.hover)[2]), f: rgt.clone().multiplyScalar(-1), stop: H.clone() };
-    S = { heli: { H, yaw, fwd, rgt, S0, C0, cfg, tD, Tin: 4.7 }, t: 0, T, side, spec, P, veh, foot: null, men: [], slow: 1, sounds: [], wet: !!th.rain, night: !!th.night,
+    S = { heli: { H, yaw, fwd, rgt, S0, C0, cfg, tD, Tin: 4.7 }, t: 0, T, side, spec, P, veh, foot: null, men: [], slow: 1, sounds: [], wet: !!(th.rain && !th.rain.dry), night: !!th.night,
       dust: makeDust(0x8a939c), lasers: [], fired: {}, info };
     o.scene().add(S.dust.obj); o.scene().add(veh.g);
     info.mates.slice(0, 5).forEach((m, i) => {
