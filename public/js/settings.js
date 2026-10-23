@@ -99,7 +99,6 @@ export function createSettings(opts) {
             <div class="st-row"><label for="stRaw">Rå input (ingen acceleration)</label><label class="st-tog"><input type="checkbox" id="stRaw"><span></span></label></div>
             <h3>GRAFIK</h3>
             <div class="st-row"><label for="stGfx">Kvalitet (lavere = flere FPS)</label><select id="stGfx" class="st-sel"><option value="auto">Auto (anbefalet)</option><option value="ultra">Ultra</option><option value="high">Høj</option><option value="medium">Medium</option><option value="low">Lav</option><option value="min">Minimum</option></select></div>
-            <div class="st-row"><label for="stSndInd">Visuelle lyd-indikatorer (tilgængelighed: viser retningen til skud, fodtrin og eksplosioner på skærmen)</label><label class="st-tog"><input type="checkbox" id="stSndInd"><span></span></label></div>
             <div class="st-row"><label for="stBlood">Blod og ragdoll-effekter</label><label class="st-tog"><input type="checkbox" id="stBlood"><span></span></label></div>
             <div class="st-row"><label for="stStats">Vis FPS & ping</label><label class="st-tog"><input type="checkbox" id="stStats"><span></span></label></div>
             <div class="st-row"><label for="stFull">Fuldskærm i spillet (Esc forlader den ikke · hold Esc for at gå ud)</label><label class="st-tog"><input type="checkbox" id="stFull"><span></span></label></div>
@@ -132,7 +131,6 @@ export function createSettings(opts) {
     $('stRaw').addEventListener('change', e => { S.raw = !!e.target.checked; changed(); });
     $('stGfx').addEventListener('change', e => { S.gfx = e.target.value; changed(); });
     $('stStats').addEventListener('change', e => { S.stats = !!e.target.checked; changed(); });
-    $('stSndInd').addEventListener('change', e => { S.sndInd = !!e.target.checked; changed(); });
     $('stBlood').addEventListener('change', e => { S.blood = !!e.target.checked; changed(); });
     $('stFull').addEventListener('change', e => { S.fullscreen = !!e.target.checked; changed(); });
     $('stReset').addEventListener('click', () => { S = JSON.parse(JSON.stringify(DEF)); changed(); });
@@ -149,7 +147,7 @@ export function createSettings(opts) {
     });
     root.querySelectorAll('.st-sw').forEach(b => b.classList.toggle('sel', b.dataset.c.toUpperCase() === S.xh.color.toUpperCase()));
     $('stColor').value = S.xh.color.toLowerCase();
-    $('stDot').checked = S.xh.dot; $('stOutline').checked = S.xh.outline; $('stRaw').checked = !!S.raw; $('stGfx').value = S.gfx || 'auto'; $('stStats').checked = !!S.stats; $('stSndInd').checked = !!S.sndInd; $('stBlood').checked = S.blood !== false; $('stFull').checked = S.fullscreen !== false;
+    $('stDot').checked = S.xh.dot; $('stOutline').checked = S.xh.outline; $('stRaw').checked = !!S.raw; $('stGfx').value = S.gfx || 'auto'; $('stStats').checked = !!S.stats;  $('stBlood').checked = S.blood !== false; $('stFull').checked = S.fullscreen !== false;
     $('stDotSize').disabled = !S.xh.dot; $('stOutlineThick').disabled = !S.xh.outline;
     $('stDotSize').closest('.st-row').classList.toggle('off', !S.xh.dot); $('stOutlineThick').closest('.st-row').classList.toggle('off', !S.xh.outline);
     drawCrosshair($('stPrevXh'), S.xh, 1); drawCrosshair($('stPrevXh2'), S.xh, 3);

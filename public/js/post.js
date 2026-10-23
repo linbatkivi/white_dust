@@ -163,7 +163,7 @@ export function createPost(THREE, renderer) {
       float lNW = luma(texture2D(tColor, uv + vec2(-1.0, -1.0) * uTexel).rgb), lNE = luma(texture2D(tColor, uv + vec2(1.0, -1.0) * uTexel).rgb);
       float lSW = luma(texture2D(tColor, uv + vec2(-1.0, 1.0) * uTexel).rgb), lSE = luma(texture2D(tColor, uv + vec2(1.0, 1.0) * uTexel).rgb), lM = luma(M.rgb);
       float lMin = min(lM, min(min(lNW, lNE), min(lSW, lSE))), lMax = max(lM, max(max(lNW, lNE), max(lSW, lSE)));
-      if (lMax - lMin < max(0.0312, lMax * 0.125)) return M;
+      if (lMax - lMin < max(0.0156, lMax * 0.0833)) return M;
       vec2 dir = vec2(-((lNW + lNE) - (lSW + lSE)), ((lNW + lSW) - (lNE + lSE)));
       float red = max((lNW + lNE + lSW + lSE) * 0.25 * (1.0 / 8.0), 1.0 / 128.0);
       float rcp = 1.0 / (min(abs(dir.x), abs(dir.y)) + red);

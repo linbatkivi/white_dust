@@ -453,6 +453,7 @@ function probeRoom(p) {
 const SND_COL = { step: '#e9edf2', shot: '#ff4b3a', boom: '#ffb020', glass: '#6fd3ff', beep: '#ffe04a', door: '#c9c9ff' };
 const _sndLast = {};
 Audio.onEvent = (pos, kind, loud) => {
+  return;   // v26.12: visuelle lyd-pile fjernet (ønske) – koden bevares men er slået fra
   if (!Settings.get().sndInd || Game.state !== 'game' || !Game.alive && false) return;
   const host = $('sndHud'); if (!host) return; const now = performance.now(), dx = pos.x - Game.body.x, dz = pos.z - Game.body.z, dist = Math.hypot(dx, dz);
   if (dist < 0.8 || dist > (kind === 'step' ? 30 : 70)) return;
