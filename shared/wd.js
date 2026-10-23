@@ -511,7 +511,10 @@
     const sy = Math.sin(inp.yaw), cy = Math.cos(inp.yaw);
     let wx = -sy * fx + cy * sx, wz = -cy * fx - sy * sx;
     const wl = Math.hypot(wx, wz);
-    const spd = (b.crouch ? PL.CROUCH : (inp.walk ? PL.WALK : PL.RUN)) * (inp.spd || 1);
+    // v26.12: vand (knæhøjt/lavt) – tung gang: farten sænkes kraftigt
+    const wet = b.ground && inWater(W, b.x, b.y, b.z);
+    b.wet = wet;
+    const spd = (b.crouch ? PL.CROUCH : (inp.walk ? PL.WALK : PL.RUN)) * (inp.spd || 1) * (wet ? 0.58 : 1);
     if (wl > 1e-6) { wx /= wl; wz /= wl; }
     const wish = wl > 1e-6 ? spd * Math.min(1, wl) : 0;
     if (b.ground) {
@@ -707,6 +710,11 @@
     return best ? best.text : '';
   }
   // v26.10: underlag til fodtrin og nedslag ('stone' | 'dirt' | 'leaf' | 'cave' | 'water' | 'wood' | 'metal'); null = banen har ingen underlagsdata (Bureau)
+  function inWater(W, x, y, z) {
+    const d = W.data; if (!d || !d.water) return false;
+    for (const r of d.water) if (x >= r[0] && x <= r[2] && z >= r[1] && z <= r[3] && y < r[4] + 0.25 && y > r[4] - 1.4) return true;
+    return false;
+  }
   function surfaceAt(W, x, y, z) {
     const d = W.data; if (!d || !d.surf) return null;
     if (d.water) for (const r of d.water) if (x >= r[0] && x <= r[2] && z >= r[1] && z <= r[3] && y < r[4] + 0.25 && y > r[4] - 1.4) return 'water';
@@ -819,7 +827,7 @@
   defineMaps(MAP_REG, { TILE, BASE, WALL_TOP });
 
   return {
-    PL, HIT_MUL, hitMul, plantSpot, inSiteBox, WEAPONS, WEAPON_BY_CODE, HB, sidePistol, SPEED, speedOf, ECON, killReward, lossBonus,
+    PL, inWater, HIT_MUL, hitMul, plantSpot, inSiteBox, WEAPONS, WEAPON_BY_CODE, HB, sidePistol, SPEED, speedOf, ECON, killReward, lossBonus,
     DEFUSE, NADES, NADE_MAX, NADE_TYPE, NADE_BY_TYPE, nadeCount, canTakeNade, BUY, canBuy, THROW, throwVel, SPRAY, sprayAt,
     FIRE, fireZone, fireRadiusAt, inFire, floorBelow, FLASH, flashAmount, segHitsSphere,
     get MAP_LIST() { return MAP_LIST(); },

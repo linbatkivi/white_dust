@@ -164,7 +164,7 @@ const Net = {
   },
   _pingLoop() {
     clearInterval(this._pi);
-    this._pi = setInterval(() => { if (this.connected) this.send({ t: 'ping', c: performance.now() }); }, 2000);   // v12.1: ping hvert 2. s (vises i FPS/ping-visningen)
+    this._pi = setInterval(() => { if (this.connected) this.send({ t: 'ping', c: performance.now(), r: Math.round(Game.ping || 0) }); }, 2000);   // v12.1: ping hvert 2. s (vises i FPS/ping-visningen)
   },
   _onDisconnect() {
     clearInterval(this._pi);
@@ -819,6 +819,10 @@ function tryLoadAck() {
 Net.on('tp', m => {
   if (m.id < Game.corrId) return;
   Game.corrId = m.id;
+  if (m.soft && Game.phase === 'live') {                                   // v26.12: lille serverkorrektion glider ind i stedet for at rykke
+    const b = Game.body; Game.softTp = { x: m.x, y: m.y, z: m.z, t: performance.now() }; b.vx *= 0.5; b.vz *= 0.5; return;
+  }
+  Game.softTp = null;
   Game.body.onLadder = false; Game.body.x = m.x; Game.body.y = m.y; Game.body.z = m.z; Game.body.vx = 0; Game.body.vy = 0; Game.body.vz = 0; Game.body.ground = true;
   Game.yaw = m.yaw; Game.pitch = 0; Game.spawnYaw = m.yaw; Game.corrIdAt = performance.now();
 });
@@ -867,7 +871,7 @@ Net.on('ev', m => {
     case 'fire': Renderer.onFirePop(m); break;
     case 'fireout': Renderer.onFireOut(m); break;
     case 'sensor': Renderer.onSensor(m); break;
-    case 'sensorbreak': Renderer.onSensorBreak(m); break;
+    case 'sensorbreak': Renderer.onSensorBreak(m); break; case 'bleed': Renderer.onBleed(m); break;
     case 'sense': Renderer.onSense(m); break;
     case 'sbeep': Renderer.onSbeep(m); break;
     case 'pane': Renderer.onPane(m); break;
@@ -882,7 +886,7 @@ Net.on('ev', m => {
 /* ---- snapshot ---- */
 /* ---- v26.10: REPLAY – de seneste runder optages (snapshots + hændelser) og kan afspilles med fri kamera ---- */
 const Rec = { cur: null, rounds: [], lastSt: 0 };
-const REC_EV = new Set(['shot', 'throw', 'smoke', 'flash', 'boom', 'explode', 'fire', 'fireout', 'bounce', 'plant', 'kill', 'melee', 'sensor', 'sensorbreak', 'defuse', 'pane']);
+const REC_EV = new Set(['bleed', 'shot', 'throw', 'smoke', 'flash', 'boom', 'explode', 'fire', 'fireout', 'bounce', 'plant', 'kill', 'melee', 'sensor', 'sensorbreak', 'defuse', 'pane']);
 function recRound(n, map) {
   if (Rec.cur && Rec.cur.frames.length > 20) { Rec.rounds.push(Rec.cur); while (Rec.rounds.length > 5) Rec.rounds.shift(); }
   Rec.cur = { n, map, frames: [], ev: [] };
@@ -899,11 +903,11 @@ Net.on('s', m => {
   else Game.clk += (off - Game.clk) * (off > Game.clk ? 0.25 : 0.015);
   if (Game.phase !== 'end' && m.ph === 'end' && !Game.endT) Game.endT = pn;
   if (m.ph !== 'end') Game.endT = 0;
-  Game.phase = m.ph; Game.phaseEnd = performance.now() + m.pl; Game.round = m.r; Game.score = m.sc;
+  Game.phase = m.ph; Game.phaseEnd = performance.now() + m.pl; if (m.r !== undefined) { Game.round = m.r; Game.score = m.sc; }
   Game.bomb = { state: m.b[0], x: m.b[1], y: m.b[2], z: m.b[3], msLeft: m.b[4], carrier: m.b[5], defFrac: m.b[6] };
   Game.drops = m.d || [];
-  Game.buyEnd = performance.now() + (m.bw || 0);
-  if (!Game.replay) { Game.snapBuf.push({ recv: performance.now(), st: m.st, p: m.p, g: m.g, sm: m.sm, f: m.f || [] }); while (Game.snapBuf.length > 12) Game.snapBuf.shift(); }
+  if (m.bw !== undefined) Game.buyEnd = performance.now() + m.bw;
+  if (!Game.replay) { Game.snapBuf.push({ recv: performance.now(), st: m.st, p: m.p, g: m.g || [], sm: m.sm || [], f: m.f || [] }); while (Game.snapBuf.length > 12) Game.snapBuf.shift(); }
 });
 
 /* ==========================================================================
@@ -2389,9 +2393,15 @@ const Renderer = (() => {
     sensorObjs.set(m.id, { mesh, side: m.s, x: m.x, y: m.y, z: m.z, led: null });
     Audio.click('switch');
   }
+  function onBleed(m) {                                                        // v26.12: blodspor fra hårdt sårede
+    if (!fxs || Settings.get().blood === false) return;
+    fxs.pool(m.x + (Math.random() - 0.5) * 0.3, m.y, m.z + (Math.random() - 0.5) * 0.3, 0.35 + Math.random() * 0.3);
+    if (m.w) { fxs.wallSplat(m.w[0], m.w[1], m.w[2], m.w[3], m.w[4], 0.3 + Math.random() * 0.25); fxs.blood(m.w[0], m.w[1], m.w[2], m.w[3], 0.1, m.w[4], 4, false); }
+  }
   function onSensorBreak(m) {
     const o = sensorObjs.get(m.id); if (o) { scene.remove(o.mesh); sensorObjs.delete(m.id); }
     if (fxs) fxs.impact(m.x, m.y + 0.05, m.z, 0, 1, 0, true);
+    if (m.zap) { try { Audio.emit && Audio.emit({ x: m.x, y: m.y, z: m.z }, 'splash'); } catch (e) {} Audio.beep({ x: m.x, y: m.y, z: m.z }, false); for (let k = 0; k < 3; k++) setTimeout(() => pulseLight(m.x, m.y + 0.3, m.z, 5, 0x7fd8ff, 0.09), k * 90); return; }   // v26.12: kortslutning i vand
     Audio.glass({ x: m.x, y: m.y + 0.1, z: m.z }); pulseLight(m.x, m.y + 0.3, m.z, 6, 0xffb060, 0.2);
   }
   function onSense(m) { Game.senseBlips.push({ x: m.x, z: m.z, t: performance.now() }); if (Game.senseBlips.length > 12) Game.senseBlips.shift(); Audio.beep(null, true); try { Audio.emit && Audio.emit({ x: m.x, y: Game.body.y, z: m.z }, 'beep', 0.5); } catch (e) {} }
@@ -2726,7 +2736,7 @@ const Renderer = (() => {
       case 'shot': onShotFx(m); break; case 'throw': onRemoteThrow(m); break; case 'smoke': onSmokePop(m); break; case 'flash': onFlashPop(m); break;
       case 'boom': onBoom(m); break; case 'explode': onExplode(m); break; case 'fire': onFirePop(m); break; case 'fireout': onFireOut(m); break;
       case 'bounce': Audio.bounce({ x: m.x, y: m.y, z: m.z }, m.w); break; case 'plant': onPlant(m); break; case 'kill': onKillFx(m); break; case 'melee': onRemoteMelee(m); break;
-      case 'sensor': onSensor(m); break; case 'sensorbreak': onSensorBreak(m); break; case 'pane': onPane(m); break;
+      case 'sensor': onSensor(m); break; case 'sensorbreak': onSensorBreak(m); break; case 'bleed': onBleed(m); break; case 'pane': onPane(m); break;
     }
   }
   function replayStep(dt) {
@@ -2856,6 +2866,12 @@ const Renderer = (() => {
     Game.input.crouch = crouch;
     const y0 = Game.body.y, g0 = Game.body.ground; rig.vy0 = Game.body.vy || 0;
     WD.stepBody(W, Game.body, { fx: fw, sx: sd, yaw: Game.yaw, jump: jump && !frozen, crouch, walk, spd: WD.speedOf(Game.self.cur) * (Game.scoped ? 0.88 : 1) }, dt);
+    if (Game.softTp) {                                                       // glid mod serverens position over ~0,2 s
+      const st = Game.softTp, k = Math.min(1, dt / 0.09);
+      Game.body.x += (st.x - Game.body.x) * k; Game.body.z += (st.z - Game.body.z) * k;
+      if (Math.abs(st.y - Game.body.y) < 1.2) Game.body.y += (st.y - Game.body.y) * k;
+      if (performance.now() - st.t > 260 || Math.hypot(st.x - Game.body.x, st.z - Game.body.z) < 0.04) Game.softTp = null;
+    }
     // v12: trin/kanter (op til 0,5 m) løftes kroppen øjeblikkeligt – kameraet glider blødt efter (Source-stil), ingen ryk i billedet
     const dy = Game.body.y - y0;
     if (g0 && Game.body.ground && dy > 0.04 && dy < 0.6) Game.stepOff -= dy;
@@ -2913,6 +2929,7 @@ const Renderer = (() => {
     const kk = 0.6 + w.recoil * 30;
     vm.kick.vz += 1.6 * kk; vm.kick.vr += 9 * kk; vm.kick.vs += (Math.random() - 0.5) * 3 * kk;
     Game.muzzleT = 0.05;                                       // mundingsild: 0,05 s
+    if (w.rate < 0.16) Game.barrelHeat = Math.min(1, (Game.barrelHeat || 0) + 0.04 + (0.16 - w.rate) * 0.25);   // v26.12: fuldautomatisk ild varmer løbet (≈ 1 magasin => glød)
     if (w.id === 'awp') { vm.boltT = 0; setTimeout(() => Audio.click('bolt'), 350); Game.scoped = false; }
     ejectShell(w);
     Audio.shot(w.id, null, true);
@@ -3120,13 +3137,14 @@ const Renderer = (() => {
     } catch (e) { _vmEnv = null; }
     return _vmEnv;
   }
+  const _hzV = new THREE.Vector3();
   function updateViewmodel(dt) {
     const id = Game.self.cur, w = WEAPONS[id];
     const showC4 = Game.act === 'plant';
     for (const k in vm.models) vm.models[k].visible = false;
     if (vm.c4) vm.c4.visible = false;
     const vis = Game.self.alive && Game.phase !== 'buy' && !Game.scoped && Game.state === 'game';
-    if (!vis) { Game.muzzleT = 0; vmLight.intensity = 0; return false; }
+    if (!vis) { Game.muzzleT = 0; vmLight.intensity = 0; if (post && post.setHaze) post.setHaze(0, 0, 0, 0); return false; }
     // lys til førstepersonsscenen: bagt lys fra proben ved kameraet + solen i kamera-rum
     V.probe(camera.position.x, camera.position.y, camera.position.z, _bk);
     const skyK = _bk[3], L = V.theme.light;
@@ -3229,6 +3247,22 @@ const Renderer = (() => {
     if (meta.muzzle !== undefined && g.userData.flash) { const f = g.userData.flash; f.visible = Game.muzzleT > 0; if (f.visible) { f.rotation.z = Math.random() * 6; f.scale.setScalar(0.8 + Math.random() * 0.5); } }
     if (Game.muzzleT > 0 && meta.muzzle && w && w.id !== 'usp' && w.id !== 'mp5') { vmLight.position.copy(meta.muzzle); g.userData.body.localToWorld(vmLight.position); vmLight.intensity = 9; }
     else vmLight.intensity = 0;
+    // v26.12: rødglødende løb (mest synligt i mørke rum) + varmesløring over mundingen
+    {
+      const ht = Game.barrelHeat || 0; let hm = g.userData.heatMesh;
+      if (meta.muzzle && !hm && g.userData.body) {
+        hm = g.userData.heatMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.0145, 0.0145, 0.16, 12, 1, true), new THREE.MeshBasicMaterial({ color: 0xff3a0a, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+        hm.rotation.x = Math.PI / 2; hm.position.copy(meta.muzzle); hm.position.z += 0.07; g.userData.body.add(hm);
+      }
+      if (hm) { const lum = (_bk[0] + _bk[1] + _bk[2]) / 3, dark = 1 - clamp(lum * 3, 0, 0.75); hm.visible = ht > 0.05; hm.material.opacity = clamp((ht - 0.12) * 1.5, 0, 1) * (0.28 + 0.72 * dark) * (0.85 + 0.15 * Math.sin(performance.now() * 0.02)); }
+      if (post && post.setHaze) {
+        if (ht > 0.35 && meta.muzzle && g.userData.body) {
+          const v = _hzV.copy(meta.muzzle); g.userData.body.localToWorld(v); v.project(vmCam);
+          post.setHaze(v.x * 0.5 + 0.5, v.y * 0.5 + 0.5 + 0.05, clamp((ht - 0.35) / 0.4, 0, 1), performance.now() / 1000);
+        } else post.setHaze(0, 0, 0, 0);
+      }
+      Game.barrelHeat = Math.max(0, ht - dt * 0.11);
+    }
     if (Game.muzzleT > 0) Game.muzzleT -= dt;
     // patronhylstre
     for (const s of vm.shells) { if (s.t >= 1) continue; s.t += dt / 0.6; s.vy -= 6 * dt; s.mesh.position.x += s.vx * dt; s.mesh.position.y += s.vy * dt; s.mesh.position.z += s.vz * dt; s.mesh.rotation.x += dt * 20; if (s.t >= 1) s.mesh.visible = false; }
@@ -3414,7 +3448,7 @@ const Renderer = (() => {
   }
   const api = { canvas: () => renderer.domElement, setEvent, event: () => EV.cur, get camera() { return camera; }, intro: () => (ensureChars(), Intro), bombCine: () => BombCine, deferEnd: (m, info) => { if (BombCine && BombCine.active) { pendingEnd = m; return true; }
       if (info && RoundCine && !Game.cineFull) { try { if (RoundCine.start(info)) { pendingEnd = m; m._cine = true; return true; } } catch (e) { console.warn('rundefilm', e); } } return false; },
-    roundCine: () => RoundCine, introReady: () => introLoaded, setQuality, gunIcon, get gfx() { return gfxName; }, get pr() { return prCur; }, get perf() { return perf; }, chars: () => (ensureChars(), Chars), weap: () => (ensureChars(), Weap), onCosmetics, mapReady: () => !loading && mapId === W.id, cosReady: () => COS.ready, setCine, init, loadMap, flinchAim, onRoundStart, onShotFx, inspect, onRemoteMelee, onMeleeWall, onPlant, onExplode, onBoom, onSmokePop, onFlashPop, onFirePop, onFireOut, onSensor, onSensorBreak, onSense, onSbeep, toggleThermal, ping, onPing, onPane, buildPanes, snapKiller, fpStep, onKillFx, replayStart, replayStop, replayAvailable, get replayActive() { return Rep.active; }, onRemoteThrow, onThrowLocal, onPinPull, onWeaponChange, mouseDelta, shake, skinName, get mapId() { return mapId; } };
+    roundCine: () => RoundCine, introReady: () => introLoaded, setQuality, gunIcon, get gfx() { return gfxName; }, get pr() { return prCur; }, get perf() { return perf; }, chars: () => (ensureChars(), Chars), weap: () => (ensureChars(), Weap), onCosmetics, mapReady: () => !loading && mapId === W.id, cosReady: () => COS.ready, setCine, init, loadMap, flinchAim, onRoundStart, onShotFx, inspect, onRemoteMelee, onMeleeWall, onPlant, onExplode, onBoom, onSmokePop, onFlashPop, onFirePop, onFireOut, onSensor, onSensorBreak, onBleed, onSense, onSbeep, toggleThermal, ping, onPing, onPane, buildPanes, snapKiller, fpStep, onKillFx, replayStart, replayStop, replayAvailable, get replayActive() { return Rep.active; }, onRemoteThrow, onThrowLocal, onPinPull, onWeaponChange, mouseDelta, shake, skinName, get mapId() { return mapId; } };
   if (DEV) {   // v14: kontaktark over førstepersonsvåben (kun dev) – hvert våben renderes alene på neutral baggrund
     const sideCam = new THREE.PerspectiveCamera(30, 1.6, 0.01, 10);
     api.vmSheet = (ids, cols, tw, th, side) => {
@@ -3700,7 +3734,7 @@ const Renderer = (() => {
 setInterval(() => {
   if (Game.state !== 'game' || !Net.connected) return;
   const b = Game.body;
-  Net.send({ t: 'in', x: b.x, y: b.y, z: b.z, yaw: Game.yaw, pitch: Game.pitch, c: b.crouch ? 1 : 0, g: b.ground ? 1 : 0, u: !!KEY.KeyE, n: Game.nade ? 1 : 0, cs: Game.corrId });
+  Net.send({ t: 'in', x: b.x, y: b.y, z: b.z, yaw: Game.yaw, pitch: Game.pitch, c: b.crouch ? 1 : 0, g: b.ground ? 1 : 0, u: !!KEY.KeyE, n: Game.nade ? 1 : 0, cs: Game.corrId, ts: Math.round(performance.now()) });
 }, 1000 / 30);
 
 /* v14 (dev): foto-tur – ?dev=1&tour=<bane>[&shots=1,5,7] bygger banen uden server-spil, kører kameraerne og gemmer kontaktark

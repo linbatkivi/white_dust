@@ -219,7 +219,7 @@ console.log('\nKollision:');
       if (gy === -Infinity || Math.abs(gy - p.y0) > 0.3 || WD.isBlocked(W, sx, sz, gy, PL.H)) continue;
       const b = WD.newBody(sx, gy, sz), mvx = -nx * 0.87 + (nz ? 0.5 : 0), mvz = -nz * 0.87 + (nx ? 0.5 : 0), yaw = Math.atan2(-mvx, -mvz);
       let along = 0; const x0 = b.x, z0 = b.z;
-      for (let f = 0; f < 90; f++) WD.stepBody(W, b, { fx: 1, sx: 0, yaw }, 1 / 60);
+      for (let f = 0; f < 90; f++) WD.stepBody(W, b, { fx: 1, sx: 0, yaw, spd: b.wet ? 1.72 : 1 }, 1 / 60);
       along = nx ? Math.abs(b.z - z0) : Math.abs(b.x - x0);
       // 'klistret' = der VAR plads til at glide videre langs siden, men spilleren stod stille (et indvendigt hjørne mod en anden kasse/mur er ok)
       const tx = nx ? 0 : Math.sign(mvx), tz = nx ? Math.sign(mvz) : 0, room = !WD.isBlocked(W, b.x + tx * 0.35, b.z + tz * 0.35, b.y, PL.H, 0.5);
@@ -241,7 +241,7 @@ for (const r of W.ramps) {
       const startA = dir > 0 ? r.a0 - off : r.a1 + off, x = r.axis === 'x' ? startA : w, z = r.axis === 'x' ? w : startA, gy = WD.groundAt(W, x, z, y0 + 0.3, 0.5);
       if (gy === -Infinity || WD.isBlocked(W, x, z, gy, PL.H)) continue;
       const b = WD.newBody(x, gy, z); let t = 0, minV = 99, al = 0;
-      while (t < 10) { WD.stepBody(W, b, { fx: 1, sx: 0, yaw }, 1 / 60); t += 1 / 60; const a = r.axis === 'x' ? b.x : b.z; al = dir > 0 ? a - startA : startA - a; if (al > off + 0.3) entered = true; if (al > off + 0.6 && al < off + len - 1.2) minV = Math.min(minV, Math.hypot(b.vx, b.vz)); if (al >= off + len - 1.0) break; }
+      while (t < 10) { WD.stepBody(W, b, { fx: 1, sx: 0, yaw, spd: b.wet ? 1.72 : 1 }, 1 / 60); t += 1 / 60; const a = r.axis === 'x' ? b.x : b.z; al = dir > 0 ? a - startA : startA - a; if (al > off + 0.3) entered = true; if (al > off + 0.6 && al < off + len - 1.2) minV = Math.min(minV, Math.hypot(b.vx, b.vz)); if (al >= off + len - 1.0) break; }
       if (al >= off + len - 1.0 && minV > 5.0 && (!best || t < best.t)) best = { t, minV };
     }
     const lab = `rampe ${r.axis} ${r.a0}..${r.a1} ${dir > 0 ? '→' : '←'}`;

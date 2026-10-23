@@ -308,7 +308,7 @@ async function main() {
         hij.tp(fe.x, fe.y, fe.z + 2.5); await sleep(150); hij.pos = { x: fe.x, y: fe.y, z: fe.z + 2.5 }; hij.sendIn();
         hij.send({ t: 'throw', o: [fe.x, fe.y + 1.6, fe.z + 2.5], d: [0, -0.3, -1], u: 1 });
         ok(!!(await hij.wait(m => m.t === 'ev' && m.k === 'fireout', 4000)), 'Smoke slukker ilden den lander i');
-        const sn2 = await hij.waitSnap(s => s.sm.length > 0 && (!s.f || s.f.length === 0), 1500);
+        const sn2 = await hij.waitSnap(s => s.sm && s.sm.length > 0 && (!s.f || s.f.length === 0), 1500);
         ok(!!sn2, 'Smoke er med i snapshots, ilden er væk');
       }
     }

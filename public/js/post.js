@@ -156,7 +156,7 @@ export function createPost(THREE, renderer) {
   /* ---------------- slut: FXAA + bloom + ACES + sRGB ---------------- */
   const finalMat = sm(`
     varying vec2 vUv; uniform sampler2D tColor; uniform sampler2D tBloom; uniform sampler2D tShaft; uniform vec2 uTexel; uniform float uExp, uBloom;
-    uniform float uTh; uniform float uSat, uCon, uGam, uVig, uSharp, uShaft; uniform vec3 uLift, uGain, uShT, uHiT, uShaftCol;
+    uniform float uTh; uniform vec4 uHz; uniform float uSat, uCon, uGam, uVig, uSharp, uShaft; uniform vec3 uLift, uGain, uShT, uHiT, uShaftCol;
     float luma(vec3 c) { c = c / (1.0 + c); return dot(c, vec3(0.299, 0.587, 0.114)); }
     vec4 fxaa(vec2 uv) {
       vec4 M = texture2D(tColor, uv);
@@ -190,7 +190,12 @@ export function createPost(THREE, renderer) {
       return clamp(c * uGain + uLift * (1.0 - c), 0.0, 1.0);
     }
     void main() {
-      vec4 c = fxaa(vUv);
+      vec2 uvD = vUv;
+      if (uHz.z > 0.002) {                                                      // v26.12: varme-luftsløring over det glødende løb
+        vec2 q = (vUv - uHz.xy) * vec2(1.7, 1.0); float fall = exp(-dot(q * vec2(1.0, 0.55), q * vec2(1.0, 0.55)) * 26.0) * smoothstep(-0.03, 0.05, vUv.y - uHz.y);
+        uvD += vec2(sin(vUv.y * 70.0 + uHz.w * 9.0) + 0.6 * sin(vUv.y * 130.0 - uHz.w * 13.0), cos(vUv.x * 60.0 + uHz.w * 7.0)) * 0.0032 * uHz.z * fall;
+      }
+      vec4 c = fxaa(uvD);
       if (uSharp > 0.0 && c.a > 0.5) {                     // let skærpning (kun geometri, ikke himmel): knivskarpe kanter efter FXAA
         vec3 n4 = texture2D(tColor, vUv + vec2(uTexel.x, 0.0)).rgb + texture2D(tColor, vUv - vec2(uTexel.x, 0.0)).rgb + texture2D(tColor, vUv + vec2(0.0, uTexel.y)).rgb + texture2D(tColor, vUv - vec2(0.0, uTexel.y)).rgb;
         vec3 hp = c.rgb - n4 * 0.25; c.rgb = max(c.rgb + hp * uSharp / (1.0 + dot(abs(hp), vec3(0.33)) * 4.0), 0.0);
@@ -209,7 +214,7 @@ export function createPost(THREE, renderer) {
       vec3 o = srgb(L) + (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
       gl_FragColor = vec4(o, 1.0);
     }`, { tColor: { value: rtB.texture }, tBloom: { value: bl[0].texture }, tShaft: { value: rtS2.texture }, uTexel: { value: new THREE.Vector2() }, uExp: { value: 1 }, uBloom: { value: cfg.bloomStrength },
-      uTh: { value: 0 }, uSat: { value: 1 }, uCon: { value: 1 }, uGam: { value: 1 }, uVig: { value: 0.18 }, uSharp: { value: 0.18 }, uShaft: { value: 0 }, uLift: { value: new THREE.Vector3() }, uGain: { value: new THREE.Vector3(1, 1, 1) },
+      uTh: { value: 0 }, uHz: { value: new THREE.Vector4(0, 0, 0, 0) }, uSat: { value: 1 }, uCon: { value: 1 }, uGam: { value: 1 }, uVig: { value: 0.18 }, uSharp: { value: 0.18 }, uShaft: { value: 0 }, uLift: { value: new THREE.Vector3() }, uGain: { value: new THREE.Vector3(1, 1, 1) },
       uShT: { value: new THREE.Vector3(1, 1, 1) }, uHiT: { value: new THREE.Vector3(1, 1, 1) }, uShaftCol: { value: new THREE.Vector3(1, 0.9, 0.75) } });
   // banens 'look' (temaets post-blok) -> uniforms
   const look = Object.assign({}, LOOK0);
@@ -287,5 +292,5 @@ export function createPost(THREE, renderer) {
     renderer.setClearAlpha(prevClearA);
     return true;
   }
-  return { supported: true, cfg, setSize, render, setLook, setThermal(on) { finalMat.uniforms.uTh.value = on ? 1 : 0; }, setSun(v) { sunW.copy(v).normalize(); }, look, get enabled() { return state.enabled; }, set enabled(v) { state.enabled = !!v; }, depthTexture: depthTex };
+  return { supported: true, cfg, setSize, render, setLook, setHaze(x, y, k, t) { finalMat.uniforms.uHz.value.set(x, y, k, t); }, setThermal(on) { finalMat.uniforms.uTh.value = on ? 1 : 0; }, setSun(v) { sunW.copy(v).normalize(); }, look, get enabled() { return state.enabled; }, set enabled(v) { state.enabled = !!v; }, depthTexture: depthTex };
 }

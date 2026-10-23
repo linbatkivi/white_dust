@@ -209,6 +209,12 @@ export function createFx(THREE, o) {
     m.position.set(x, y + 0.014 + pools.length * 0.0003, z); m.rotation.y = Math.random() * 6.28; m.scale.set(r * 0.4, 1, r * 0.4); m.renderOrder = 2; scene.add(m);
     pools.push({ m, r, t: 0 }); if (pools.length > 80) { const q = pools.shift(); scene.remove(q.m); q.m.material.dispose(); }
   }
+  const wallGeo = new THREE.PlaneGeometry(1, 1); const splats = [];
+  function wallSplat(x, y, z, nx, nz, r) {                                    // v26.12: blodstænk på væg (normal nx,nz)
+    const m = new THREE.Mesh(wallGeo, new THREE.MeshBasicMaterial({ map: bloodTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, opacity: 0.9, color: 0xa81212 }));
+    m.position.set(x + nx * 0.012, y, z + nz * 0.012); m.rotation.y = Math.atan2(nx, nz); m.rotation.z = Math.random() * 6.28; m.scale.set(r, r * (0.6 + Math.random() * 0.8), 1); m.renderOrder = 2; scene.add(m);
+    splats.push(m); if (splats.length > 60) { const q = splats.shift(); scene.remove(q); q.material.dispose(); }
+  }
   function blood(x, y, z, dx, dy, dz, n, big) {
     for (let i = 0; i < n; i++) {
       const sp = 1.2 + Math.random() * (big ? 5 : 3.2);
@@ -250,5 +256,5 @@ export function createFx(THREE, o) {
     LSmoke.end(cam); LFire.end(cam); LDot.end(cam); LGlow.end(cam);
   }
   function clear() { for (const s of [...systems]) s.remove(); pops.length = 0; trail.length = 0; imps.length = 0; for (const q of pools) { scene.remove(q.m); q.m.material.dispose(); } pools.length = 0; }
-  return { smoke, fire, flashPop, trailFlame, impact, blood, pool, shards, update, clear, setThermal };
+  return { smoke, fire, flashPop, trailFlame, impact, blood, pool, wallSplat, shards, update, clear, setThermal };
 }

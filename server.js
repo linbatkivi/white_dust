@@ -23,6 +23,7 @@ const TIMES = FAST
 const MAX_PLAYERS = 10, WIN_ROUNDS = 7, HALF = 6, START_MONEY = WD.ECON.start, MAX_MONEY = WD.ECON.max;
 const GRACE_GAME = 25000, GRACE_LOBBY = 8000;
 const SNAP_MS = 50;
+const netStats = { snapBytes: 0, snaps: 0, skipped: 0 };      // v26.12: netværksstatistik
 
 const { WEAPONS, ECON } = WD;
 const addMoney = (p, v) => { p.money = Math.max(0, Math.min(MAX_MONEY, p.money + v)); };
@@ -116,6 +117,7 @@ function serveFile(req, res, file) {
 const server = http.createServer((req, res) => {
   let rel;
   try { rel = decodeURIComponent(req.url.split('?')[0]); } catch (e) { res.writeHead(400); return res.end(); }
+  if (rel === '/netstats' && process.env.WD_TEST) { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify(netStats)); }
   if (rel === '/healthz') { res.writeHead(200, { 'Content-Type': 'text/plain' }); return res.end('ok'); }
   // v14 (kun testserver, WD_TEST=1): foto-turens kontaktark gemmes i docs/qa/ (filnavn renses, maks 20 MB)
   if (rel === '/dev/save' && req.method === 'POST' && process.env.WD_TEST) {
@@ -272,7 +274,7 @@ function onClose(ws) {
 function handle(ws, m) {
   const c = ws.ctx;
   switch (m.t) {
-    case 'ping': send(ws, { t: 'pong', c: m.c }); return;
+    case 'ping': { const pp = ws.ctx.p; if (pp && Number.isFinite(+m.r)) pp.rtt = Math.max(0, Math.min(3000, +m.r)); send(ws, { t: 'pong', c: m.c }); return; }
     case 'create': {
       if (c.p) return;
       const code = makeCode();
@@ -633,11 +635,18 @@ function onInput(room, p, m) {
   const b = room.W.bounds;
   x = Math.max(b.x0, Math.min(b.x1, x)); z = Math.max(b.z0, Math.min(b.z1, z)); y = Math.max(-12, Math.min(30, y));
   const dt = Math.min(0.5, Math.max(0.001, (t - p.lastIn) / 1000));
+  // v26.12: bevægelsesbudgettet tæller KLIENTENS tid (m.ts) – når pakker kommer i bunker efter et lag-udsving må de ikke æde budgettet
+  //         (gav 'rubberbanding'). Tiden kan ikke overstige den virkelige tid + 0,6 s opsparet 'kredit' (ingen speedhack).
+  p.credit = Math.min(600, (p.credit || 0) + (t - p.lastIn));
+  let cdt = dt * 1000;
+  if (typeof m.ts === 'number' && Number.isFinite(m.ts) && p.lastTs !== undefined) cdt = Math.max(0, Math.min(500, m.ts - p.lastTs));
+  p.lastTs = typeof m.ts === 'number' && Number.isFinite(m.ts) ? m.ts : undefined;
+  const use = Math.min(cdt, p.credit); p.credit -= use;
   p.lastIn = t;
-  p.budget = Math.min(4, p.budget + dt * 9);
+  p.budget = Math.min(4.6, p.budget + (use / 1000) * 9);
   const dx = x - p.x, dz = z - p.z, dist = Math.hypot(dx, dz);
   if (dist > p.budget + 0.4 || Math.abs(y - p.y) > 45 * dt + 2.5) {
-    p.corrId++; sendP(p, tpMsg(p)); return;                   // urealistisk hop – ryk spilleren tilbage
+    p.corrId++; { const tm = tpMsg(p); if (dist < 3.5 && Math.abs(y - p.y) < 1.5) tm.soft = 1; sendP(p, tm); } return;   // urealistisk hop – ryk spilleren tilbage (blødt hvis hoppet er lille)
   }
   p.budget = Math.max(0, p.budget - dist);
   p.speed = p.speed * 0.6 + (dist / dt) * 0.4;
@@ -1126,6 +1135,10 @@ function onThrow(room, p, m) {
 const SENSOR_R = 9.5, SENSOR_HP = 25;
 function placeSensor(room, g, t) {
   if (g.lost) return;
+  if (WD.inWater(room.W, g.x, g.y, g.z)) {                      // v26.12: elektronik kortslutter i vand
+    room.bcast({ t: 'ev', k: 'sensorbreak', id: -1, x: r2(g.x), y: r2(g.y), z: r2(g.z), zap: 1 });
+    return;
+  }
   const s = { id: room.nextEnt++, owner: g.owner, side: g.side, x: g.x, y: g.y, z: g.z, hp: SENSOR_HP, lastBeep: 0, born: t };
   room.sensors.push(s);
   room.bcast({ t: 'ev', k: 'sensor', id: s.id, x: r2(s.x), y: r2(s.y), z: r2(s.z), s: s.side, o: s.owner });
@@ -1320,20 +1333,38 @@ function sendSnap(room, t) {
     SP.set(p.id, [r2(p.x), r2(p.y), r2(p.z), p.crouch]);
     P.push([p.id, r2(p.x), r2(p.y), r2(p.z), r2(p.yaw), r2(p.pitch), (p.alive ? 1 : 0) | (p.crouch ? 2 : 0) | (p.act ? 4 : 0) | (p.ground ? 8 : 0) | (p.reloadEnd ? 16 : 0) | (p.pin ? 32 : 0), (WEAPONS[p.cur] || {}).code || 0]);
   }
+  for (const p of room.players.values()) {                                  // v26.12: hårdt sårede (< 20 HP) bløder spor på gulv og vægge
+    if (!p.side || !p.alive || p.hp >= 20 || (p.speed || 0) < 1.0 || t - (p.lastBleed || 0) < 1700) continue;
+    p.lastBleed = t; const e = { t: 'ev', k: 'bleed', x: r2(p.x), y: r2(p.y), z: r2(p.z), v: p.id };
+    const a = Math.random() * 6.283, dx = Math.cos(a), dz = Math.sin(a), nrm = {};
+    const d = WD.raycastWorld(room.W, p.x, p.y + 1.0, p.z, dx, 0, dz, 1.4, nrm);
+    if (d < 1.4) e.w = [r2(p.x + dx * d), r2(p.y + 1.0 + Math.random() * 0.3), r2(p.z + dz * d), r2(nrm.nx), r2(nrm.nz)];
+    room.bcast(e);
+  }
   const b = room.bomb;
   (room.snapHist || (room.snapHist = [])).push({ t: Math.round(t), P: SP });
   while (room.snapHist.length > 24) room.snapHist.shift();          // ~1,2 s historik
-  const msg = JSON.stringify({
-    t: 's', st: Math.round(t), ph: room.phase, pl: Math.max(0, Math.round(room.phaseEnd - t)), bw: Math.round(buyLeftMs(room, t)), r: room.round, sc: [room.score.swat, room.score.hij],
-    p: P,
-    g: room.grenades.map(g => [g.id, WD.NADE_TYPE[g.type], r2(g.x), r2(g.y), r2(g.z)]),
-    f: room.fires.map(f => [f.id, WD.NADE_TYPE[f.type], r2(f.x), r2(f.y), r2(f.z), Math.max(0, Math.round(f.end - t)), Math.round(t - f.born)]),
-    d: room.drops.map(d => [d.id, WEAPONS[d.item].code, r2(d.x), r2(d.y), r2(d.z)]),
-    sm: room.smokes.map(s => [s.id, r2(s.x), r2(s.y), r2(s.z), Math.round(s.end - t), Math.round(t - s.born)]),
-    b: [b.state, r2(b.x), r2(b.y), r2(b.z), b.state === 2 ? Math.max(0, Math.round(b.timer * 1000)) : 0, b.carrier, b.state === 2 && b.defuser ? r2(b.defT / defNeed(room.players.get(b.defuser))) : 0]
-  });
+  // v26.12: mindre snaps – tomme lister udelades, hold/runde/købstid sendes kun når de ændres (eller ca. 1×/s)
+  const sig = room.score.swat + ':' + room.score.hij + ':' + room.round + ':' + room.phase;
+  const full = sig !== room.lastSnapSig || (room.snapK = ((room.snapK || 0) + 1) % 20) === 0;
+  room.lastSnapSig = sig;
+  const o = { t: 's', st: Math.round(t), ph: room.phase, pl: Math.max(0, Math.round(room.phaseEnd - t)), p: P,
+    b: [b.state, r2(b.x), r2(b.y), r2(b.z), b.state === 2 ? Math.max(0, Math.round(b.timer * 1000)) : 0, b.carrier, b.state === 2 && b.defuser ? r2(b.defT / defNeed(room.players.get(b.defuser))) : 0] };
+  if (full || room.phase === 'buy') { o.r = room.round; o.sc = [room.score.swat, room.score.hij]; o.bw = Math.round(buyLeftMs(room, t)); }
+  if (room.grenades.length) o.g = room.grenades.map(g => [g.id, WD.NADE_TYPE[g.type], r2(g.x), r2(g.y), r2(g.z)]);
+  if (room.fires.length) o.f = room.fires.map(f => [f.id, WD.NADE_TYPE[f.type], r2(f.x), r2(f.y), r2(f.z), Math.max(0, Math.round(f.end - t)), Math.round(t - f.born)]);
+  if (room.drops.length) o.d = room.drops.map(d => [d.id, WEAPONS[d.item].code, r2(d.x), r2(d.y), r2(d.z)]);
+  if (room.smokes.length) o.sm = room.smokes.map(s => [s.id, r2(s.x), r2(s.y), r2(s.z), Math.round(s.end - t), Math.round(t - s.born)]);
+  const msg = JSON.stringify(o);
+  netStats.snapBytes += msg.length; netStats.snaps++;
+  // adaptiv throttling: ustabile/langsomme forbindelser får hver 2. snap (100 ms), meget langsomme hver 3. – og et fyldt sendebuffer springer over
   for (const p of room.players.values()) {
-    if (p.ws && p.ws.bufferedAmount < 262144) send(p.ws, msg);
+    if (!p.ws) continue;
+    const buf = p.ws.bufferedAmount, rtt = p.rtt || 0;
+    p.snapN = (p.snapN || 0) + 1;
+    const div = buf > 131072 || rtt > 450 ? 3 : (buf > 32768 || rtt > 220 ? 2 : 1);
+    if (div > 1 && p.snapN % div !== 0) { netStats.skipped++; continue; }
+    if (buf < 262144) send(p.ws, msg);
   }
 }
 
