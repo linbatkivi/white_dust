@@ -1001,7 +1001,7 @@ const Input = {
     if (!down) return;
     if (Game.state !== 'game') return;
     if (k === 'F9') { e.preventDefault(); tryReplay(); return; }
-    if (!Game.self.alive && Game.phase !== 'buy') { if (k === 'Space' || k === 'ArrowRight') cycleSpec(1); else if (k === 'ArrowLeft') cycleSpec(-1); return; }
+    if (!Game.self.alive && Game.phase !== 'buy') { if (k === 'Space' || k === 'ArrowRight') cycleSpec(1); else if (k === 'ArrowLeft') cycleSpec(-1); else if (k === 'KeyE' && Game.phase === 'live' && Game.specId && (Game.players.get(Game.specId) || {}).bot) Net.send({ t: 'takeover', id: Game.specId }); return; }
     if (k === 'KeyR') startReloadLocal();
     if (k === 'KeyF') { if (Game.self.cur === 'awp') toggleScope(); else Renderer.inspect(); }   // F: scope (AWP) / inspicér (kniv og våben – mastery 10: snurres rundt)
     if (k === 'KeyE') { if (!Game.self.alive && Game.phase === 'live' && Game.specId && (Game.players.get(Game.specId) || {}).bot) Net.send({ t: 'takeover', id: Game.specId }); else tryPickup(); }
