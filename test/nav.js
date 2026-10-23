@@ -130,6 +130,16 @@ const CFG = {
       ['B-site (SWAT) før Hijackers kommer ad B Main', 'swat', [B_PL[0], B_PL[1], W.sites.B.y], 'hij', [-33, -9.5, 0]]
     ]
   },
+  fattoria: {   // v26.14: toscansk vingård – kælder (A), gårdsplads (B), vinmark/terrasse (Mid) på fem niveauer; målene er zonernes midter
+    snap: 3.5,
+    targets: Object.assign({ 'A-site (plant)': [A_PL[0], A_PL[1], W.sites.A.y], 'B-site (plant)': [B_PL[0], B_PL[1], W.sites.B.y] },
+      Object.fromEntries(W.data.labels.filter(l => l[0].length > 1).map(l => [l[0], [l[1], l[2], l[3]]]))),
+    timings: [
+      ['A-site (SWAT) før Hijackers kommer ned ad Presseriet', 'swat', [A_PL[0], A_PL[1], W.sites.A.y], 'hij', [32, -2, 0]],
+      ['A-site (SWAT) før Hijackers kommer ned ad Pergola-trappen', 'swat', [A_PL[0], A_PL[1], W.sites.A.y], 'hij', [6, -19, -2.0]],
+      ['B-site (SWAT) før Hijackers kommer ind ad Hovedporten', 'swat', [B_PL[0], B_PL[1], W.sites.B.y], 'hij', [-32, -20, 4.8]]
+    ]
+  },
   valkyrie: {   // v26.8: middelhavsbyen – ét niveau; målene er zonernes midter
     snap: 3.5,
     targets: Object.assign({ 'A-site (plant)': [A_PL[0], A_PL[1], W.sites.A.y], 'B-site (plant)': [B_PL[0], B_PL[1], W.sites.B.y] },

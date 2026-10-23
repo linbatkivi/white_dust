@@ -6481,5 +6481,201 @@ export const DICT = {
 "Rave Protocol",
 "Rave Protocol",
 "Rave Protocol"
+],
+"Fattoria": [
+"Fattoria",
+"Fattoria",
+"Fattoria",
+"Fattoria",
+"法托里亚庄园"
+],
+"Historisk toscansk vingård på en solbeskinnet bakketop i Chianti · sen eftermiddag med lange skygger, sandsten, terrakotta og cypresser. A-site: den gamle vinkælder med fødertønder og lysskakter. B-site: villaens gårdsplads med marmorfontæne og arkader. Mid: vinmark på skråning op mod terrakotta-terrassen.": [
+"A historic Tuscan winery on a sunlit hilltop in Chianti · late afternoon with long shadows, sandstone, terracotta and cypresses. A site: the old wine cellar with giant casks and light shafts. B site: the villa courtyard with a marble fountain and arcades. Mid: a vineyard on a slope up to the terracotta terrace.",
+"Un domaine viticole toscan historique sur une colline ensoleillée du Chianti · fin d'après-midi aux longues ombres, grès, terre cuite et cyprès. Site A : l'ancienne cave à vin avec ses foudres et ses puits de lumière. Site B : la cour de la villa avec une fontaine de marbre et des arcades. Mid : un vignoble en pente jusqu'à la terrasse en terre cuite.",
+"Una bodega toscana histórica en una colina soleada del Chianti · última hora de la tarde con sombras largas, arenisca, terracota y cipreses. Sitio A: la antigua bodega con grandes toneles y tragaluces. Sitio B: el patio de la villa con fuente de mármol y arcadas. Mid: un viñedo en pendiente hasta la terraza de terracota.",
+"Ein historisches toskanisches Weingut auf einem sonnenbeschienenen Hügel im Chianti · später Nachmittag mit langen Schatten, Sandstein, Terrakotta und Zypressen. A-Site: der alte Weinkeller mit Riesenfässern und Lichtschächten. B-Site: der Villenhof mit Marmorbrunnen und Arkaden. Mid: ein Weinberg am Hang hinauf zur Terrakotta-Terrasse.",
+"基安蒂阳光普照山顶上的托斯卡纳历史酒庄 · 傍晚时分，长长的影子、砂岩、陶土与柏树。A 点：有巨大酒桶和光井的古老酒窖。B 点：带大理石喷泉和拱廊的别墅庭院。中路：通往陶土露台的坡上葡萄园。"
+],
+"Kom op ad bakken fra piazzaen: tag kontrol over Mid (vinmarken og terrassen), og gå derfra ned i vinkælderen (A) via Pergolaen eller ind i villaens gård (B) via Biblioteket – eller tag Hovedporten og Hulvejen. Plant C4 på A eller B.": [
+"Come up the hill from the piazza: take control of Mid (the vineyard and the terrace), then go down into the wine cellar (A) via the Pergola or into the villa courtyard (B) via the Library – or take the Main Gate and the Hollow Way. Plant the C4 on A or B.",
+"Montez la colline depuis la piazza : prenez le contrôle de Mid (le vignoble et la terrasse), puis descendez dans la cave (A) par la Pergola ou entrez dans la cour de la villa (B) par la Bibliothèque – ou prenez le Portail et le Chemin creux. Posez le C4 en A ou B.",
+"Subid la colina desde la plaza: tomad el control de Mid (el viñedo y la terraza) y bajad desde allí a la bodega (A) por la Pérgola o entrad en el patio de la villa (B) por la Biblioteca – o id por la Puerta principal y el Camino hundido. Plantad el C4 en A o B.",
+"Kommt den Hügel von der Piazza herauf: übernehmt Mid (Weinberg und Terrasse) und geht von dort durch die Pergola in den Weinkeller (A) oder durch die Bibliothek in den Villenhof (B) – oder nehmt das Haupttor und den Hohlweg. Legt das C4 an A oder B.",
+"从广场沿山坡而上：控制中路（葡萄园和露台），再从那里经藤架下到酒窖（A点），或经图书馆进入别墅庭院（B点）——也可以走正门和凹路。在 A 或 B 点安放 C4。"
+],
+"I starter bag villaen og er tæt på både A og B: hold kælderen fra Kælderbalkonen og Flaskelageret, og gården fra Arkaderne og Staldene. Roter bag villaen, og desarmér bomben, hvis den bliver plantet.": [
+"You start behind the villa and are close to both A and B: hold the cellar from the Cellar Balcony and the Bottle Store, and the courtyard from the Arcades and the Stables. Rotate behind the villa, and defuse the bomb if it is planted.",
+"Vous démarrez derrière la villa, près de A comme de B : tenez la cave depuis le Balcon de la cave et la Réserve à bouteilles, et la cour depuis les Arcades et les Écuries. Tournez derrière la villa et désamorcez la bombe si elle est posée.",
+"Empezáis detrás de la villa, cerca de A y de B: defended la bodega desde el Balcón de la bodega y la Botellería, y el patio desde las Arcadas y las Cuadras. Rotad por detrás de la villa y desactivad la bomba si la plantan.",
+"Ihr startet hinter der Villa und seid nah an A und B: haltet den Keller vom Kellerbalkon und vom Flaschenlager, den Hof von den Arkaden und den Ställen. Rotiert hinter der Villa und entschärft die Bombe, falls sie gelegt wird.",
+"你们从别墅后方出发，离 A 点和 B 点都很近：从酒窖阳台和藏瓶间守住酒窖，从拱廊和马厩守住庭院。在别墅后方转点，炸弹被安放后负责拆除。"
+],
+"T Spawn": [
+"T Spawn",
+"Spawn T",
+"Aparición T",
+"T-Spawn",
+"T 出生点"
+],
+"Piazzale": [
+"Piazzale",
+"Piazzale",
+"Piazzale",
+"Piazzale",
+"广场"
+],
+"Via Maestra": [
+"Via Maestra",
+"Via Maestra",
+"Via Maestra",
+"Via Maestra",
+"主路"
+],
+"Hulvejen": [
+"Hollow Way",
+"Chemin creux",
+"Camino hundido",
+"Hohlweg",
+"凹路"
+],
+"Vinmarken": [
+"Vineyard",
+"Vignoble",
+"Viñedo",
+"Weinberg",
+"葡萄园"
+],
+"Vinmarkens Top": [
+"Vineyard Top",
+"Haut du vignoble",
+"Cima del viñedo",
+"Oberer Weinberg",
+"葡萄园顶"
+],
+"Frantoio": [
+"Frantoio",
+"Frantoio",
+"Frantoio",
+"Frantoio",
+"榨油坊"
+],
+"Via del Frantoio": [
+"Via del Frantoio",
+"Via del Frantoio",
+"Via del Frantoio",
+"Via del Frantoio",
+"榨油坊路"
+],
+"Cypres-vejen": [
+"Cypress Road",
+"Allée des cyprès",
+"Camino de los cipreses",
+"Zypressenallee",
+"柏树路"
+],
+"Forgården": [
+"Forecourt",
+"Avant-cour",
+"Antepatio",
+"Vorhof",
+"前院"
+],
+"Presseriet": [
+"Press Room",
+"Pressoir",
+"Lagar",
+"Kelterhaus",
+"压榨间"
+],
+"Terrassen": [
+"Terrace",
+"Terrasse",
+"Terraza",
+"Terrasse",
+"露台"
+],
+"Pergolaen": [
+"Pergola",
+"Pergola",
+"Pérgola",
+"Pergola",
+"藤架"
+],
+"Bibliotekstrappen": [
+"Library Stairs",
+"Escalier de la bibliothèque",
+"Escalera de la biblioteca",
+"Bibliothekstreppe",
+"图书馆阶梯"
+],
+"Vestterrassen": [
+"West Terrace",
+"Terrasse ouest",
+"Terraza oeste",
+"Westterrasse",
+"西露台"
+],
+"Kælderbalkonen": [
+"Cellar Balcony",
+"Balcon de la cave",
+"Balcón de la bodega",
+"Kellerbalkon",
+"酒窖阳台"
+],
+"Flaskelageret": [
+"Bottle Store",
+"Réserve à bouteilles",
+"Botellería",
+"Flaschenlager",
+"藏瓶间"
+],
+"Hovedporten": [
+"Main Gate",
+"Portail principal",
+"Puerta principal",
+"Haupttor",
+"正门"
+],
+"Biblioteket": [
+"Library",
+"Bibliothèque",
+"Biblioteca",
+"Bibliothek",
+"图书馆"
+],
+"Stalden": [
+"Stables",
+"Écuries",
+"Cuadras",
+"Ställe",
+"马厩"
+],
+"Hallen": [
+"Great Hall",
+"Grand hall",
+"Gran salón",
+"Große Halle",
+"大厅"
+],
+"Villa-gården": [
+"Villa Yard",
+"Cour de la villa",
+"Patio de la villa",
+"Villenhof",
+"别墅后院"
+],
+"Østhaven": [
+"East Garden",
+"Jardin est",
+"Jardín este",
+"Ostgarten",
+"东花园"
+],
+"CT Spawn": [
+"CT Spawn",
+"Spawn CT",
+"Aparición CT",
+"CT-Spawn",
+"CT 出生点"
 ]
 };

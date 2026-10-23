@@ -13,6 +13,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
   let NISEKO_DATA = null; try { NISEKO_DATA = (typeof module === 'object' && module.exports) ? require('./niseko_data.js') : (typeof self !== 'undefined' ? self.WD_NISEKO : null); } catch (e) { NISEKO_DATA = null; }   // v26.12
+  let FATTORIA_DATA = null; try { FATTORIA_DATA = (typeof module === 'object' && module.exports) ? require('./fattoria_data.js') : (typeof self !== 'undefined' ? self.WD_FATTORIA : null); } catch (e) { FATTORIA_DATA = null; }   // v26.14
   let VALKYRIE_DATA = null; try { VALKYRIE_DATA = (typeof module === 'object' && module.exports) ? require('./valkyrie_data.js') : (typeof self !== 'undefined' ? self.WD_VALKYRIE : null); } catch (e) { VALKYRIE_DATA = null; }   // arkiveret 23/10 2026 (wd-arkiv/baner/valkyrie-v26.12)   // v26.8
   const BUREAU_DATA = (typeof module === 'object' && module.exports) ? require('./bureau_data.js') : (typeof self !== 'undefined' ? self.WD_BUREAU : null);   // v26
 
@@ -884,6 +885,7 @@
     if (BUREAU_DATA) REG.bureau = mapBureau(K);
     if (VALKYRIE_DATA) REG.valkyrie = mapValkyrie(K);
     if (NISEKO_DATA) REG.niseko = mapNiseko(K);
+    if (FATTORIA_DATA) REG.fattoria = mapFattoria(K);
   }
 
   /* ================================================================ bureau (v26) ================================================================
@@ -925,6 +927,35 @@
       desc: 'Mørk japansk landsby om natten · papirlanterner og måneskin spejlet i kanaler og koi-damme. A-site: zen-have med tempel. B-site: gammelt lagerhus med træbælker og galleri. Mid: kanal med stenbro og en rund koi-dam.',
       GW: G.GW, GH: G.GH, GX0: G.GX0, GZ0: G.GZ0, data: D, ring: true,
       layers: [{ id: 'G', yb: -4, yt: WALL_TOP, tiles: { '#': { solid: true }, ' ': { void: true } } }],
+      grid(H) { H.fill(0, 0, G.GW - 1, G.GH - 1, ' '); },
+      props(H) {
+        const { wallBox, stairs, fRamp } = H;
+        for (const b of D.boxes) wallBox(b[0], b[1], b[2], b[3], b[4], b[5], b[6]);
+        for (const p of D.prisms || []) H.prism(p[0], p[1], p[2], p[3]);
+        for (const r of D.ramps) fRamp(r[0], r[1], r[2], r[3], r[4], r[5], r[6]);
+        for (const t of D.stairs) { const [x0, z0, x1, z1, ax, ya, yb, n] = t, lo = Math.min(ya, yb); stairs(x0, z0, x1, z1, ax, yb > ya ? 1 : -1, lo, Math.abs(yb - ya), n, lo - 0.3, 'stone'); }
+        for (const r of D.rails) H.rail(r[0], r[1], r[2], r[3], r[4], r[5], 'metal');
+      },
+      meta(H) {
+        for (const l of D.labels) H.labels.push({ text: l[0], x: l[1], z: l[2], y: l[3], kind: l[0] === 'A' || l[0] === 'B' ? 'site' : undefined });
+        const sites = {}; for (const k in D.sites) { const S = D.sites[k]; sites[k] = { x0: S[0], z0: S[1], x1: S[2], z1: S[3], y: S[4] }; }
+        const sp = p => ({ x: p[0], y: p[3], z: p[1], yaw: p[2] });
+        return { sites, spawns: { hij: D.spawns.hij.map(sp), swat: D.spawns.swat.map(sp) } };
+      }
+    };
+  }
+
+  /* ================================================================ fattoria (v26.14) ================================================================
+     Toscansk vingård på en bakketop i den gyldne time. A = den gamle vinkælder (under terrakotta-terrassen), B = villaens gårdsplads med fontæne,
+     Mid = vinmark på skråning op mod terrassen. Genereret af tools/fattoria/gen/layout.py (shared/fattoria_data.js), bygget og bagt i Blender (tools/fattoria/). */
+  function mapFattoria() {
+    const D = FATTORIA_DATA, G = D.grid;
+    return {
+      id: 'fattoria', name: 'Fattoria', night: false,
+      brief: { hij: 'Kom op ad bakken fra piazzaen: tag kontrol over Mid (vinmarken og terrassen), og gå derfra ned i vinkælderen (A) via Pergolaen eller ind i villaens gård (B) via Biblioteket – eller tag Hovedporten og Hulvejen. Plant C4 på A eller B.', swat: 'I starter bag villaen og er tæt på både A og B: hold kælderen fra Kælderbalkonen og Flaskelageret, og gården fra Arkaderne og Staldene. Roter bag villaen, og desarmér bomben, hvis den bliver plantet.' },
+      desc: 'Historisk toscansk vingård på en solbeskinnet bakketop i Chianti · sen eftermiddag med lange skygger, sandsten, terrakotta og cypresser. A-site: den gamle vinkælder med fødertønder og lysskakter. B-site: villaens gårdsplads med marmorfontæne og arkader. Mid: vinmark på skråning op mod terrakotta-terrassen.',
+      GW: G.GW, GH: G.GH, GX0: G.GX0, GZ0: G.GZ0, data: D, ring: true,
+      layers: [{ id: 'G', yb: -12, yt: WALL_TOP + 6, tiles: { '#': { solid: true }, ' ': { void: true } } }],
       grid(H) { H.fill(0, 0, G.GW - 1, G.GH - 1, ' '); },
       props(H) {
         const { wallBox, stairs, fRamp } = H;

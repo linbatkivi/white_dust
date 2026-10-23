@@ -569,7 +569,7 @@ export function createAudio() {
     // v20: vinden skruet ned (brugerønske) – fugle og fjern trafik giver liv i stedet
     const wg = ctx.createGain(); wg.gain.value = 0.03; wind.connect(wl); wl.connect(wg); wg.connect(g); wind.start(t); nodes.push(wind);
     const lfo = ctx.createOscillator(); lfo.frequency.value = 0.07; const lg = ctx.createGain(); lg.gain.value = 0.025; lfo.connect(lg); lg.connect(wg.gain); lfo.start(t); nodes.push(lfo);
-    const AMB = { bureau: [0, 0.3], valkyrie: [0.7, 0], niseko: [0, 0] }[id] || [0.25, 0.3];             // v26: bureauet – ingen fugle 110 m oppe, byen summer langt nede
+    const AMB = { bureau: [0, 0.3], valkyrie: [0.7, 0], niseko: [0, 0], fattoria: [0.3, 0] }[id] || [0.25, 0.3];             // v26: bureauet – ingen fugle 110 m oppe, byen summer langt nede
     let files = false;
     for (const [name, v, lp] of [['amb_birds', AMB[0], 0], ['amb_traffic', AMB[1], 1300]]) {
       const b = buf[name]; if (!b || v <= 0) continue; files = true;
@@ -595,6 +595,18 @@ export function createAudio() {
     if (id === 'niseko') {                            // v26.13: sensommernat – fårekyllinger som korte kvidrerækker (ingen konstante toner) og en lav, blød kanalrislen
       const wr = ctx.createBufferSource(); wr.buffer = noiseBuf; wr.loop = true; wr.playbackRate.value = 0.55; const wb = ctx.createBiquadFilter(); wb.type = 'lowpass'; wb.frequency.value = 520; wb.Q.value = 0.3;
       const wgn = ctx.createGain(); wgn.gain.value = 0.014; wr.connect(wb); wb.connect(wgn); wgn.connect(g); wr.start(t); nodes.push(wr);
+    }
+    if (id === 'fattoria') {                          // v26.14: cikader (amplitudemoduleret bånd-støj, stiger og falder over flere sekunder) og en blød varm sommervind i cypresserne
+      for (const [f, am, v, per] of [[4800, 82, 0.012, 6.3], [6100, 66, 0.009, 8.1], [3900, 74, 0.008, 11.0]]) {
+        const ns = ctx.createBufferSource(); ns.buffer = noiseBuf; ns.loop = true; const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = 7;
+        const ag = ctx.createGain(); ag.gain.value = 0; const mo = ctx.createOscillator(); mo.frequency.value = am; const mg = ctx.createGain(); mg.gain.value = v * 0.55;
+        const sl = ctx.createOscillator(); sl.frequency.value = 1 / per; const sg = ctx.createGain(); sg.gain.value = v * 0.45;
+        ag.gain.value = v * 0.55; mo.connect(mg); mg.connect(ag.gain); sl.connect(sg); sg.connect(ag.gain);
+        ns.connect(bp); bp.connect(ag); ag.connect(g); ns.start(t); mo.start(t); sl.start(t); nodes.push(ns, mo, sl);
+      }
+      const wnd = ctx.createBufferSource(); wnd.buffer = noiseBuf; wnd.loop = true; wnd.playbackRate.value = 0.4; const wlp = ctx.createBiquadFilter(); wlp.type = 'lowpass'; wlp.frequency.value = 700; wlp.Q.value = 0.4;
+      const wg2 = ctx.createGain(); wg2.gain.value = 0.02; const wlfo = ctx.createOscillator(); wlfo.frequency.value = 0.09; const wlg = ctx.createGain(); wlg.gain.value = 0.012; wlfo.connect(wlg); wlg.connect(wg2.gain);
+      wnd.connect(wlp); wlp.connect(wg2); wg2.connect(g); wnd.start(t); wlfo.start(t); nodes.push(wnd, wlfo);
     }
     let alive = true;
     const dripT = setInterval(() => {                   // fugtigt dryp (valkyrie) / vanddråber (niseko)

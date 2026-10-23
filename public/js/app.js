@@ -53,6 +53,12 @@ let W = WD.buildWorld('bureau');          // aktiv bane (skiftes via setMap når
 function emittersFor(Wm) {                                     // v26.10: små, faste lydkilder (dryp, frøer, fugle, løv) – det der gør en bane levende
   const d = Wm.data, out = []; if (!d || !d.surf) return out;
   for (const r of d.water || []) out.push({ x: (r[0] + r[2]) / 2, y: r[4] + 0.3, z: (r[1] + r[3]) / 2, kinds: Wm.id === 'niseko' ? ['koi', 'trickle', 'drip', 'trickle'] : ['drip', 'drip', 'frog', 'splash'], rate: Wm.id === 'niseko' ? 0.5 : 0.9 });
+  if (Wm.id === 'fattoria') {                                    // v26.14: fontænen i gården, dryp i kælderen, fugle og løv i haverne
+    out.push({ x: -21, y: 5.6, z: -30.5, kinds: ['trickle', 'trickle', 'drip', 'trickle'], rate: 1.6 });
+    out.push({ x: 23, y: -1.0, z: -13.5, kinds: ['drip', 'drip', 'trickle'], rate: 0.45 }); out.push({ x: 14, y: -1.0, z: -9, kinds: ['drip'], rate: 0.3 });
+    for (const l of d.labels || []) if (!/^(A|B)$/.test(l[0])) out.push({ x: l[1], y: (l[3] || 0) + 3.0, z: l[2], kinds: ['bird', 'bird', 'rustle', 'bird'], rate: 0.1 });
+    return out;
+  }
   for (const l of d.labels || []) out.push({ x: l[1], y: (l[3] || 0) + 2.5, z: l[2], kinds: ['bird', 'rustle', 'monkey', 'creak', 'stonefall', 'drip', 'bird'], rate: 0.14 });
   return out;
 }
@@ -2012,6 +2018,7 @@ const Renderer = (() => {
     // v11: med HDRI (L.ibl) får ALLE PBR-flader miljølys (diffust + glans; bagt himmel-synlighed dæmper det indendørs) – ellers kun metal
     for (const g of [worldGroup, decorGroup, doors.group]) g.traverse(o => { const m = o.material; if (!m || seen.has(m) || !m.isMeshStandardMaterial) return; seen.add(m); const p = m.userData.pbr; const metal = (p && p.metal >= 0.3) || (!p && m.roughness < 0.3); if (metal || L.ibl) { m.envMap = envTex; m.envMapIntensity = metal ? 0.85 : L.ibl; m.needsUpdate = true; } });
     // v25: nat-baner – regn (skjult under tage), plask, lampeglød, glans i våde sten, lyn og torden
+    if (!waterUniforms.reflMat.value) waterUniforms.reflMat.value = new THREE.Matrix4();           // v26.14: baner med vand uden planar spejling (Fattorias fontæne) skal stadig have en gyldig matrix
     if (V.theme.water && !/[?&]water=0\b/.test(location.search)) try { waterFx = createWaterFx({ THREE, renderer, scene, root: worldGroup, uniforms: waterUniforms, level: V.theme.water.level, far: V.theme.water.far, scale: V.theme.water.scale }); if (waterFx && V.theme.water.gain) waterUniforms.reflGain.value = V.theme.water.gain; } catch (e) { console.warn('[vand]', e); waterFx = null; }
     if (V.theme.koi) try { koi = createKoi({ THREE, scene, url: V.theme.koi }); } catch (e) { console.warn('[koi]', e); koi = null; }
     if (V.theme.rain || V.theme.night) try { night = createNight({ THREE, WD, W, scene, Audio, sun, sky, lightsUrl: V.theme.lightsUrl, rain: V.theme.rain }); } catch (e) { console.warn('[nat]', e); night = null; }

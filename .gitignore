@@ -4,6 +4,9 @@ tools/*
 !tools/niseko/
 tools/niseko/cache/
 tools/niseko/out/
+!tools/fattoria/
+tools/fattoria/cache/
+tools/fattoria/out/
 tools/bureau/cache/
 tools/bureau/out/
 !tools/radar/

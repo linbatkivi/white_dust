@@ -16,7 +16,7 @@ export function createPost(THREE, renderer) {
   const hdrOk = gl2 && (renderer.extensions.has('EXT_color_buffer_float') || renderer.extensions.has('EXT_color_buffer_half_float'));
   const supported = !!hdrOk;
   const cfg = { ao: true, aoStrength: 0.85, aoRadius: 0.55, bloom: true, bloomStrength: 0.16, bloomThreshold: 1.0, exposure: 1.0, shafts: true };
-  const LOOK0 = { sat: 1, contrast: 1, gamma: 1, lift: [0, 0, 0], gain: [1, 1, 1], shadowTint: [1, 1, 1], highTint: [1, 1, 1], vignette: 0.18, sharpen: 0.18, shafts: 0, shaftCol: [1, 0.9, 0.75], mie: 0, mieCol: [1, 0.85, 0.65], mieDist: 120 };
+  const LOOK0 = { sat: 1, contrast: 1, gamma: 1, lift: [0, 0, 0], gain: [1, 1, 1], shadowTint: [1, 1, 1], highTint: [1, 1, 1], vignette: 0.18, sharpen: 0.18, shafts: 0, shaftCol: [1, 0.9, 0.75], mie: 0, mieCol: [1, 0.85, 0.65], mieDist: 120, bloom: 1 };
   if (!supported) return { supported: false, enabled: false, cfg, setSize() {}, render() { return false; }, setLook() {}, setThermal() {}, setSun() {}, dispose() {} };
 
   const mkRT = (w, h, o) => new THREE.WebGLRenderTarget(w, h, Object.assign({ type: THREE.HalfFloatType, format: THREE.RGBAFormat, depthBuffer: false, stencilBuffer: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, generateMipmaps: false }, o || {}));
@@ -286,7 +286,7 @@ export function createPost(THREE, renderer) {
       }
     }
     finalMat.uniforms.uShaft.value = shaft;
-    finalMat.uniforms.uBloom.value = cfg.bloom ? cfg.bloomStrength : 0; finalMat.uniforms.uExp.value = cfg.exposure;
+    finalMat.uniforms.uBloom.value = cfg.bloom ? cfg.bloomStrength * (look.bloom === undefined ? 1 : look.bloom) : 0; finalMat.uniforms.uExp.value = cfg.exposure;
     // 5. FXAA + tonemapping → skærm
     pass(finalMat, null);
     renderer.setClearAlpha(prevClearA);

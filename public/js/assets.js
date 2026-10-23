@@ -9,7 +9,8 @@
 import { loadGLTF } from './models.js';
 export const ASSET_SETS = {
   bureau: { dir: '/assets/bureau/', havn: true, sky: 'sky.hdr', tex: [], models: [] },       // v26: luksus-bureauet om natten (tools/bureau/)
-  niseko: { dir: '/assets/niseko/', havn: true, sky: 'sky.hdr', tex: [], models: [] },         // v26.13: gammel japansk landsby om natten (tools/niseko/)
+  niseko: { dir: '/assets/niseko/', havn: true, sky: 'sky.hdr', tex: [], models: [] },
+  fattoria: { dir: '/assets/fattoria/', havn: true, sky: 'sky.hdr', tex: [], models: [] },         // v26.14: toscansk vingård i den gyldne time (tools/fattoria/)         // v26.13: gammel japansk landsby om natten (tools/niseko/)
 };
 
 // Radiance .hdr (RGBE) → { w, h, data: Float32Array RGBA (lineær) }. Understøtter "nyt" RLE-format og flade scanlines.

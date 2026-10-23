@@ -81,3 +81,10 @@ Venner og fraktioner udveksler data direkte mellem spillerne via PeerJS (ingen n
 - **Niseko-lyd:** fårekyllinger som korte kvidrerækker (ingen konstant hyletone), blød kanalrislen, blødere frø/koi/vand-lyde.
 - **MVP-musik:** 11 rigtige, klippede numre (`tools/sounds/mvp_cut.py`) i stedet for korte synth-jingles; 9 af dem kan købes for mønter i butikken.
 - **Ny forside, karriere og shop:** store LAV PARTY/JOIN, hub-dock (Shop · Opgaver · Inventar · Karriere), indstillinger som lille knap i hjørnet, karrierens sidenavigation (missioner + trofæer under én fane), shoppen som egen skærm med tilbud, nedtælling og prøvelytning.
+
+## v26.15 – de_fattoria (toscansk vingård i den gyldne time)
+- **Ny bane Fattoria** (Chianti, sen eftermiddag): vingård på en bakketop på fem niveauer. A = gammel vinkælder (hvælvinger, tønder, lysskakter, Presseriet-indgang, Kælderbalkon, Flaskelageret), B = villa-piazza med marmorfontæne og loggia (Hovedporten, Biblioteket, Staldene), Mid = Vinmarken med gennemsigtige vinrækker, 45°-stenmur og Terrakotta-terrassen (Pergola- og Biblioteks-trapper). Løbetider: SWAT → A/B ≈ 7 s, Hijackers → A/B ≈ 11–13 s (`node test/nav.js fattoria`).
+- **Pipeline** (`tools/fattoria/`): `gen/layout.py` (højdefelt + overlag → kollision `shared/fattoria_data.js` + design.json) → `build.py` (Blender: terræn, arkitektur, planter, udsmykning, kulisse; bagt lys med sol, himmel og ~30 varme lamper; `world.bin` 16,8 MB / 301 k trekanter) → `textures.py` → `gen/radar.py`.
+- **Grafik**: sol fra HDRI (kiara_7, 8,5° over horisonten) som rigtig skyggekaster, støvslør og solstråler, cypresser/oliventræer/piniebuer/vinstokke som egne løv-kort, indvendigt: fodlister, træpanel, indrammede billeder og loftsbjælker; trappe-/rampesider mod højere naboer lukkes (ingen huller mod himlen).
+- **Lyd**: cikader og vind, grus, dryp og dæmpet rumklang i kælderen; fontæne i gården.
+- **Bloom pr. bane**: `look.bloom` i temaets `post` (bruges af Bureau).

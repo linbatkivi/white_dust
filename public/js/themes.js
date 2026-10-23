@@ -1,11 +1,12 @@
 // ==========================================================================
 // THEMES (v8): delt bibliotek (teksturer, prop-modeller, vegetation, lamper, døre) + register over banernes temaer.
-//   createThemes(ctx) -> { bureau(), niseko() } – hvert tema bygges først når banen vælges.
+//   createThemes(ctx) -> { bureau(), niseko(), fattoria() } – hvert tema bygges først når banen vælges.
 // Et tema leverer: light, lamps, surf()/surfKinds (materialer pr. flade), trim(), dressProp/Cyl/Ladder/Rail/Lamp, decor(), fx(), doorStyle().
 // Intet placeres tilfældigt: al dekoration placeres eksplicit eller efter faste regler (fx lamper med fast afstand).
 // ==========================================================================
 import { bureauTheme } from './theme_bureau.js';
 import { nisekoTheme } from './theme_niseko.js';
+import { fattoriaTheme } from './theme_fattoria.js';
 
 export function createThemes(C) {
   const { THREE, W, P, mkTex, mat, unlit, leafMat, rnd, hash2, col } = C;
@@ -649,5 +650,5 @@ export function createThemes(C) {
   }
   const LIB = { ivyPatch, siteWallLetters, againstWall, modelBarrels, modelRow, faceAway, wallRuns, sampleRuns, buildingFloor, nearestWall, THREE, W, P, mkTex, mat, unlit, leafMat, rnd, hash2, col, tint, mix, mul, T, TAU, orient, wallCard, fitWallCard, panelMat, floorCard, commonMats, propLib, PAL, pick,
     frondCard, plantRadial, curvedTrunk, palm, shrub, fern, grassTuft, vineStrip, jungleTree, seedAt, railing, ladderModel, lampFixture, doorLeaf, C };
-  return { bureau: () => bureauTheme(LIB), niseko: () => nisekoTheme(LIB) };
+  return { bureau: () => bureauTheme(LIB), niseko: () => nisekoTheme(LIB), fattoria: () => fattoriaTheme(LIB) };
 }
