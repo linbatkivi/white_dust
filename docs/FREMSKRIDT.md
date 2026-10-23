@@ -88,3 +88,9 @@ Venner og fraktioner udveksler data direkte mellem spillerne via PeerJS (ingen n
 - **Grafik**: sol fra HDRI (kiara_7, 8,5° over horisonten) som rigtig skyggekaster, støvslør og solstråler, cypresser/oliventræer/piniebuer/vinstokke som egne løv-kort, indvendigt: fodlister, træpanel, indrammede billeder og loftsbjælker; trappe-/rampesider mod højere naboer lukkes (ingen huller mod himlen).
 - **Lyd**: cikader og vind, grus, dryp og dæmpet rumklang i kælderen; fontæne i gården.
 - **Bloom pr. bane**: `look.bloom` i temaets `post` (bruges af Bureau).
+
+## v26.15 – de_bureau: grafikløft (som Niseko)
+- **Lys**: kraftigere og toned pr. rum (luksus 2700 K, kontorer neutral-varme, teknik/kælder kolde), kold måne som lampe (skygger på tagterrassen + måneskin ind ad vinduerne, indirekte del bagt), skylinen lyser stærkere ind, bagt i 128 samples med støjfjernelse.
+- **Nye lamper**: væglamper (sconces) i luksus-/kontorrum og 12 pullerter på tagterrassen (varme lyspytter, kollision som lille søjle). Lampeglorier i den fugtige luft for alle tændte lamper (`night.js`, `lights.json`), støv i lyset og kraftigere bloom (`look.bloom`).
+- **Materialer**: lysere valnødfiner (var næsten sort), ribbet arkitektbeton i gangene, brætformet beton i garage/lager, varm kalkpuds, dæmpede kontorlofter og panel-emission (ingen blændende rektangler), granitfliser der er våde i regnen (pullert-lys spejler sig).
+- **Hjemmesiden**: banelisten har nu faner for de_bureau, de_niseko og de_fattoria med nye skærmbilleder og radarer.

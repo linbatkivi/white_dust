@@ -710,5 +710,45 @@ def run(B, ROOMS, MATS, MI):
         zi = ZN.index(n)
         against(zi, ph('exterior_aircon_unit'), 1.0, 0.8, 1.2, 3, spacing=3.0)
         against(zi, ph('street_lamp_01'), 0.4, 0.4, 3.0, 2, spacing=6.0)
+    # v26.15 grafikløft: pullert-lamper på tagterrassen (varme lyspytter i den våde granit) …
+    DW_ = B['DW']; nb_ = 0; base_props = list(props)
+    def prop_blocks(bx, bz, m=0.45):
+        for e in base_props:
+            c = e.get('c')
+            if c and abs(bx - c[0]) < c[3] / 2 + m and abs(bz - c[2]) < c[5] / 2 + m: return True
+            if not c and abs(bx - e['p'][0]) < 0.5 and abs(bz - e['p'][2]) < 0.5: return True
+        return False
+    for n in ('T Spawn', 'T Ramp'):
+        zi = ZN.index(n)
+        ring = (ZID == zi) & WALK & (DW_ == 5) & (SLOPE < 0)
+        ii, jj = np.nonzero(ring); taken = []
+        for i, j in sorted(zip(ii, jj), key=lambda t: (t[0], t[1])):
+            if all((i - a_) ** 2 + (j - b_) ** 2 > (2.8 / S) ** 2 for a_, b_ in taken) and not prop_blocks(cx(j + 0.5), cz(i + 0.5)): taken.append((i, j))
+        for (i, j) in taken[:20]:
+            bx, bz = cx(j + 0.5), cz(i + 0.5); fl = float(F[i, j])
+            for mesh in (VIS, COL): box(mesh, bx - 0.07, fl, bz - 0.07, bx + 0.07, fl + 0.58, bz + 0.07, 'trim_metal' if mesh is VIS else 'wall', 'nsewt')
+            box(VIS, bx - 0.075, fl + 0.46, bz - 0.075, bx + 0.075, fl + 0.52, bz + 0.075, 'light_down', 'nsew')
+            B['LIGHTS'].append(dict(x=round(bx, 2), y=round(fl + 0.5, 2), z=round(bz, 2), kind='bollard', room=n))
+            props.append(dict(m='collider', p=[round(bx, 3), round(fl, 3), round(bz, 3)], yaw=0.0, c=[round(bx, 3), round(fl + 0.29, 3), round(bz, 3), 0.14, 0.58, 0.14])); nb_ += 1      # (kollision: lille søjle – spillets kollision kommer fra props' 'c')
+    print('[dress] pullerter på tagterrassen: %d' % nb_)
+    # … og væglamper (sconces) i luksus-/kontorrum: varme lyspytter på væggene (bagt) og en lille armatur (kun synlig, 8 cm dyb)
+    nsc = 0
+    for n in ZN:
+        r = ROOMS[n]
+        if r['h'] is None or not (r.get('lux') or r.get('win')): continue
+        zi = ZN.index(n); k_ = 0; lim = 8 if r.get('lux') else 5
+        for (x, z, yaw, i, j, axis, sgn, win) in spots(zi, 4.4, False):
+            if k_ >= lim: break
+            if OCC[i, j]: continue
+            fl = float(F[i, j]); ci = float(C[i, j]) if np.isfinite(C[i, j]) else fl + 3.0
+            if ci - fl < 2.9: continue
+            rad = math.radians(yaw); nx_, nz_ = math.sin(rad), math.cos(rad); y = fl + 2.05; d = 0.08; w = 0.06
+            if abs(nx_) > 0.5: xa, xb = sorted((x, x + nx_ * d)); za, zb = z - w, z + w
+            else: za, zb = sorted((z, z + nz_ * d)); xa, xb = x - w, x + w
+            box(VIS, xa, y, za, xb, y + 0.36, zb, 'trim_metal', 'nsewt')
+            if abs(nx_) > 0.5: ex0, ex1 = sorted((x + nx_ * (d - 0.005), x + nx_ * (d + 0.012))); box(VIS, ex0, y + 0.04, z - 0.04, ex1, y + 0.32, z + 0.04, 'light_down', 'nsew')
+            else: ez0, ez1 = sorted((z + nz_ * (d - 0.005), z + nz_ * (d + 0.012))); box(VIS, x - 0.04, y + 0.04, ez0, x + 0.04, y + 0.32, ez1, 'light_down', 'nsew')
+            B['LIGHTS'].append(dict(x=round(x + nx_ * 0.2, 2), y=round(y + 0.22, 2), z=round(z + nz_ * 0.2, 2), kind='sconce', room=n)); k_ += 1; nsc += 1
+    print('[dress] pullerter og væglamper: %d væglamper' % nsc)
     print('[dress] props', len(props))
     return props

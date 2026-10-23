@@ -108,8 +108,8 @@ export function createNight(o) {
     for (const l of J.lights || []) lamps.push(l);
     const n = lamps.length; if (!n) return;
     const pos = new Float32Array(n * 3), col = new Float32Array(n * 3), prm = new Float32Array(n * 2);
-    const SZ = { lantern: 1.1, chandelier: 1.6, oil: 0.75, candle: 0.32, work: 1.3, sconce: 0.9, searchlight: 2.2, belfry: 3.5, uplight: 0.0, window: 0.0 };
-    const FL = { candle: 1.0, oil: 0.55, lantern: 0.35, chandelier: 0.3, belfry: 0.4 };
+    const SZ = { lantern: 1.1, chandelier: 1.6, oil: 0.75, candle: 0.32, work: 1.3, sconce: 0.9, searchlight: 2.2, belfry: 3.5, uplight: 0.0, window: 0.0, down: 0.34, panel: 0.6, linear: 0.55, highbay: 0.8, ring: 0.45, atrium: 1.1, server: 0.5, street: 2.0, bollard: 0.4, exit: 0.3, emergency: 0.45 };   // v26.15: Bureaus lamper
+    const FL = { candle: 1.0, oil: 0.55, lantern: 0.35, chandelier: 0.3, belfry: 0.4, emergency: 0.28, server: 0.08 };
     lamps.forEach((l, k) => { pos[k * 3] = l.x; pos[k * 3 + 1] = l.y; pos[k * 3 + 2] = l.z; col.set(l.col, k * 3); prm[k * 2] = SZ[l.kind] !== undefined ? SZ[l.kind] : 0.8; prm[k * 2 + 1] = FL[l.kind] || 0; });
     const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.BufferAttribute(pos, 3)); gg.setAttribute('color', new THREE.BufferAttribute(col, 3)); gg.setAttribute('prm', new THREE.BufferAttribute(prm, 2));
     const gm = new THREE.ShaderMaterial({
@@ -117,7 +117,7 @@ export function createNight(o) {
       vertexShader: `attribute vec3 color; attribute vec2 prm; uniform float uT, uScale; varying vec3 vC; varying float vF;
         void main() { vec4 mv = modelViewMatrix * vec4( position, 1.0 ); float fl = prm.y;
           float f = 1.0 - fl * ( 0.25 * sin( uT * 13.0 + position.x * 7.0 ) + 0.15 * sin( uT * 23.0 + position.z * 3.0 ) + 0.1 * sin( uT * 5.3 ) );
-          vC = color * f; vF = smoothstep( 70.0, 20.0, -mv.z ); gl_PointSize = prm.x * uScale / max( 0.5, -mv.z ); gl_Position = projectionMatrix * mv; }`,
+          vC = color * f; vF = smoothstep( 70.0, 20.0, -mv.z ) * smoothstep( 0.6, 3.2, -mv.z );   // (ingen kæmpe-glorie når man står lige under en lampe) gl_PointSize = prm.x * uScale / max( 0.5, -mv.z ); gl_Position = projectionMatrix * mv; }`,
       fragmentShader: `varying vec3 vC; varying float vF; void main() { vec2 p = gl_PointCoord * 2.0 - 1.0; float r = dot( p, p ); if ( r > 1.0 ) discard;
           float a = ( exp( -r * 5.0 ) * 0.55 + exp( -r * 26.0 ) * 0.9 ) * vF; gl_FragColor = vec4( vC * a, a ); }`
     });

@@ -32,6 +32,18 @@
         "server.js"
       ],
       "port": 3300
+    },
+    {
+      "name": "wd-web",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "3400",
+        "--directory",
+        "web"
+      ],
+      "port": 3400
     }
   ]
 }
