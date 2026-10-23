@@ -750,7 +750,7 @@ Net.on('round', m => {
   if (m.map) setMap(m.map);
   if (Game.state !== 'game') enterGame();
   Game.phase = m.ph; Game.phaseEnd = performance.now() + m.ms; Game.round = m.n; Game.score = m.score; Game.half = m.half;
-  m.players.forEach(p => { const e = Game.players.get(p.id) || {}; e.name = p.name; e.side = p.side; if (p.cos) e.cos = SK.sanitize(p.cos); if (p.prof) e.prof = p.prof; Game.players.set(p.id, e); });
+  m.players.forEach(p => { const e = Game.players.get(p.id) || {}; e.name = p.name; e.side = p.side; e.bot = !!p.bot; if (p.cos) e.cos = SK.sanitize(p.cos); if (p.prof) e.prof = p.prof; Game.players.set(p.id, e); });
   const me = Game.players.get(Game.meId); if (me) Game.side = me.side;
   $('roundBanner').classList.add('hidden'); HUD.hideRoundEnd(); showLoadWait();
   if (m.ph === 'buy' && Game.lastRoundN !== m.n) { Game.lastRoundN = m.n; Audio.music('start'); }
@@ -799,7 +799,7 @@ Net.on('load', m => {
   hideVeto(); if (Victory.active) Victory.hide();
   if (m.map) setMap(m.map);
   Game.phase = 'loading'; Game.loadAcked = false; Game.round = 0;
-  m.players.forEach(p => { const e = Game.players.get(p.id) || {}; e.name = p.name; e.side = p.side; if (p.cos) e.cos = SK.sanitize(p.cos); if (p.prof) e.prof = p.prof; Game.players.set(p.id, e); });
+  m.players.forEach(p => { const e = Game.players.get(p.id) || {}; e.name = p.name; e.side = p.side; e.bot = !!p.bot; if (p.cos) e.cos = SK.sanitize(p.cos); if (p.prof) e.prof = p.prof; Game.players.set(p.id, e); });
   const me = Game.players.get(Game.meId); if (me) Game.side = me.side;
   if (Game.state !== 'game') enterGame();
   Renderer.chars();                                                    // figurer/knive hentes nu (ikke først når de ses)
@@ -1002,7 +1002,7 @@ const Input = {
     if (!Game.self.alive && Game.phase !== 'buy') { if (k === 'Space' || k === 'ArrowRight') cycleSpec(1); else if (k === 'ArrowLeft') cycleSpec(-1); return; }
     if (k === 'KeyR') startReloadLocal();
     if (k === 'KeyF') { if (Game.self.cur === 'awp') toggleScope(); else Renderer.inspect(); }   // F: scope (AWP) / inspicér (kniv og våben – mastery 10: snurres rundt)
-    if (k === 'KeyE') tryPickup();
+    if (k === 'KeyE') { if (!Game.self.alive && Game.phase === 'live' && Game.specId && (Game.players.get(Game.specId) || {}).bot) Net.send({ t: 'takeover', id: Game.specId }); else tryPickup(); }
     if (k === 'KeyB') { BuyMenu.toggle(); return; }
     if (BuyMenu.hotkey(k)) return;
     if (k === 'KeyG') Net.send({ t: 'drop' });
@@ -2877,7 +2877,7 @@ const Renderer = (() => {
       if (!specList().includes(Game.specId)) cycleSpec(1);
       const r = Game.specId && Game.remotes.get(Game.specId);
       let t;
-      if (r) { applyCam(r.rx, r.ry + (r.crouch ? PL.EYEC : PL.EYE), r.rz, r.yaw, r.pitch); t = 'OBSERVERER ' + ((Game.players.get(Game.specId) || {}).name || '') + (TOUCH ? ' — tryk på skærmen: næste' : ' — klik / mellemrum: næste'); }
+      if (r) { applyCam(r.rx, r.ry + (r.crouch ? PL.EYEC : PL.EYE), r.rz, r.yaw, r.pitch); t = 'OBSERVERER ' + ((Game.players.get(Game.specId) || {}).name || '') + (TOUCH ? ' — tryk på skærmen: næste' : ' — klik / mellemrum: næste' + ((Game.players.get(Game.specId) || {}).bot ? ' · E: OVERTAG BOTTEN' : '')); }
       else if (bombCam()) {
         // v12: hele holdet er dødt og bomben er plantet → kameraet hænger fast ved bomben; musen drejer blikket rundt om den
         const b = Game.bomb, cx = b.x, cy = b.y + 0.35, cz = b.z, cp = Math.cos(Game.specPitch);

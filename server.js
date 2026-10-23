@@ -255,7 +255,7 @@ function roundMsg(room) {
   return {
     t: 'round', map: room.map, n: room.round, ph: room.phase, ms: Math.max(0, Math.round(room.phaseEnd - now())), score: [room.score.swat, room.score.hij], half: room.swapped,
     intro: room.introEnd ? Math.max(0, Math.round(room.introEnd - now())) : 0, ev: room.event || null, panes: (room.panes || []).map(p => p.st), dpb: [...(room.dpState || new Map())].filter(([i]) => room.dp && room.dp[i] && !room.dp[i].st).map(([i]) => [i, room.dp[i].a]), lampb: [...(room.lampHit || [])],
-    players: [...room.players.values()].filter(p => p.side).map(p => ({ id: p.id, name: p.name, side: p.side, cos: p.cos || null, prof: p.prof || null }))
+    players: [...room.players.values()].filter(p => p.side).map(p => ({ id: p.id, name: p.name, side: p.side, bot: p.isBot ? 1 : 0, cos: p.cos || null, prof: p.prof || null }))
   };
 }
 function tpMsg(p) { return { t: 'tp', id: p.corrId, x: r2(p.x), y: r2(p.y), z: r2(p.z), yaw: r2(p.yaw) }; }
@@ -366,6 +366,16 @@ function handle(ws, m) {
       if (p.id === room.hostId && room.phase === 'lobby') { if (room.vetoMode !== 'host' && (!FAST || m.veto)) startVeto(room); else startGame(room); }   // tests: afstemning kun med {veto:1}
       break;
     case 'adm': { const r = Admin.exec(room, p, m.c, m.a); sendP(p, { t: 'admr', ok: !!r.ok, msg: r.msg, c: String(m.c || '').slice(0, 40) }); break; }     // v26.12: admin-konsol (kun værten)
+    case 'takeover': {                                                 // v26.12: død spiller overtager en levende bot på sit hold (E)
+      const bt = room.players.get(m.id | 0);
+      if (room.phase !== 'live' || p.alive || !p.side || !bt || !bt.isBot || !bt.alive || bt.side !== p.side) break;
+      p.alive = true; p.hp = bt.hp; p.x = bt.x; p.y = bt.y; p.z = bt.z; p.yaw = bt.yaw; p.pitch = bt.pitch; p.crouch = bt.crouch; p.ground = true; p.speed = 0;
+      p.inv = bt.inv; p.ammo = bt.ammo; p.cur = bt.cur; p.reloadEnd = 0; p.pin = false; p.act = null; p.use = false; p.bought = []; p.hist = []; p.lastIn = now(); p.budget = 4; p.corrId++;
+      if (p.inv.bomb) room.bomb.carrier = p.id;
+      bt.alive = false; bt.inv = { primary: null, pistol: null }; room.players.delete(bt.id);
+      room.bcast({ t: 'notice', msg: p.name + ' overtog ' + bt.name });
+      sendP(p, tpMsg(p)); sendSelf(p); break;
+    }
     case 'bots': if (p.id === room.hostId && room.phase === 'lobby') { room.botsOn = !!m.on; room.bcast(lobbyMsg(room)); } break;     // v26.12: værten slår bots til/fra
     case 'vmode':   // v20: værten vælger banevalg: 'premier' (holdene stemmer baner ud) eller 'host' (værten vælger)
       if (p.id === room.hostId && room.phase === 'lobby') { room.vetoMode = m.mode === 'host' ? 'host' : 'premier'; room.bcast(lobbyMsg(room)); }

@@ -128,6 +128,7 @@ module.exports = function createBots(S) {
       const b = p.bot, was = b.sus;
       b.sus = { x: P.x + (Math.random() - 0.5) * 2 * err, z: P.z + (Math.random() - 0.5) * 2 * err, y: P.y, t: now(), conf, kind };
       if (kind === 'shot' && d < 30 && !b.target) b.aim.since = now();
+      if (p.side === 'swat' && room.botPlan && conf > 0.3 && b.sus.kind !== 'trade') { const st = nearSite(room, b.sus); if (st) room.botPlan.intel = { site: st, t: now() }; }      // lyd ved et site = info til hele holdet
       if (!was || was.conf < conf) b.walkUntil = now() + 2500 + conf * 2000;      // lytter og sniger (shift) – minimerer egen støj
     }
   }
@@ -157,7 +158,7 @@ module.exports = function createBots(S) {
     for (const p of bots) {
       if (left <= 0) break;
       const b = p.bot, T0 = process.hrtime.bigint();
-      if (b.job.run(left)) { const res = b.job.result; b.job = null; b.jobAge = 0; b.path = res || []; b.wi = 0; b.stuck = 0; b.lastProg = 1e9; }
+      if (b.job.run(left)) { const res = b.job.result; b.job = null; b.jobAge = 0; b.path = res || []; b.wi = 0; b.stuck = 0; b.lastProg = 1e9; if (!(res && res.length) && b.goal && hypot(p.x - b.goal.x, p.z - b.goal.z) > 3) b.holdFail = (b.holdFail || 0) + 1; }
       left -= Number(process.hrtime.bigint() - T0) / 1e6;
     }
   }
@@ -297,6 +298,14 @@ module.exports = function createBots(S) {
       b.clutch = alive === 1 && foes >= 2;
       if (side === 'hij') thinkHij(room, p, t, N, H, planted, timeLeft);
       else thinkSwat(room, p, t, N, plan, planted, timeLeft);
+      if (!engaged && !['plant', 'defuse', 'retake', 'save'].includes(b.state) && !p.inv.bomb) {                // SEARCH (sidst set) og INVESTIGATE (lyd) – bots står ikke stille mens der sker noget
+        const lk = b.lastKnown, su = b.sus;
+        if (lk && t - lk.t < 6000 && lk.t > (b.searchDone || 0)) {
+          if (hypot(p.x - lk.x, p.z - lk.z) < 3) b.searchDone = t; else { b.state = 'search'; b.goal = { x: lk.x, y: lk.y, z: lk.z }; b.goalR = 2.4; b.walkUntil = t + 600; }
+        } else if (su && t - su.t < 3500 && su.conf > 0.42 && su.t > (b.invDone || 0) && hypot(p.x - su.x, p.z - su.z) < (side === 'swat' ? 17 : 24)) {
+          if (hypot(p.x - su.x, p.z - su.z) < 4) b.invDone = t; else { b.state = 'investigate'; b.goal = { x: su.x, y: su.y, z: su.z }; b.goalR = 3; b.walkUntil = t + 600; }
+        }
+      }
       if (!engaged && b.sus && t - b.sus.t < 1000 && b.sus.conf > 0.55 && (b.trade > t) && b.state !== 'plant' && b.state !== 'defuse') { setPath(room, p, { x: b.sus.x, y: b.sus.y, z: b.sus.z }, 2.2); b.walkUntil = t + 3000; }     // trade-skub mod morderen
       if (b.goal && b.state !== 'plant' && b.state !== 'defuse' && !b.lad) {
         const gk = Math.round(b.goal.x) + ',' + Math.round(b.goal.z);
@@ -336,29 +345,41 @@ module.exports = function createBots(S) {
       return;
     }
     const mySite = (H.mode === 'fake' && H.fakers && H.fakers.has(p.id)) ? H.fake : site;
-    const target = carrier ? N.plant[mySite === H.fake ? site : site] : null;
-    if (carrier && H.mode !== 'fake') {
+    const isFaker = H.mode === 'fake' && H.fakers && H.fakers.has(p.id);
+    // tabt bombe: nærmeste levende hijacker henter den (ellers planter ingen)
+    if (bomb.state === 1 && !carrier) {
+      let best = null, bd = 1e9; for (const q of room.players.values()) if (q.isBot && q.alive && q.side === 'hij') { const d = hypot(q.x - bomb.x, q.z - bomb.z); if (d < bd) { bd = d; best = q; } }
+      const humanNear = [...room.players.values()].some(q => !q.isBot && q.alive && q.side === 'hij' && hypot(q.x - bomb.x, q.z - bomb.z) < bd - 3);
+      if (best === p && !humanNear) { b.state = 'exec'; b.goal = { x: bomb.x, y: bomb.y, z: bomb.z }; b.goalR = 0.6; return; }
+    }
+    // tid er ved at løbe ud: plant nu (ingen venten på koordineret go)
+    if (!H.go && room.phaseEnd - t < 45000) H.go = t;
+    if (carrier && !isFaker) {
       const pl = N.plant[site];
       b.goal = pl; b.goalR = 0.5;
       const d = hypot(p.x - pl.x, p.z - pl.z);
-      if (d < 20 && !H.go) { b.state = 'stagewait'; if (!H.firstStage) H.firstStage = t; markStage(H, t); if (t >= H.go) { b.state = 'exec'; } }
+      if (d < 20 && !H.go) { b.state = 'stagewait'; markStage(H, t); }
       else b.state = H.go && t < H.go ? 'stagewait' : 'exec';
-      if (d < 1.2 && WD.plantSpot(W, p.x, p.y, p.z) && !b.engagedNow) { b.state = 'plant'; b.use = true; }
+      if (d < 1.2 && WD.plantSpot(W, p.x, p.y, p.z)) { b.state = 'plant'; b.use = true; }
+      else if (d < 6 && b.state !== 'stagewait') { b.goal = pl; }
       utilityExec(room, p, t, N, H, site);
       return;
     }
     // escort / fake
     const siteK = mySite;
-    if (!b.hold || b.holdSite !== siteK) { const hs = N.holds[siteK] || []; const h = hs.length ? hs[(p.id * 7 + (hs.length >> 1)) % hs.length] : N.plant[siteK]; b.hold = { x: h.x, y: h.y, z: h.z, yaw: Math.atan2(-(N.plant[siteK].x - h.x), -(N.plant[siteK].z - h.z)) }; b.holdSite = siteK; b.goal = h; b.goalR = 0.8; b.path = null; }
+    if (!b.hold || b.holdSite !== siteK || (b.holdFail || 0) > 1) { const hs = N.holds[siteK] || []; const h = hs.length ? hs[(p.id * 7 + (hs.length >> 1) + (b.holdFail || 0)) % hs.length] : N.plant[siteK]; b.holdFail = 0; b.hold = { x: h.x, y: h.y, z: h.z, yaw: Math.atan2(-(N.plant[siteK].x - h.x), -(N.plant[siteK].z - h.z)) }; b.holdSite = siteK; b.goal = h; b.goalR = 0.8; b.path = null; b.pathKey = ''; }
     const dd = hypot(p.x - b.hold.x, p.z - b.hold.z), dp = hypot(p.x - N.plant[siteK].x, p.z - N.plant[siteK].z);
-    if (dp < 24 && !H.go && H.mode !== 'fake') { b.state = 'stagewait'; markStage(H, t); }
-    else if (H.go && t < H.go && H.mode !== 'fake') b.state = 'stagewait';
+    if (dp < 24 && !H.go && !isFaker) { b.state = 'stagewait'; markStage(H, t); }
+    else if (H.go && t < H.go && !isFaker) b.state = 'stagewait';
     else b.state = dd < 1.5 ? 'hold' : 'exec';
-    if (H.mode === 'fake' && H.fakers && H.fakers.has(p.id)) {          // fake: vis dig, kast utility og rotér efter ~14 s
+    if (isFaker) {                                                      // fake: vis dig, kast utility og rotér efter ~14 s
       if (dd < 3 && !b.fakeAt) b.fakeAt = t;
-      if (b.fakeAt && t - b.fakeAt > 14000 && H.fakers.has(p.id)) { H.fakers.delete(p.id); b.holdSite = null; b.hold = null; }
+      if (b.fakeAt && t - b.fakeAt > 14000) { H.fakers.delete(p.id); b.holdSite = null; b.hold = null; }
       if (dd < 8) { b.walkUntil = 0; if (!b.fakeN) { b.fakeN = 1; noiseBurst(room, p); } }
     }
+    // på holdepositionen: skift vinkel/position med jævne mellemrum i stedet for at stå helt stille
+    if (b.state === 'hold' && t - (b.holdSince = b.holdSince || t) > 9000 + p.id * 700) { b.holdSince = 0; b.holdFail = 2; }
+    if (b.state === 'exec' || b.state === 'hold') { b.goal = b.hold; b.goalR = 0.8; }
     utilityExec(room, p, t, N, H, siteK);
     if (b.state === 'stagewait' && H.go && t >= H.go) b.state = 'exec';
   }
@@ -393,13 +414,16 @@ module.exports = function createBots(S) {
     }
     if (b.rotTo && t >= b.rotAt) { site = b.rotTo; }
     else if (b.rotTo) site = anchor;
-    const key = site + (b.rotTo || '');
-    if (!b.hold || b.holdKey !== key) {
+    // på stilling: skift position/vinkel med jævne mellemrum (midt-roameren rykker gradvist frem) i stedet for at stå stille
+    if (b.state === 'hold' && t - (b.holdSince = b.holdSince || t) > 11000 + p.id * 900) { b.holdSince = 0; b.holdShift = (b.holdShift || 0) + 1; }
+    const sh = b.holdShift || 0, key = site + (b.rotTo || '') + ':' + sh;
+    if (!b.hold || b.holdKey !== key || (b.holdFail || 0) > 1) {
       let tgt; let hs;
-      if (site === 'mid') { tgt = N.mid; hs = N.nav.holds(N.mid, 3, 11, 4, p.id * 5); } else { tgt = N.plant[site]; hs = N.holds[site] || []; }
-      const h = hs.length ? hs[(p.id * 5) % hs.length] : tgt;
-      b.hold = { x: h.x, y: h.y, z: h.z, yaw: Math.atan2(-(tgt.x - h.x), -(tgt.z - h.z)) }; b.holdKey = key; b.holdCrouch = Math.random() < 0.4; b.goal = h; b.goalR = 0.8; b.path = null;
+      if (site === 'mid') { const k = sh % 4; tgt = N.mid; hs = N.nav.holds(N.mid, 3 + 3 * k, 11 + 5 * k, 4, p.id * 5 + k); } else { tgt = N.plant[site]; hs = N.holds[site] || []; }
+      const h = hs.length ? hs[(p.id * 5 + sh * 3 + (b.holdFail || 0)) % hs.length] : tgt;
+      b.holdFail = 0; b.hold = { x: h.x, y: h.y, z: h.z, yaw: Math.atan2(-(tgt.x - h.x), -(tgt.z - h.z)) }; b.holdKey = key; b.holdCrouch = Math.random() < 0.4; b.goal = h; b.goalR = 0.8; b.path = null; b.pathKey = ''; b.holdSince = 0;
     }
+    b.goal = b.hold; b.goalR = 0.8;
     const dd = hypot(p.x - b.hold.x, p.z - b.hold.z);
     b.state = dd < 1.4 ? 'hold' : 'moving';
     utilityHold(room, p, t, N, plan);

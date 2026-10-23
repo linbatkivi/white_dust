@@ -448,7 +448,7 @@ async function main() {
     const WDt = require('../shared/wd.js');
     A.send({ t: 'endgame' }); await A.wait(m => m.t === 'lobby' && m.ph === 'lobby', 3000); await sleep(200);
     const lob0 = A.log.filter(m => m.t === 'lobby').pop();
-    ok(lob0 && lob0.maps && lob0.maps.length === WDt.MAP_LIST.length && lob0.maps.some(m => m.id === 'valkyrie') && lob0.map === 'bureau', 'Lobbyen viser alle baner (Bureau, Valkyrie) og Bureau er valgt som standard');
+    ok(lob0 && lob0.maps && lob0.maps.length === WDt.MAP_LIST.length && lob0.maps.some(m => m.id === 'bureau') && lob0.map === 'bureau', 'Lobbyen viser alle baner og Bureau er valgt som standard');
     A.clear(); B.clear(); B.send({ t: 'map', id: 'bureau' }); await sleep(250);
     ok(!A.log.find(m => m.t === 'lobby' && m.map === 'bureau' && m.by === B.id), 'Kun værten kan vælge bane');
     // v11.3: inventar-valg videresendes til alle i rummet – kun gyldige korte id'er overlever serverens validering
@@ -513,8 +513,10 @@ async function main() {
     const lobN = A.log.filter(m => m.t === 'lobby').pop();
     ok(lobN && lobN.map === 'bureau', 'Banen skifter IKKE af sig selv efter kampen (stadig bureau)');
     await planting('bureau', 'B');
-    A.send({ t: 'map', id: 'valkyrie' }); ok(!!(await A.wait(m => m.t === 'lobby' && m.map === 'valkyrie', 2000)), 'Vært vælger Valkyrie');
-    await planting('valkyrie', 'A'); await planting('valkyrie', 'B');
+    for (const other of WDt.MAP_LIST.map(m => m.id).filter(id => id !== 'bureau')) {            // øvrige baner (fx niseko): vært vælger dem, og C4 kan plantes på begge sites
+      A.send({ t: 'map', id: other }); ok(!!(await A.wait(m => m.t === 'lobby' && m.map === other, 2000)), 'Vært vælger ' + other);
+      await planting(other, 'A'); await planting(other, 'B');
+    }
     A.send({ t: 'map', id: 'bureau' }); await A.wait(m => m.t === 'lobby' && m.map === 'bureau', 2000);
 
     console.log('\n== Købssystem: salg, ønske → gave, sen køb i spawn, smid våben ==');

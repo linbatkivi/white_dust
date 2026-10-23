@@ -12,7 +12,7 @@
   else root.WD = factory();
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
-  const VALKYRIE_DATA = (typeof module === 'object' && module.exports) ? require('./valkyrie_data.js') : (typeof self !== 'undefined' ? self.WD_VALKYRIE : null);   // v26.8
+  let VALKYRIE_DATA = null; try { VALKYRIE_DATA = (typeof module === 'object' && module.exports) ? require('./valkyrie_data.js') : (typeof self !== 'undefined' ? self.WD_VALKYRIE : null); } catch (e) { VALKYRIE_DATA = null; }   // arkiveret 23/10 2026 (wd-arkiv/baner/valkyrie-v26.12)   // v26.8
   const BUREAU_DATA = (typeof module === 'object' && module.exports) ? require('./bureau_data.js') : (typeof self !== 'undefined' ? self.WD_BUREAU : null);   // v26
 
   /* ---------------------------------------------------------------- konstanter */

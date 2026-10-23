@@ -5,7 +5,6 @@
 // Intet placeres tilfældigt: al dekoration placeres eksplicit eller efter faste regler (fx lamper med fast afstand).
 // ==========================================================================
 import { bureauTheme } from './theme_bureau.js';
-import { valkyrieTheme } from './theme_valkyrie.js';
 
 export function createThemes(C) {
   const { THREE, W, P, mkTex, mat, unlit, leafMat, rnd, hash2, col } = C;
@@ -649,5 +648,5 @@ export function createThemes(C) {
   }
   const LIB = { ivyPatch, siteWallLetters, againstWall, modelBarrels, modelRow, faceAway, wallRuns, sampleRuns, buildingFloor, nearestWall, THREE, W, P, mkTex, mat, unlit, leafMat, rnd, hash2, col, tint, mix, mul, T, TAU, orient, wallCard, fitWallCard, panelMat, floorCard, commonMats, propLib, PAL, pick,
     frondCard, plantRadial, curvedTrunk, palm, shrub, fern, grassTuft, vineStrip, jungleTree, seedAt, railing, ladderModel, lampFixture, doorLeaf, C };
-  return { bureau: () => bureauTheme(LIB), valkyrie: () => valkyrieTheme(LIB) };
+  return { bureau: () => bureauTheme(LIB) };
 }
