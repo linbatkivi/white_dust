@@ -130,14 +130,14 @@ const CFG = {
       ['B-site (SWAT) før Hijackers kommer ad B Main', 'swat', [B_PL[0], B_PL[1], W.sites.B.y], 'hij', [-33, -9.5, 0]]
     ]
   },
-  fattoria: {   // v26.14: toscansk vingård – kælder (A), gårdsplads (B), vinmark/terrasse (Mid) på fem niveauer; målene er zonernes midter
+  fattoria: {   // v26.15: toscansk vingård efter brugerens plantegning – ét plan + tårndæk og galleri; målene er zonernes midter
     snap: 3.5,
     targets: Object.assign({ 'A-site (plant)': [A_PL[0], A_PL[1], W.sites.A.y], 'B-site (plant)': [B_PL[0], B_PL[1], W.sites.B.y] },
       Object.fromEntries(W.data.labels.filter(l => l[0].length > 1).map(l => [l[0], [l[1], l[2], l[3]]]))),
     timings: [
-      ['A-site (SWAT) før Hijackers kommer ned ad Presseriet', 'swat', [A_PL[0], A_PL[1], W.sites.A.y], 'hij', [32, -2, 0]],
-      ['A-site (SWAT) før Hijackers kommer ned ad Pergola-trappen', 'swat', [A_PL[0], A_PL[1], W.sites.A.y], 'hij', [6, -19, -2.0]],
-      ['B-site (SWAT) før Hijackers kommer ind ad Hovedporten', 'swat', [B_PL[0], B_PL[1], W.sites.B.y], 'hij', [-32, -20, 4.8]]
+      ['A-site (SWAT) før Hijackers kommer til A Connector', 'swat', [A_PL[0], A_PL[1], W.sites.A.y], 'hij', [-36, -4.8, 0]],
+      ['B-site (SWAT) før Hijackers kommer til B Mouth', 'swat', [B_PL[0], B_PL[1], W.sites.B.y], 'hij', [25, -33, 0]],
+      ['B-site (SWAT) før Hijackers når B-pladsen', 'swat', [B_PL[0], B_PL[1], W.sites.B.y], 'hij', [B_PL[0], B_PL[1], W.sites.B.y]]
     ]
   },
   valkyrie: {   // v26.8: middelhavsbyen – ét niveau; målene er zonernes midter
@@ -292,6 +292,30 @@ if (CFG.timings && CFG.timings.length) {
     const lead = b - a;
     (lead > 0.2 && lead < 15) ? okm(`${label}: SWAT ${a.toFixed(1)} s · Hijackers ${b.toFixed(1)} s (forspring ${lead.toFixed(1)} s)`) : fail(`${label}: SWAT ${a.toFixed(1)} s · Hijackers ${b.toFixed(1)} s`);
   }
+}
+/* ---------------- 10b. uønsket højt terræn: ingen gangbare tilstande over 1,6 m uden for tårn/galleri (genveje op på mure/tage) ---------------- */
+if (MAPID === 'fattoria') {
+  console.log('\nHøjt terræn (> 1,6 m):');
+  const allk = new Set([...fromT.dist.keys(), ...fromC.dist.keys()]); const hi = [...allk].map(k => { const [a, b, c] = k.split(',').map(Number); return { ix: a, iz: b, y: c / 10 }; }).filter(n => n.y > 1.6), odd = hi.filter(n => { const x = n.ix * G, z = n.iz * G; return !((x > -48 && x < -33.5 && z > 8.4 && z < 17.3) || (x > 23 && x < 54 && z > -39.6 && z < -36.4)); });
+  const topsT = hi.filter(n => (n.ix * G > -48 && n.ix * G < -33.5 && n.iz * G > 8.4 && n.iz * G < 17.3) && n.y > 4.5), topsG = hi.filter(n => (n.ix * G > 23 && n.ix * G < 54 && n.iz * G > -39.6 && n.iz * G < -36.4) && n.y > 2.85);
+  topsT.length + topsG.length === 0 ? okm('tårndæk (3,2) og galleri (2,7) er højeste punkter – kamme/vægge kan ikke bestiges') : fail(`${topsT.length} tilstande over tårndækket og ${topsG.length} over galleriet (kamme/vægge kan bestiges): ${topsT.slice(0, 6).map(n => `(${(n.ix * G).toFixed(1)}, ${(n.iz * G).toFixed(1)}, y ${n.y.toFixed(2)})`).join(' ')}`);
+  const grp = {}; for (const n of odd) { const k = `y${n.y.toFixed(1)} @(${Math.round(n.ix * G / 5) * 5},${Math.round(n.iz * G / 5) * 5})`; grp[k] = (grp[k] || 0) + 1; }
+  odd.length === 0 ? okm(`kun tårnets dæk/trappe og B-galleriet ligger over 1,6 m (${hi.length} tilstande)`) : fail(`${odd.length} gangbare tilstande over 1,6 m uden for tårn/galleri: ${Object.entries(grp).slice(0, 14).map(([k, v]) => k + '×' + v).join(' · ')}`);
+}
+/* ---------------- 11. fattoria: udkigstårnet – skyd ned og tilbage, men aldrig hop ned på A ---------------- */
+if (MAPID === 'fattoria') {
+  console.log('\nUdkigstårnet (dæk 3,2 m):');
+  let escaped = 0, tried = 0;
+  for (let x = -47.0; x <= -34.8; x += 0.6) for (const yaw of [0, 0.5, -0.5, 1.0, -1.0]) for (const crouchJump of [false, true]) {
+    const b = WD.newBody(x, 3.2, 10.4); tried++;
+    for (let f = 0; f < 360; f++) WD.stepBody(W, b, { fx: 1, sx: 0, yaw, spd: 1, jump: true, crouch: crouchJump && f % 3 === 0 }, 1 / 60);
+    if (b.z < 8.88 || b.y < 2.4 && b.z < 13.2 && b.x > -47.7 && b.x < -34.3 && b.z < 8.95) escaped++;
+  }
+  escaped === 0 ? okm(`tårndækket kan ikke forlades mod nord (${tried} løb med konstant hop)`) : fail(`${escaped}/${tried} løb kom ud over tårnets nordkant`);
+  // alle gitterhuller og kamme: hop fra hver 0,2 m langs nordkanten
+  let esc2 = 0, t2 = 0;
+  for (let x = -47.4; x <= -34.6; x += 0.2) { const b = WD.newBody(x, 3.2, 9.9); t2++; for (let f = 0; f < 240; f++) WD.stepBody(W, b, { fx: 1, sx: 0, yaw: 0, spd: 1, jump: true }, 1 / 60); if (b.z < 8.88) esc2++; }
+  esc2 === 0 ? okm(`ingen kamme/gitterhuller kan hoppes igennem (${t2} startpunkter langs kanten)`) : fail(`${esc2}/${t2} startpunkter kom igennem`);
 }
 console.log(bad ? `\nFEJL: ${bad}` : '\nALT OK');
 process.exit(bad ? 1 : 0);

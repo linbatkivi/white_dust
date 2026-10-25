@@ -23,7 +23,7 @@ export function fattoriaTheme(L) {
   light.indirect = [1.0, 0.95, 0.88];                                    // det bagte lys er varmt tilbagekastet fra sandsten og terrakotta
   // filmisk: varme højlys, kølige skygger fra himlen, støvslør + solstråler (lange skygger og lavt sollys)
   const post = { sat: 1.04, contrast: 1.08, highTint: [1.06, 1.0, 0.9], shadowTint: [0.92, 0.97, 1.08], lift: [0.006, 0.007, 0.012], vignette: 0.22, sharpen: 0.22,
-    shafts: 0.4, shaftCol: [1.0, 0.86, 0.6], mie: 0.24, mieCol: [0.95, 0.8, 0.6], mieDist: 110 };
+    bloom: 0.55, shafts: 0.4, shaftCol: [1.0, 0.86, 0.6], mie: 0.24, mieCol: [0.95, 0.8, 0.6], mieDist: 110 };
   const ambient = { color: 0xffe0b0, count: 90, size: 0.03, alpha: 0.55, wind: [0.3, 0.0, 0.12] };          // støv og pollen i det skrå sollys
   const surfKinds = { floor: 1, wall: 1, ceil: 1, slab: 1, stone: 1, clip: 0 };
   const surf = (kind, face) => face === 'top' ? { m: M.conc, t: [0.85, 0.78, 0.65], uvs: 2 } : { m: M.conc, t: [0.9, 0.8, 0.64], uvs: 2 };

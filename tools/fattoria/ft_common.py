@@ -13,7 +13,7 @@ SIZE = {'ft_roof': 1.5, 'ft_roof_old': 2.0, 'ft_rubble': 2.2, 'ft_stone': 2.4, '
 def define(defmat):
     for n, sz in SIZE.items():
         f = {'d': os.path.join(TEX, n + '_albedo.jpg'), 'n': os.path.join(TEX, n + '_normal.jpg'), 'a': os.path.join(TEX, n + '_orm.jpg')}
-        if os.path.exists(f['d']): defmat(n, tex=n, size=sz, files=f, tint=(0.62, 0.56, 0.5) if n == 'ft_bark' else (1.75, 1.6, 1.35) if n in ('ft_gravel',) else (1.25, 1.2, 1.1) if n in ('ft_cobble', 'ft_cobble2') else (1, 1, 1))
+        if os.path.exists(f['d']): defmat(n, tex=n, size=sz, files=f, tint=(0.62, 0.56, 0.5) if n == 'ft_bark' else (1.6, 1.45, 1.3) if n == 'ft_brickf' else (1.75, 1.6, 1.35) if n in ('ft_gravel',) else (1.25, 1.2, 1.1) if n in ('ft_cobble', 'ft_cobble2') else (1, 1, 1))
     # pudsede facader i forskellige toscanske toner (samme tekstur, forskellig farve → ét sæt KTX2)
     for nm, tex, tint in (('ft_plaster_a', 'ft_plaster', (1.0, 0.93, 0.80)), ('ft_plaster_b', 'ft_plaster', (1.0, 0.97, 0.90)), ('ft_plaster_c', 'ft_plaster', (1.0, 0.84, 0.72)),
                           ('ft_plaster_d', 'ft_plaster', (0.98, 0.92, 0.80)), ('ft_ochre_a', 'ft_ochre', (1.0, 0.92, 0.78)), ('ft_ochre_b', 'ft_ochre', (1.0, 0.84, 0.66))):

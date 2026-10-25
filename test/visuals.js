@@ -84,7 +84,7 @@ const fs = require('fs'), os = require('os'), path = require('path'), url = requ
     });
     ok(inv === 0, `face-normaler: ${triN} trekanter, ${inv} inverterede (vinding ≠ normal)`);
     // v26.13: forfattede baner med tage (Niseko) har gavlvægge mellem tage i 4–8 m højde; trinvis tagkollision kan på få trekanter ligge få cm for højt (højst 0,05 % af væggene)
-    ok(intoSolid <= (W.data && W.id === 'niseko' ? Math.ceil(walls * 0.0005) : 0), `vægflader vender ud mod åbent rum: ${walls} lodrette flader, ${intoSolid} vendt forkert (forside ind i væg, bagside mod rummet)`);
+    ok(intoSolid <= (W.data && (W.id === 'niseko' || W.id === 'fattoria') ? Math.ceil(walls * 0.0005) : 0), `vægflader vender ud mod åbent rum: ${walls} lodrette flader, ${intoSolid} vendt forkert (forside ind i væg, bagside mod rummet)`);
     if (!authored) ok(ceilMiss === 0, `lofter/etageadskillelser er lukkede nedefra – intet gennemsigtigt (${ceilN} prøver)`);
     // v10 QA: vejrlig (wear-attribut), decals, gesims og skybox-ring
     let noWear = 0, badWear = 0; const tagged = { skyline: [], cornice: [], decal: [] };

@@ -952,8 +952,8 @@
     const D = FATTORIA_DATA, G = D.grid;
     return {
       id: 'fattoria', name: 'Fattoria', night: false,
-      brief: { hij: 'Kom op ad bakken fra piazzaen: tag kontrol over Mid (vinmarken og terrassen), og gå derfra ned i vinkælderen (A) via Pergolaen eller ind i villaens gård (B) via Biblioteket – eller tag Hovedporten og Hulvejen. Plant C4 på A eller B.', swat: 'I starter bag villaen og er tæt på både A og B: hold kælderen fra Kælderbalkonen og Flaskelageret, og gården fra Arkaderne og Staldene. Roter bag villaen, og desarmér bomben, hvis den bliver plantet.' },
-      desc: 'Historisk toscansk vingård på en solbeskinnet bakketop i Chianti · sen eftermiddag med lange skygger, sandsten, terrakotta og cypresser. A-site: den gamle vinkælder med fødertønder og lysskakter. B-site: villaens gårdsplads med marmorfontæne og arkader. Mid: vinmark på skråning op mod terrakotta-terrassen.',
+      brief: { hij: 'I starter i sydøst: tag Mid med fontænen, og gå op ad B Link mod B-hallen (tinaiaen), eller send nogen hele vejen rundt om Orchard Road og West Loop til A South. Udkigstårnet ser ned over A – tag det, hvis I vil holde sitet nede. Plant C4 på A (den runde tærskeplads) eller B.', swat: 'I starter i nordvest og er tæt på A: hold A Long, A Diag og A Connector fra brønden, og lad en holde tårnet. B ligger langt væk – rotér via Upper Hall, Loggia Loop og B Mouth. Desarmér bomben, hvis den bliver plantet.' },
+      desc: 'Historisk toscansk vingård på en solbeskinnet bakketop i Chianti · sen eftermiddag med lange skygger, sandsten, terrakotta og cypresser. A-site: den runde tærskeplads med brønd, og Udkigstårnet der ser ned over den. B-site: tinaiaen – en lang stenhal med fødertønder og galleri. Mid: piazzaen med fontæne og parasolfyr.',
       GW: G.GW, GH: G.GH, GX0: G.GX0, GZ0: G.GZ0, data: D, ring: true,
       layers: [{ id: 'G', yb: -12, yt: WALL_TOP + 6, tiles: { '#': { solid: true }, ' ': { void: true } } }],
       grid(H) { H.fill(0, 0, G.GW - 1, G.GH - 1, ' '); },

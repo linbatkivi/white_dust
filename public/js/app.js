@@ -53,9 +53,9 @@ let W = WD.buildWorld('bureau');          // aktiv bane (skiftes via setMap når
 function emittersFor(Wm) {                                     // v26.10: små, faste lydkilder (dryp, frøer, fugle, løv) – det der gør en bane levende
   const d = Wm.data, out = []; if (!d || !d.surf) return out;
   for (const r of d.water || []) out.push({ x: (r[0] + r[2]) / 2, y: r[4] + 0.3, z: (r[1] + r[3]) / 2, kinds: Wm.id === 'niseko' ? ['koi', 'trickle', 'drip', 'trickle'] : ['drip', 'drip', 'frog', 'splash'], rate: Wm.id === 'niseko' ? 0.5 : 0.9 });
-  if (Wm.id === 'fattoria') {                                    // v26.14: fontænen i gården, dryp i kælderen, fugle og løv i haverne
-    out.push({ x: -21, y: 5.6, z: -30.5, kinds: ['trickle', 'trickle', 'drip', 'trickle'], rate: 1.6 });
-    out.push({ x: 23, y: -1.0, z: -13.5, kinds: ['drip', 'drip', 'trickle'], rate: 0.45 }); out.push({ x: 14, y: -1.0, z: -9, kinds: ['drip'], rate: 0.3 });
+  if (Wm.id === 'fattoria') {                                    // v26.15: fontænen på Mid, brønden i A, fugle og løv over murene
+    out.push({ x: 7.8, y: 1.2, z: 3.6, kinds: ['trickle', 'trickle', 'drip', 'trickle'], rate: 1.6 });
+    out.push({ x: -47.2, y: 0.6, z: -9.4, kinds: ['drip', 'drip', 'trickle'], rate: 0.45 }); out.push({ x: 46, y: 0.8, z: -33, kinds: ['drip'], rate: 0.25 });
     for (const l of d.labels || []) if (!/^(A|B)$/.test(l[0])) out.push({ x: l[1], y: (l[3] || 0) + 3.0, z: l[2], kinds: ['bird', 'bird', 'rustle', 'bird'], rate: 0.1 });
     return out;
   }

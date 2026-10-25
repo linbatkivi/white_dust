@@ -6489,193 +6489,25 @@ export const DICT = {
 "Fattoria",
 "法托里亚庄园"
 ],
-"Historisk toscansk vingård på en solbeskinnet bakketop i Chianti · sen eftermiddag med lange skygger, sandsten, terrakotta og cypresser. A-site: den gamle vinkælder med fødertønder og lysskakter. B-site: villaens gårdsplads med marmorfontæne og arkader. Mid: vinmark på skråning op mod terrakotta-terrassen.": [
-"A historic Tuscan winery on a sunlit hilltop in Chianti · late afternoon with long shadows, sandstone, terracotta and cypresses. A site: the old wine cellar with giant casks and light shafts. B site: the villa courtyard with a marble fountain and arcades. Mid: a vineyard on a slope up to the terracotta terrace.",
-"Un domaine viticole toscan historique sur une colline ensoleillée du Chianti · fin d'après-midi aux longues ombres, grès, terre cuite et cyprès. Site A : l'ancienne cave à vin avec ses foudres et ses puits de lumière. Site B : la cour de la villa avec une fontaine de marbre et des arcades. Mid : un vignoble en pente jusqu'à la terrasse en terre cuite.",
-"Una bodega toscana histórica en una colina soleada del Chianti · última hora de la tarde con sombras largas, arenisca, terracota y cipreses. Sitio A: la antigua bodega con grandes toneles y tragaluces. Sitio B: el patio de la villa con fuente de mármol y arcadas. Mid: un viñedo en pendiente hasta la terraza de terracota.",
-"Ein historisches toskanisches Weingut auf einem sonnenbeschienenen Hügel im Chianti · später Nachmittag mit langen Schatten, Sandstein, Terrakotta und Zypressen. A-Site: der alte Weinkeller mit Riesenfässern und Lichtschächten. B-Site: der Villenhof mit Marmorbrunnen und Arkaden. Mid: ein Weinberg am Hang hinauf zur Terrakotta-Terrasse.",
-"基安蒂阳光普照山顶上的托斯卡纳历史酒庄 · 傍晚时分，长长的影子、砂岩、陶土与柏树。A 点：有巨大酒桶和光井的古老酒窖。B 点：带大理石喷泉和拱廊的别墅庭院。中路：通往陶土露台的坡上葡萄园。"
+"Historisk toscansk vingård på en solbeskinnet bakketop i Chianti · sen eftermiddag med lange skygger, sandsten, terrakotta og cypresser. A-site: den runde tærskeplads med brønd, og Udkigstårnet der ser ned over den. B-site: tinaiaen – en lang stenhal med fødertønder og galleri. Mid: piazzaen med fontæne og parasolfyr.": [
+"A historic Tuscan winery on a sunlit hilltop in Chianti · late afternoon with long shadows, sandstone, terracotta and cypresses. A site: the round threshing floor with a well, overlooked by the Lookout Tower. B site: the tinaia – a long stone hall with giant casks and a gallery. Mid: the piazza with a fountain and umbrella pines.",
+"Un domaine viticole toscan historique sur une colline ensoleillée du Chianti · fin d'après-midi aux longues ombres, grès, terre cuite et cyprès. Site A : l'aire de battage ronde avec un puits, dominée par la tour de guet. Site B : la tinaia – une longue halle en pierre avec des foudres et une galerie. Mid : la piazza avec une fontaine et des pins parasols.",
+"Una bodega toscana histórica en una colina soleada del Chianti · última hora de la tarde con sombras largas, arenisca, terracota y cipreses. Sitio A: la era circular con un pozo, vigilada por la torre mirador. Sitio B: la tinaia, un largo salón de piedra con grandes toneles y una galería. Mid: la plaza con una fuente y pinos piñoneros.",
+"Ein historisches toskanisches Weingut auf einem sonnenbeschienenen Hügel im Chianti · später Nachmittag mit langen Schatten, Sandstein, Terrakotta und Zypressen. A-Bombenplatz: die runde Tenne mit Brunnen, überblickt vom Aussichtsturm. B-Bombenplatz: die Tinaia – eine lange Steinhalle mit riesigen Fässern und Galerie. Mid: die Piazza mit Brunnen und Schirmpinien.",
+"托斯卡纳基安蒂一座沐浴在阳光下的历史酒庄 · 午后长长的影子、砂岩、赤陶与柏树。A 点：带水井的圆形打谷场，被瞭望塔俯瞰。B 点：Tinaia——一座有巨型酒桶和回廊的长石厅。中路：带喷泉和伞松的广场。"
 ],
-"Kom op ad bakken fra piazzaen: tag kontrol over Mid (vinmarken og terrassen), og gå derfra ned i vinkælderen (A) via Pergolaen eller ind i villaens gård (B) via Biblioteket – eller tag Hovedporten og Hulvejen. Plant C4 på A eller B.": [
-"Come up the hill from the piazza: take control of Mid (the vineyard and the terrace), then go down into the wine cellar (A) via the Pergola or into the villa courtyard (B) via the Library – or take the Main Gate and the Hollow Way. Plant the C4 on A or B.",
-"Montez la colline depuis la piazza : prenez le contrôle de Mid (le vignoble et la terrasse), puis descendez dans la cave (A) par la Pergola ou entrez dans la cour de la villa (B) par la Bibliothèque – ou prenez le Portail et le Chemin creux. Posez le C4 en A ou B.",
-"Subid la colina desde la plaza: tomad el control de Mid (el viñedo y la terraza) y bajad desde allí a la bodega (A) por la Pérgola o entrad en el patio de la villa (B) por la Biblioteca – o id por la Puerta principal y el Camino hundido. Plantad el C4 en A o B.",
-"Kommt den Hügel von der Piazza herauf: übernehmt Mid (Weinberg und Terrasse) und geht von dort durch die Pergola in den Weinkeller (A) oder durch die Bibliothek in den Villenhof (B) – oder nehmt das Haupttor und den Hohlweg. Legt das C4 an A oder B.",
-"从广场沿山坡而上：控制中路（葡萄园和露台），再从那里经藤架下到酒窖（A点），或经图书馆进入别墅庭院（B点）——也可以走正门和凹路。在 A 或 B 点安放 C4。"
+"I starter i sydøst: tag Mid med fontænen, og gå op ad B Link mod B-hallen (tinaiaen), eller send nogen hele vejen rundt om Orchard Road og West Loop til A South. Udkigstårnet ser ned over A – tag det, hvis I vil holde sitet nede. Plant C4 på A (den runde tærskeplads) eller B.": [
+"You start in the southeast: take Mid with the fountain and go up B Link to the B hall (the tinaia), or send someone all the way round Orchard Road and West Loop to A South. The Lookout Tower overlooks A – take it if you want to pin the site down. Plant the C4 on A (the round threshing floor) or B.",
+"Vous démarrez au sud-est : prenez Mid avec la fontaine et montez par B Link vers la halle B (la tinaia), ou envoyez quelqu'un par Orchard Road et West Loop jusqu'à A South. La tour de guet domine A – prenez-la pour clouer le site. Posez le C4 sur A (l'aire de battage ronde) ou B.",
+"Empezáis en el sureste: tomad Mid con la fuente y subid por B Link hasta el salón B (la tinaia), o enviad a alguien por Orchard Road y West Loop hasta A South. La torre mirador domina A: tomadla para inmovilizar el sitio. Plantad el C4 en A (la era circular) o en B.",
+"Ihr startet im Südosten: nehmt Mid mit dem Brunnen und geht über B Link zur B-Halle (der Tinaia), oder schickt jemanden über Orchard Road und West Loop nach A South. Der Aussichtsturm überblickt A – nehmt ihn, um den Platz niederzuhalten. Legt die C4 auf A (die runde Tenne) oder B.",
+"你们从东南出发：控制有喷泉的中路，沿 B Link 去 B 厅（Tinaia），或派人绕过 Orchard Road 和 West Loop 去 A South。瞭望塔俯瞰 A 点——占领它来压制该点。在 A（圆形打谷场）或 B 安放 C4。"
 ],
-"I starter bag villaen og er tæt på både A og B: hold kælderen fra Kælderbalkonen og Flaskelageret, og gården fra Arkaderne og Staldene. Roter bag villaen, og desarmér bomben, hvis den bliver plantet.": [
-"You start behind the villa and are close to both A and B: hold the cellar from the Cellar Balcony and the Bottle Store, and the courtyard from the Arcades and the Stables. Rotate behind the villa, and defuse the bomb if it is planted.",
-"Vous démarrez derrière la villa, près de A comme de B : tenez la cave depuis le Balcon de la cave et la Réserve à bouteilles, et la cour depuis les Arcades et les Écuries. Tournez derrière la villa et désamorcez la bombe si elle est posée.",
-"Empezáis detrás de la villa, cerca de A y de B: defended la bodega desde el Balcón de la bodega y la Botellería, y el patio desde las Arcadas y las Cuadras. Rotad por detrás de la villa y desactivad la bomba si la plantan.",
-"Ihr startet hinter der Villa und seid nah an A und B: haltet den Keller vom Kellerbalkon und vom Flaschenlager, den Hof von den Arkaden und den Ställen. Rotiert hinter der Villa und entschärft die Bombe, falls sie gelegt wird.",
-"你们从别墅后方出发，离 A 点和 B 点都很近：从酒窖阳台和藏瓶间守住酒窖，从拱廊和马厩守住庭院。在别墅后方转点，炸弹被安放后负责拆除。"
-],
-"T Spawn": [
-"T Spawn",
-"Spawn T",
-"Aparición T",
-"T-Spawn",
-"T 出生点"
-],
-"Piazzale": [
-"Piazzale",
-"Piazzale",
-"Piazzale",
-"Piazzale",
-"广场"
-],
-"Via Maestra": [
-"Via Maestra",
-"Via Maestra",
-"Via Maestra",
-"Via Maestra",
-"主路"
-],
-"Hulvejen": [
-"Hollow Way",
-"Chemin creux",
-"Camino hundido",
-"Hohlweg",
-"凹路"
-],
-"Vinmarken": [
-"Vineyard",
-"Vignoble",
-"Viñedo",
-"Weinberg",
-"葡萄园"
-],
-"Vinmarkens Top": [
-"Vineyard Top",
-"Haut du vignoble",
-"Cima del viñedo",
-"Oberer Weinberg",
-"葡萄园顶"
-],
-"Frantoio": [
-"Frantoio",
-"Frantoio",
-"Frantoio",
-"Frantoio",
-"榨油坊"
-],
-"Via del Frantoio": [
-"Via del Frantoio",
-"Via del Frantoio",
-"Via del Frantoio",
-"Via del Frantoio",
-"榨油坊路"
-],
-"Cypres-vejen": [
-"Cypress Road",
-"Allée des cyprès",
-"Camino de los cipreses",
-"Zypressenallee",
-"柏树路"
-],
-"Forgården": [
-"Forecourt",
-"Avant-cour",
-"Antepatio",
-"Vorhof",
-"前院"
-],
-"Presseriet": [
-"Press Room",
-"Pressoir",
-"Lagar",
-"Kelterhaus",
-"压榨间"
-],
-"Terrassen": [
-"Terrace",
-"Terrasse",
-"Terraza",
-"Terrasse",
-"露台"
-],
-"Pergolaen": [
-"Pergola",
-"Pergola",
-"Pérgola",
-"Pergola",
-"藤架"
-],
-"Bibliotekstrappen": [
-"Library Stairs",
-"Escalier de la bibliothèque",
-"Escalera de la biblioteca",
-"Bibliothekstreppe",
-"图书馆阶梯"
-],
-"Vestterrassen": [
-"West Terrace",
-"Terrasse ouest",
-"Terraza oeste",
-"Westterrasse",
-"西露台"
-],
-"Kælderbalkonen": [
-"Cellar Balcony",
-"Balcon de la cave",
-"Balcón de la bodega",
-"Kellerbalkon",
-"酒窖阳台"
-],
-"Flaskelageret": [
-"Bottle Store",
-"Réserve à bouteilles",
-"Botellería",
-"Flaschenlager",
-"藏瓶间"
-],
-"Hovedporten": [
-"Main Gate",
-"Portail principal",
-"Puerta principal",
-"Haupttor",
-"正门"
-],
-"Biblioteket": [
-"Library",
-"Bibliothèque",
-"Biblioteca",
-"Bibliothek",
-"图书馆"
-],
-"Stalden": [
-"Stables",
-"Écuries",
-"Cuadras",
-"Ställe",
-"马厩"
-],
-"Hallen": [
-"Great Hall",
-"Grand hall",
-"Gran salón",
-"Große Halle",
-"大厅"
-],
-"Villa-gården": [
-"Villa Yard",
-"Cour de la villa",
-"Patio de la villa",
-"Villenhof",
-"别墅后院"
-],
-"Østhaven": [
-"East Garden",
-"Jardin est",
-"Jardín este",
-"Ostgarten",
-"东花园"
-],
-"CT Spawn": [
-"CT Spawn",
-"Spawn CT",
-"Aparición CT",
-"CT-Spawn",
-"CT 出生点"
+"I starter i nordvest og er tæt på A: hold A Long, A Diag og A Connector fra brønden, og lad en holde tårnet. B ligger langt væk – rotér via Upper Hall, Loggia Loop og B Mouth. Desarmér bomben, hvis den bliver plantet.": [
+"You start in the northwest, close to A: hold A Long, A Diag and A Connector from the well, and let one player hold the tower. B is far away – rotate via Upper Hall, Loggia Loop and B Mouth. Defuse the bomb if it gets planted.",
+"Vous démarrez au nord-ouest, près de A : tenez A Long, A Diag et A Connector depuis le puits, et laissez un joueur tenir la tour. B est loin – faites la rotation par Upper Hall, Loggia Loop et B Mouth. Désamorcez la bombe si elle est posée.",
+"Empezáis en el noroeste, cerca de A: defended A Long, A Diag y A Connector desde el pozo, y que uno ocupe la torre. B queda lejos: rotad por Upper Hall, Loggia Loop y B Mouth. Desactivad la bomba si la plantan.",
+"Ihr startet im Nordwesten, nah an A: haltet A Long, A Diag und A Connector vom Brunnen aus, und einer besetzt den Turm. B ist weit weg – rotiert über Upper Hall, Loggia Loop und B Mouth. Entschärft die Bombe, falls sie gelegt wird.",
+"你们从西北出发，离 A 点很近：从水井守住 A Long、A Diag 和 A Connector，并让一人守塔。B 点很远——经 Upper Hall、Loggia Loop 和 B Mouth 转点。炸弹被安放后请拆除。"
 ]
 };

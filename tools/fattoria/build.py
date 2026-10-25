@@ -1,32 +1,29 @@
 # ==========================================================================
-# fattoria · Blender-bygger (headless): toscansk vingård på en bakketop i den gyldne time – layout fra tools/fattoria/gen/layout.py.
-#   python3 tools/fattoria/gen/layout.py                                                           (layout → out/fattoria_design.json + shared/fattoria_data.js)
-#   blender -b --factory-startup -P tools/fattoria/build.py -- clay                                (kun geometri → out/fattoria_clay.blend)
-#   blender -b --factory-startup -P tools/fattoria/build.py -- shots [navn,navn]                   (prøvebilleder → out/shots/*.png)
-#   blender -b --factory-startup -P tools/fattoria/build.py -- qa                                  (QA: svævende/usynligt)
-#   blender -b --factory-startup -P tools/fattoria/build.py -- bake                                (lysmaps + world.bin/json → public/assets/fattoria)
+# fattoria · Blender-bygger (headless): toscansk vingård i den gyldne time – layout efter brugerens plantegning.
+#   python3 tools/fattoria/gen/trace.py && python3 tools/fattoria/gen/layout.py                (layout → out/fattoria_design.json + shared/fattoria_data.js)
+#   blender -b --factory-startup -P tools/fattoria/build.py -- clay                            (kun geometri → out/fattoria_clay.blend)
+#   blender -b --factory-startup -P tools/fattoria/build.py -- shots [navn,navn]               (prøvebilleder → out/shots/*.png)
+#   blender -b --factory-startup -P tools/fattoria/build.py -- day [navn,navn]                 (prøvebilleder med bagt-lys-opsætning: sol + himmel + lamper)
+#   blender -b --factory-startup -P tools/fattoria/build.py -- qa                              (QA: usynlige hitbokse / synligt i fri rute)
+#   blender -b --factory-startup -P tools/fattoria/build.py -- bake                            (lysmaps + world.bin/json → public/assets/fattoria)
 # ==========================================================================
 import os, sys, math, time, json, random
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
 sys.path.insert(0, HERE)
 import bpy, bmesh
-import numpy as np
 from mathutils import Vector, Matrix
 from bld import common
 from bld.common import B, coll, OUT, MB, defmat, MATS, mat
-import ft_common, ft_ground
+import ft_common, ft_ground, ft_arch, ft_props, ft_scen
 
 ARGS = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else ['clay']
 MODE = ARGS[0]
 D = json.load(open(os.path.join(HERE, 'out', 'fattoria_design.json')))
-MODS = {}
-for nm in ('ft_arch', 'ft_props', 'ft_plants', 'ft_dress', 'ft_back'):
-    try: MODS[nm] = __import__(nm)
-    except ImportError as e: print('[build] modul mangler:', nm, e)
 
 def subdivide_long(ob, thr):
+    """lange kanter deles (≤ thr m), så vertex-lyset har målepunkter midt på fladerne (tage, store plader)"""
     bm = bmesh.new(); bm.from_mesh(ob.data)
-    for _ in range(2 if thr > 2 else 3):
+    for _ in range(3):
         long = [e for e in bm.edges if e.calc_length() > thr]
         if not long: break
         bmesh.ops.subdivide_edges(bm, edges=long, cuts=1, use_grid_fill=True)
@@ -34,23 +31,18 @@ def subdivide_long(ob, thr):
 
 def build_world():
     t0 = time.time(); ft_common.define(defmat)
-    S = {k: MB(n) for k, n in (('bd', 'detail_far_bd'), ('ground', 'ground'), ('walls', 'walls'), ('ceil', 'ceil'), ('trim', 'detail_trim'), ('far', 'detail_far'), ('water', 'water'), ('props', 'props'), ('bark', 'props_bark'), ('fol', 'props_fol'))}
-    S['lights'] = []
-    G = ft_ground.Grid(D); S['G'] = G
-    ft_ground.tops(G, S['ground'], S['trim']); ft_ground.hill_top(G, S['ground']); ft_ground.faces(G, S['walls'])
-    ft_ground.overlays(G, S['ground'], S['trim'], S['ceil']); ft_ground.ramps(G, S['ground'], S['walls']); ft_ground.stairs(G, S['trim'], S['walls'])
-    for nm in ('ft_arch', 'ft_props', 'ft_plants', 'ft_dress', 'ft_back'):
-        m = MODS.get(nm)
-        if m: m.build(D, S)
+    S = {k: MB(n) for k, n in (('bd', 'detail_far_bd'), ('ground', 'ground'), ('walls', 'walls'), ('trim', 'detail_trim'), ('far', 'detail_far'), ('water', 'water'), ('props', 'props'), ('bark', 'props_bark'), ('fol', 'props_fol'))}
+    ft_ground.ground(D, S['ground']); ft_ground.fills(D, S['ground']); ft_ground.thresholds(D, S['trim'])
+    ft_arch.build(D, S); ft_props.build(D, S); ft_scen.build(D, S)
     print('[fattoria] geometri %.1f s' % (time.time() - t0))
-    cols = {'bd': 'backdrop', 'ground': 'ground', 'walls': 'walls', 'ceil': 'ceil', 'trim': 'structures', 'far': 'structures', 'water': 'water', 'props': 'props', 'bark': 'props', 'fol': 'props'}
+    cols = {'bd': 'backdrop', 'ground': 'ground', 'walls': 'walls', 'trim': 'structures', 'far': 'structures', 'water': 'water', 'props': 'props', 'bark': 'props', 'fol': 'props'}
     obs = {}
-    for k, M in S.items():
-        if k in ('lights', 'G') or not hasattr(M, 'f') or not M.f: continue
-        obs[k] = M.build(coll(cols[k]), bevel=0.0)
+    for k, Mb in S.items():
+        if not Mb.f: continue
+        obs[k] = Mb.build(coll(cols[k]), bevel=0.0)
     if 'far' in obs: subdivide_long(obs['far'], 1.6)
-    TRIS = lambda ob: sum(len(p.vertices) - 2 for p in ob.data.polygons)
     if 'fol' in obs: subdivide_long(obs['fol'], 2.8)
+    TRIS = lambda ob: sum(len(p.vertices) - 2 for p in ob.data.polygons)
     print('[fattoria] trekanter:', {k: TRIS(o) for k, o in obs.items()}, 'i alt', sum(TRIS(o) for o in obs.values()))
     return S, obs
 
@@ -63,29 +55,36 @@ def setup_preview_world(strength=1.0, sun=3.0):
 
 SHOTS = {
     'iso': dict(pos=(0, 150, 105), look=(0, 0, -2), lens=36),
-    'isoN': dict(pos=(0, 120, -135), look=(0, 0, 0), lens=36),
-    't_spawn': dict(pos=(-8, -1.4, 44), look=(0, 0.5, 20), lens=24),
-    'vineyard': dict(pos=(0, -1.3, 28), look=(0, 0.5, 4), lens=22),
-    'strip': dict(pos=(-10, 1.6, 2), look=(12, 3.0, -8), lens=24),
-    'terrace': dict(pos=(12, 4.2, -6), look=(28, 4.0, -16), lens=24),
-    'terrace2': dict(pos=(40, 4.2, -8), look=(14, 3.6, -14), lens=24),
-    'cellar': dict(pos=(11, -0.4, -9), look=(26, -0.6, -15), lens=22),
-    'cellar2': dict(pos=(33, -0.4, -9), look=(18, -0.6, -16), lens=22),
-    'courtyard': dict(pos=(-31, 6.4, -24.4), look=(-21, 6.6, -31), lens=22),
-    'courtyard2': dict(pos=(-11, 6.4, -34), look=(-26, 6.4, -28), lens=22),
-    'gate': dict(pos=(-32, 6.4, -14), look=(-32, 7.0, -30), lens=24),
-    'villa': dict(pos=(-23, 6.4, -53), look=(-23, 8.0, -40), lens=24),
-    'eastgarden': dict(pos=(14, 6.4, -44), look=(36, 7.0, -40), lens=24),
-    'flask': dict(pos=(11, 6.4, -44), look=(11, 3.0, -30), lens=24),
-    'flask_in': dict(pos=(11, 3.6, -31), look=(11, 1.8, -24), lens=24),
-    'flask_out': dict(pos=(11, 4.0, -27), look=(11, 6.5, -37), lens=24),
-    'library': dict(pos=(-6, 6.4, -34), look=(1, 6.4, -28), lens=22),
-    'stables': dict(pos=(-35.5, 6.4, -28), look=(-45, 6.4, -28), lens=22),
-    'west': dict(pos=(-30, -1.4, 30), look=(-30, 4.0, 0), lens=24),
-    'hollow': dict(pos=(-50, -1.4, 30), look=(-50, 3.0, 0), lens=24),
-    'east': dict(pos=(41, -1.4, 28), look=(41, 1.0, 6), lens=24),
-    'cypress': dict(pos=(54, -1.4, 30), look=(54, 4.0, -10), lens=24),
-    'lobbybg': dict(pos=(-11, 6.4, -34), look=(-26, 6.2, -28), lens=22, samples=128, res=(1920, 1051)),
+    'swat': dict(pos=(-50, 1.65, -55), look=(-38, 1.8, -46), lens=24),
+    'exit': dict(pos=(-33, 1.65, -43), look=(-27, 1.9, -39), lens=24),
+    'adiag': dict(pos=(-33, 1.65, -39), look=(-42, 1.9, -22), lens=24),
+    'villa': dict(pos=(-25, 1.65, -36), look=(-24, 1.8, -17), lens=24),
+    'upper': dict(pos=(-20, 1.65, -40), look=(4, 2.2, -43), lens=24),
+    'along': dict(pos=(-24, 1.65, -15.8), look=(-42, 1.8, -15.5), lens=24),
+    'asite': dict(pos=(-38, 1.65, -15.6), look=(-50, 1.8, -9), lens=24),
+    'asite2': dict(pos=(-39, 1.65, -4.5), look=(-52, 1.8, -12), lens=24),
+    'asite3': dict(pos=(-58, 1.65, 3), look=(-50, 1.8, -10), lens=24),
+    'tower': dict(pos=(-33, 1.65, 12.6), look=(-44, 1.7, 13.2), lens=24),
+    'towerdeck': dict(pos=(-37.8, 4.8, 15.2), look=(-47, 4.6, 11), lens=24),
+    'deckview': dict(pos=(-41, 4.85, 11.2), look=(-47, 2.4, -6), lens=26),
+    'stub': dict(pos=(-14, 1.65, 12.6), look=(-32, 1.7, 12.6), lens=24),
+    'mid': dict(pos=(-12, 1.65, 8), look=(8, 1.5, 2), lens=24),
+    'mid2': dict(pos=(28, 1.65, 8), look=(5, 1.5, 3), lens=24),
+    'midnorth': dict(pos=(16, 1.65, -8), look=(16, 1.9, -20), lens=24),
+    'blink': dict(pos=(16, 1.65, -22), look=(26, 2.0, -27), lens=24),
+    'bhall': dict(pos=(26.5, 1.65, -33), look=(48, 2.0, -33), lens=24),
+    'bhall2': dict(pos=(54, 1.65, -33), look=(28, 2.2, -33), lens=24),
+    'bgallery': dict(pos=(40, 4.3, -38), look=(40, 1.5, -31), lens=24),
+    'eastroad': dict(pos=(53, 1.65, 18), look=(57, 1.9, 36), lens=24),
+    'hij': dict(pos=(50, 1.65, 52), look=(30, 1.9, 49), lens=24),
+    'south': dict(pos=(0, 1.65, 52), look=(-30, 1.9, 49), lens=24),
+    'orchard': dict(pos=(-40, 1.65, 46), look=(-41, 1.9, 30), lens=24),
+    'westloop': dict(pos=(-59, 1.65, 22), look=(-59, 1.9, 4), lens=24),
+    'dbg1': dict(pos=(-33.5, 1.65, -37.5), look=(-42, 2.5, -24), lens=22),
+    'dbg2': dict(pos=(-33.5, 1.65, -37.5), look=(-52, 6, -46), lens=22),
+    'dbg3': dict(pos=(-40, 1.65, -27), look=(-34, 6, -40), lens=22),
+    'dbg4': dict(pos=(-36, 12, -33), look=(-40, 0, -27), lens=30),
+    'lobbybg': dict(pos=(-12.5, 1.7, 9.5), look=(10, 2.3, 1.5), lens=24, samples=128, res=(1920, 1051)),
     'lobbymap': dict(pos=(0, 150, 105), look=(0, 0, -2), lens=36, samples=64, res=(1920, 1052)),
 }
 def render_shot(name, spec, out_dir, samples=24, res=(1280, 720)):
@@ -106,12 +105,8 @@ def day_setup(preview=False):
     from bld import sky
     sc = bpy.context.scene
     sky.setup_world(bake=True, strength=SKY_STRENGTH)
-    k = 0
-    lamps = []
-    for m in MODS.values():
-        if hasattr(m, 'LAMPS'): lamps += m.LAMPS
-    seen = set()
-    for e in lamps:
+    k = 0; seen = set()
+    for e in ft_arch.LAMPS:
         key = (round(e['x'], 1), round(e['y'], 1), round(e['z'], 1))
         if key in seen: continue
         seen.add(key); ld = bpy.data.lights.new('L%d' % k, 'POINT'); ld.energy = float(e['w']) * float(os.environ.get('FT_LAMP', 1.0)); ld.color = (1.0, 0.66, 0.36); ld.shadow_soft_size = 0.25
@@ -125,9 +120,7 @@ def bake_mode(S):
     sky.game_sky(bake.DST)
     t0 = time.time(); bake.bake_all(); print('[fattoria] bagt %.1f s' % (time.time() - t0))
     bake.export()
-    lamps = []
-    for m in MODS.values():
-        if hasattr(m, 'LAMPS'): lamps += m.LAMPS
+    lamps = ft_arch.LAMPS
     json.dump({'lights': [dict(l, kind='lamp') for l in lamps]}, open(os.path.join(bake.DST, 'lights.json'), 'w'), separators=(',', ':'))
     json.dump({'lamps': [{'x': e['x'], 'y': e['y'], 'z': e['z'], 'i': e.get('i', 1.2), 'range': e.get('range', 8.0), 'color': 0xffb060, 'dir': [0, -1, 0], 'cone': 1.2} for e in lamps]}, open(os.path.join(bake.DST, 'probes.json'), 'w'), separators=(',', ':'))
     json.dump([], open(os.path.join(bake.DST, 'dprops.json'), 'w'))
@@ -138,6 +131,10 @@ def main():
     t0 = time.time()
     bpy.ops.wm.read_factory_settings(use_empty=True)
     S, obs = build_world()
+    if MODE == 'qa':
+        import ft_qa; bpy.context.view_layer.update(); ft_qa.run()
+    if MODE == 'near':
+        import ft_qa; bpy.context.view_layer.update(); ft_qa.near(float(ARGS[1]), float(ARGS[2]))
     if MODE == 'bake': bake_mode(S)
     if MODE in ('night', 'day'): day_setup(True)
     if MODE in ('clay', 'shots', 'day'):

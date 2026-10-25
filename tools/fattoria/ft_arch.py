@@ -1,397 +1,335 @@
 # ==========================================================================
-# de_fattoria · arkitektur: tage (tegl), facade-detaljer (vinduer med skodder, sålbænke, hjørnesten, gesims), skorstene, døråbninger, arkader med buer, duetårn,
-# pergola, lysskakter og kælderens hvælvribber. Alt udledt af layoutets bygninger/celler (ingen tilfældig placering – faste regler og faste afstande).
+# de_fattoria · arkitektur: facader (villa, bondehuse, lader, stenmure, terrassemure, hække, tårn, hal-vægge) og tage (fælles tagprofil, ft_roof.py), tårnet, B-hallen og galleriet.
+#   Alt er bundet til gangenes omrids: facaden ligger PRÆCIS i kollisionsfladen (w = 0); fremspring på jordniveau ≤ 0,12 m (karme, sokkelbånd), udhæng/lanterner over hovedhøjde.
+#   Objekter: walls (lysmap) · detail_trim (vertex-lys: karme, skodder, døre, gitre) · detail_far (vertex-lys: tegl)
 # ==========================================================================
 import math, random
-import numpy as np
 from ft_geo import *
-from ft_common import blend_at
-from bld.common import MATS
+from ft_roof import roof_y
+from ft_common import blend_at, hash2
 
-LAMPS = []
+PLASTER = {'villa': ['ft_ochre_a', 'ft_plaster_a'], 'casa': ['ft_plaster_a', 'ft_plaster_c', 'ft_ochre_b', 'ft_plaster_d', 'ft_ochre_a'], 'casetta': ['ft_plaster_b', 'ft_plaster_d', 'ft_ochre_a'],
+           'fienile': ['ft_stone'], 'hallwall': ['ft_plaster_b'], 'twall': ['ft_ashlar'], 'swall': ['ft_rubble'], 'terrace': ['ft_stone'], 'hedge': ['ft_hedge']}
+LAMPS = []                                          # (x, y, z, w) – varme lamper til bagningen
+DOORS_LOG = []
 
-def sides(b):
-    x0, z0, x1, z1 = b['rect']
-    return [('N', (x0, z0), (1, 0), (0, -1), x1 - x0), ('S', (x0, z1), (1, 0), (0, 1), x1 - x0), ('W', (x0, z0), (0, 1), (-1, 0), z1 - z0), ('E', (x1, z0), (0, 1), (1, 0), z1 - z0)]
+def window(T, fr, a, w, h, ysill, rnd, shutter=True, mat_sh=None):
+    """stenkarm, sålbænk, mørk rude, midterstolpe og skodder (åbne, lagt mod facaden)"""
+    obox(T, fr, a - w / 2 - 0.1, a + w / 2 + 0.1, 0, 0.09, ysill + h, ysill + h + 0.15, 'ft_ashlar', faces='fkltrd')
+    obox(T, fr, a - w / 2 - 0.12, a + w / 2 + 0.12, 0, 0.14, ysill - 0.1, ysill, 'ft_ashlar', faces='fkltrd')
+    obox(T, fr, a - w / 2 - 0.1, a - w / 2, 0, 0.08, ysill, ysill + h, 'ft_ashlar', faces='fkltrd')
+    obox(T, fr, a + w / 2, a + w / 2 + 0.1, 0, 0.08, ysill, ysill + h, 'ft_ashlar', faces='fkltrd')
+    vquad(T, fr, a - w / 2, a + w / 2, 0.012, ysill, ysill + h, 'ft_pane')
+    obox(T, fr, a - 0.022, a + 0.022, 0.0, 0.04, ysill, ysill + h, 'ft_timber', faces='fkltrd'); obox(T, fr, a - w / 2, a + w / 2, 0.0, 0.04, ysill + h * 0.55 - 0.022, ysill + h * 0.55 + 0.022, 'ft_timber', faces='fkltrd')
+    if shutter:
+        sw = w / 2; col = mat_sh or ('ft_shutter' if rnd.random() < 0.7 else 'ft_shutter_b')
+        obox(T, fr, a - w / 2 - 0.13 - sw, a - w / 2 - 0.13, 0.0, 0.045, ysill - 0.02, ysill + h + 0.02, col, faces='fkltrd')
+        obox(T, fr, a + w / 2 + 0.13, a + w / 2 + 0.13 + sw, 0.0, 0.045, ysill - 0.02, ysill + h + 0.02, col, faces='fkltrd')
 
-def exposure(G, p0, u, n, L):
-    """celler 0,4 m udenfor facaden: (a, gulvhøjde) hvor der er et gangbart gulv. a måles langs facaden fra p0."""
-    out = []
-    a = 0.25
-    while a < L:
-        x = p0[0] + u[0] * a + n[0] * 0.4; z = p0[1] + u[1] * a + n[1] * 0.4
-        j, i = G.cz(z), G.cx(x)
-        if 0 <= j < G.NZ and 0 <= i < G.NX and G.K[j, i] == 1: out.append((a, float(G.H[j, i])))
-        a += 0.5
-    return out
-
-def wall_solid(G, x, z):
-    j, i = G.cz(z), G.cx(x)
-    return 0 <= j < G.NZ and 0 <= i < G.NX and G.K[j, i] == 0 and G.H[j, i] >= G.TOP - 0.01
-
-# --------------------------------------------------------------------------- tage
-def roof(b, S):
-    M = S['far']; T = S['trim']; x0, z0, x1, z1 = b['rect']; e = b['eave']; r = b['rise']; kind = b['roof']; ov = 0.6
-    mat = b.get('rmat', 'ft_roof'); sz = MATS[mat]['size'] or 1.5
-    if kind == 'gable':
-        ridge = b['ridge']
-        if ridge == 'z':
-            xm = (x0 + x1) / 2; hw = (x1 - x0) / 2; s = r / hw
-            for (xa, xb, sg) in ((x0, xm, -1), (x1, xm, 1)):
-                xe = xa - sg * ov * -1 if False else (xa + (-ov if sg < 0 else ov)); ye = e - s * ov
-                Lsl = math.hypot(abs(xm - xe), r + s * ov)
-                q = [(xe, ye, z1 + 0.3), (xe, ye, z0 - 0.3), (xm, e + r, z0 - 0.3), (xm, e + r, z1 + 0.3)]
-                if sg > 0: q = [(xe, ye, z0 - 0.3), (xe, ye, z1 + 0.3), (xm, e + r, z1 + 0.3), (xm, e + r, z0 - 0.3)]
-                M.poly(q, mat, uv=[(0, 0), (1.0 * (z1 - z0 + 0.6) / sz, 0), (1.0 * (z1 - z0 + 0.6) / sz, Lsl / sz), (0, Lsl / sz)], want=(sg * s, 1, 0), col=[(0.15, 0, 0, 1)] * 4)
-                M.poly([(q[0][0], q[0][1] - 0.12, q[0][2]), (q[3][0], q[3][1] - 0.12, q[3][2]), (q[2][0], q[2][1] - 0.12, q[2][2]), (q[1][0], q[1][1] - 0.12, q[1][2])] if False else q[::-1], 'ft_timber', want=(-sg * s, -1, 0), col=[(0.1, 0, 0, 1)] * 4)
-            for zz, nz in ((z0, -1), (z1, 1)):                                                   # gavltrekanter
-                M.poly([(x0, e, zz), (x1, e, zz), (xm, e + r, zz)], b['mat'], want=(0, 0, nz), col=[(0.2, 0, 0, 1)] * 3)
-            M.box(xm - 0.18, e + r - 0.02, z0 - 0.3, xm + 0.18, e + r + 0.2, z1 + 0.3, 'ft_roof_old')       # rygningssten
-        else:
-            zm = (z0 + z1) / 2; hw = (z1 - z0) / 2; s = r / hw
-            for (za, sg) in ((z0, -1), (z1, 1)):
-                ze = za + (-ov if sg < 0 else ov); ye = e - s * ov; Lsl = math.hypot(abs(zm - ze), r + s * ov)
-                q = [(x0 - 0.3, ye, ze), (x1 + 0.3, ye, ze), (x1 + 0.3, e + r, zm), (x0 - 0.3, e + r, zm)]
-                M.poly(q, mat, uv=[(0, 0), ((x1 - x0 + 0.6) / sz, 0), ((x1 - x0 + 0.6) / sz, Lsl / sz), (0, Lsl / sz)], want=(0, 1, sg * s), col=[(0.15, 0, 0, 1)] * 4)
-                M.poly(q[::-1], 'ft_timber', want=(0, -1, -sg * s), col=[(0.1, 0, 0, 1)] * 4)
-            for xx, nx in ((x0, -1), (x1, 1)):
-                M.poly([(xx, e, z0), (xx, e, z1), (xx, e + r, zm)] if nx > 0 else [(xx, e, z1), (xx, e, z0), (xx, e + r, zm)], b['mat'], want=(nx, 0, 0), col=[(0.2, 0, 0, 1)] * 3)
-            M.box(x0 - 0.3, e + r - 0.02, zm - 0.18, x1 + 0.3, e + r + 0.2, zm + 0.18, 'ft_roof_old')
-    elif kind == 'hip':
-        long_x = (x1 - x0) >= (z1 - z0)
-        if long_x:
-            hw = (z1 - z0) / 2; zm = (z0 + z1) / 2; d = hw; rx0, rx1 = x0 + d * 0.9, x1 - d * 0.9; s = r / hw
-            if rx1 - rx0 < 0.5: rx0 = rx1 = (x0 + x1) / 2
-            P4 = lambda a, b_, c, d_: M.poly([a, b_, c, d_], mat, uv=[(0, 0), (1, 0), (1, 1), (0, 1)], want=None)
-            for (za, sg) in ((z0, -1), (z1, 1)):
-                ze = za + (-ov if sg < 0 else ov); ye = e - s * ov; Lsl = math.hypot(abs(zm - ze), r + s * ov)
-                q = [(x0 - ov, ye, ze), (x1 + ov, ye, ze), (rx1, e + r, zm), (rx0, e + r, zm)]
-                M.poly(q, mat, uv=[(0, 0), ((x1 - x0 + 2 * ov) / sz, 0), ((rx1 - rx0 + 1.0) / sz, Lsl / sz), (0, Lsl / sz)], want=(0, 1, sg * s), col=[(0.15, 0, 0, 1)] * 4)
-                M.poly(q[::-1], 'ft_timber', want=(0, -1, -sg * s), col=[(0.1, 0, 0, 1)] * 4)
-            for (xa, sg, rxa) in ((x0, -1, rx0), (x1, 1, rx1)):
-                xe = xa + (-ov if sg < 0 else ov); ye = e - s * ov; Lsl = math.hypot(abs(rxa - xe), r + s * ov)
-                q = [(xe, ye, z0 - ov), (xe, ye, z1 + ov), (rxa, e + r, zm)]
-                M.poly(q, mat, uv=[(0, 0), ((z1 - z0 + 2 * ov) / sz, 0), (0.5 * (z1 - z0) / sz, Lsl / sz)], want=(sg * s, 1, 0), col=[(0.15, 0, 0, 1)] * 3)
-                M.poly(q[::-1], 'ft_timber', want=(-sg * s, -1, 0), col=[(0.1, 0, 0, 1)] * 3)
-            if rx1 > rx0 + 0.3: M.box(rx0, e + r - 0.02, zm - 0.18, rx1, e + r + 0.2, zm + 0.18, 'ft_roof_old')
-        else:
-            hw = (x1 - x0) / 2; xm = (x0 + x1) / 2; d = hw; rz0, rz1 = z0 + d * 0.9, z1 - d * 0.9; s = r / hw
-            if rz1 - rz0 < 0.5: rz0 = rz1 = (z0 + z1) / 2
-            for (xa, sg) in ((x0, -1), (x1, 1)):
-                xe = xa + (-ov if sg < 0 else ov); ye = e - s * ov; Lsl = math.hypot(abs(xm - xe), r + s * ov)
-                q = [(xe, ye, z1 + ov), (xe, ye, z0 - ov), (xm, e + r, rz0), (xm, e + r, rz1)] if sg < 0 else [(xe, ye, z0 - ov), (xe, ye, z1 + ov), (xm, e + r, rz1), (xm, e + r, rz0)]
-                M.poly(q, mat, uv=[(0, 0), ((z1 - z0 + 2 * ov) / sz, 0), ((rz1 - rz0 + 1.0) / sz, Lsl / sz), (0, Lsl / sz)], want=(sg * s, 1, 0), col=[(0.15, 0, 0, 1)] * 4)
-                M.poly(q[::-1], 'ft_timber', want=(-sg * s, -1, 0), col=[(0.1, 0, 0, 1)] * 4)
-            for (za, sg, rza) in ((z0, -1, rz0), (z1, 1, rz1)):
-                ze = za + (-ov if sg < 0 else ov); ye = e - s * ov; Lsl = math.hypot(abs(rza - ze), r + s * ov)
-                q = [(x0 - ov, ye, ze), (x1 + ov, ye, ze), (xm, e + r, rza)]
-                M.poly(q, mat, uv=[(0, 0), ((x1 - x0 + 2 * ov) / sz, 0), (0.5 * (x1 - x0) / sz, Lsl / sz)], want=(0, 1, sg * s), col=[(0.15, 0, 0, 1)] * 3)
-                M.poly(q[::-1], 'ft_timber', want=(0, -1, -sg * s), col=[(0.1, 0, 0, 1)] * 3)
-            if rz1 > rz0 + 0.3: M.box(xm - 0.18, e + r - 0.02, rz0, xm + 0.18, e + r + 0.2, rz1, 'ft_roof_old')
-
-# --------------------------------------------------------------------------- facader
-STY = {'villa': dict(w=1.15, h=1.85, sp=3.5, floors=2), 'stable': dict(w=0.9, h=1.1, sp=4.0, floors=1), 'library': dict(w=1.05, h=2.0, sp=3.4, floors=2), 'mill': dict(w=0.95, h=1.3, sp=4.2, floors=1),
-       'orangery': dict(w=1.7, h=3.0, sp=3.0, floors=1), 'shed': dict(w=0.0, h=0.0, sp=9.9, floors=1)}
-
-def window(T, fr, a, w, h, ysill, st, rnd):
-    """vindue: stenramme, sålbænk, mørk rude og åbne skodder"""
-    obox(T, fr, a - w / 2 - 0.12, a + w / 2 + 0.12, 0, 0.14, ysill + h, ysill + h + 0.16, 'ft_ashlar', faces='fkltrd')
-    obox(T, fr, a - w / 2 - 0.16, a + w / 2 + 0.16, 0, 0.24, ysill - 0.1, ysill, 'ft_ashlar', faces='fkltrd')
-    obox(T, fr, a - w / 2 - 0.12, a - w / 2, 0, 0.1, ysill, ysill + h, 'ft_ashlar', faces='fkltrd')
-    obox(T, fr, a + w / 2, a + w / 2 + 0.12, 0, 0.1, ysill, ysill + h, 'ft_ashlar', faces='fkltrd')
-    vquad(T, fr, a - w / 2, a + w / 2, 0.015, ysill, ysill + h, 'ft_pane')
-    # midterstolpe + tværsprosse
-    obox(T, fr, a - 0.025, a + 0.025, 0.0, 0.05, ysill, ysill + h, 'ft_timber', faces='fkltrd'); obox(T, fr, a - w / 2, a + w / 2, 0.0, 0.05, ysill + h * 0.55 - 0.025, ysill + h * 0.55 + 0.025, 'ft_timber', faces='fkltrd')
-    if st != 'orangery':
-        sw = w / 2; col = 'ft_shutter' if rnd.random() < 0.7 else 'ft_shutter_b'
-        obox(T, fr, a - w / 2 - 0.14 - sw, a - w / 2 - 0.14, 0.0, 0.055, ysill - 0.02, ysill + h + 0.02, col, faces='fkltrd')
-        obox(T, fr, a + w / 2 + 0.14, a + w / 2 + 0.14 + sw, 0.0, 0.055, ysill - 0.02, ysill + h + 0.02, col, faces='fkltrd')
-
-def shed_details(b, S, G):
-    T = S['trim']; x0, z0, x1, z1 = b['rect']
-    for (z, nz) in ((z1, 1), (z0, -1)):
-        fr = Fr((x0, z), (1, 0), (0, nz)); xm = (x1 - x0) / 2
-        obox(T, fr, xm - 0.55, xm + 0.55, 0, 0.1, G_y(G, (x0 + x1) / 2, z + nz * 0.4), G_y(G, (x0 + x1) / 2, z + nz * 0.4) + 2.0, 'ft_door', faces='fkltrd')
-        obox(T, fr, xm - 0.7, xm + 0.7, 0, 0.14, G_y(G, (x0 + x1) / 2, z + nz * 0.4) + 2.0, G_y(G, (x0 + x1) / 2, z + nz * 0.4) + 2.2, 'ft_ashlar', faces='fkltrd')
-
-def G_y(G, x, z):
-    j, i = G.cz(z), G.cx(x); return float(G.H[j, i]) if 0 <= j < G.NZ and 0 <= i < G.NX else 0.0
-
-def facades(b, S, G):
-    T = S['trim']; W = S['walls']; st = b['style']; cfg = STY[st]; rnd = random.Random(hash(b['name']) & 0xffff)
-    x0, z0, x1, z1 = b['rect']; e = b['eave']
-    for (nm, p0, u, n, L) in sides(b):
-        ex = exposure(G, p0, u, n, L)
-        if not ex: continue
-        fr = Fr(p0, u, n); exposed = {round(a, 2): y for a, y in ex}
-        # cornice (gesims) under tagfoden langs de synlige dele
-        runs = []; cur = None
-        for a, y in ex:
-            if cur and abs(a - cur[1]) < 0.6: cur[1] = a
-            else:
-                if cur: runs.append(cur)
-                cur = [a, a, y]
-        if cur: runs.append(cur)
-        for (a0, a1, yg) in runs:
-            if a1 - a0 < 0.8: continue
-            obox(T, fr, a0 - 0.25, a1 + 0.25, 0, 0.26, e - 0.32, e, 'ft_ashlar', faces='fkltrd')                        # gesims
-            if cfg['w'] > 0:
-                nfl = cfg['floors']; fh = (e - 0.4 - yg) / nfl; k = 0; a = cfg['sp'] / 2
-                while a < L:
-                    if a0 + 0.9 <= a <= a1 - 0.9 and wall_solid(G, p0[0] + u[0] * a - n[0] * 0.3, p0[1] + u[1] * a - n[1] * 0.3):
-                        okw = all(abs(exposed.get(round(aa, 2), -99) - yg) < 0.35 for aa in np.arange(max(0.25, a - 0.75), min(L, a + 0.75), 0.5) if round(aa, 2) in exposed)
-                        okh = all(wall_solid(G, p0[0] + u[0] * (a + d) - n[0] * 0.3, p0[1] + u[1] * (a + d) - n[1] * 0.3) for d in (-0.6, 0.6))
-                        if okw and okh:
-                            for f in range(nfl):
-                                ys = yg + f * fh + (0.95 if st != 'orangery' else 0.35)
-                                if st == 'orangery' and f == 0: window(T, fr, a, cfg['w'], cfg['h'], ys, st, rnd)
-                                elif st != 'orangery':
-                                    h = cfg['h'] * (0.92 if f else 1.0); window(T, fr, a, cfg['w'], h, ys + (0.35 if f else 0), st, rnd)
-                    a += cfg['sp']
-            # sokkel (stenfod) langs facaden
-            obox(W, fr, a0 - 0.0, a1 + 0.0, 0, 0.1, yg, yg + 0.7, 'ft_stone', faces='fkltr')
-    # hjørnesten (quoins)
-    if st in ('villa', 'library', 'stable', 'orangery'):
-        for (cx_, cz_, sx, sz) in ((x0, z0, -1, -1), (x1, z0, 1, -1), (x0, z1, -1, 1), (x1, z1, 1, 1)):
-            j, i = G.cz(cz_ + sz * 0.4), G.cx(cx_ + sx * 0.4)
-            if not (0 <= j < G.NZ and 0 <= i < G.NX) or G.K[j, i] != 1: continue
-            yg = float(G.H[j, i]); nb = int((e - 0.4 - yg) / 0.55)
-            for k in range(nb):
-                y0q = yg + k * 0.55; L1, L2 = (0.7, 0.4) if k % 2 == 0 else (0.4, 0.7)
-                xa = cx_ - 0.06 if sx < 0 else cx_ - L1; xb = cx_ + L1 if sx < 0 else cx_ + 0.06
-                za = cz_ - 0.06 if sz < 0 else cz_ - L2; zb = cz_ + L2 if sz < 0 else cz_ + 0.06
-                T.box(xa, y0q, za, xb, y0q + 0.52, zb, 'ft_ashlar', faces='nsewt')
-
-def openings(D, S, G):
-    """stenrammer om døråbninger (jamber + overligger + sluttesten), fundet automatisk hvor et overlag med væg ovenpå møder åbent gulv"""
-    T = S['trim']; UB, UT = G.UB, G.UT; edges = {}
-    for j in range(G.NZ):
-        for i in range(G.NX):
-            if np.isnan(UB[j, i]) or UT[j, i] < G.TOP - 0.5 or G.BLDALL[j, i] == 0: continue
-            for dj, di in ((-1, 0), (1, 0), (0, -1), (0, 1)):
-                j2, i2 = j + dj, i + di
-                if not (0 <= j2 < G.NZ and 0 <= i2 < G.NX) or not np.isnan(UB[j2, i2]) or G.K[j2, i2] != 1: continue
-                line = (j + (1 if dj > 0 else 0)) if dj != 0 else (i + (1 if di > 0 else 0)); pos = i if dj != 0 else j
-                edges.setdefault((dj, di, line, round(float(UB[j, i]), 2), round(float(G.H[j, i]), 2)), []).append(pos)
-    for (dj, di, line, ub, yh), lst in edges.items():
-        lst.sort(); runs = []
-        for p in lst:
-            if runs and p - runs[-1][1] <= 1: runs[-1][1] = p
-            else: runs.append([p, p])
-        for a, c in runs:
-            if dj != 0: fr = Fr((G.x(a), G.z(line)), (1, 0), (0, dj)); Lw = G.x(c + 1) - G.x(a)
-            else: fr = Fr((G.x(line), G.z(a)), (0, 1), (di, 0)); Lw = G.z(c + 1) - G.z(a)
-            if Lw < 0.9 or ub - yh > 8: continue
-            obox(T, fr, -0.2, 0.0, 0, 0.18, yh, ub, 'ft_ashlar', faces='fkltrd')
-            obox(T, fr, Lw, Lw + 0.2, 0, 0.18, yh, ub, 'ft_ashlar', faces='fkltrd')
-            obox(T, fr, -0.2, Lw + 0.2, 0, 0.2, ub - 0.02, ub + 0.3, 'ft_ashlar', faces='fkltrd')
-            obox(T, fr, Lw / 2 - 0.25, Lw / 2 + 0.25, 0, 0.26, ub - 0.02, ub + 0.42, 'ft_sand', faces='fkltrd')
-
-# --------------------------------------------------------------------------- skorstene
-def chimneys(D, S):
-    T = S['trim']
-    for b in D['buildings']:
-        if b['style'] not in ('villa', 'library', 'mill'): continue
-        x0, z0, x1, z1 = b['rect']; e = b['eave']; r = b['rise']
-        for fx in ((0.22, 0.78) if b['style'] == 'villa' else (0.5,)):
-            cx_ = x0 + (x1 - x0) * fx if b['ridge'] == 'x' else (x0 + x1) / 2; cz_ = (z0 + z1) / 2 if b['ridge'] == 'x' else z0 + (z1 - z0) * fx
-            T.box(cx_ - 0.45, e + r - 0.4, cz_ - 0.45, cx_ + 0.45, e + r + 1.7, cz_ + 0.45, 'ft_stone'); T.box(cx_ - 0.6, e + r + 1.7, cz_ - 0.6, cx_ + 0.6, e + r + 1.95, cz_ + 0.6, 'ft_roof_old')
-
-# --------------------------------------------------------------------------- arkader (søjler + buer)
-def column(T, x, z, y0, y1, r=0.3):
-    T.box(x - 0.42, y0, z - 0.42, x + 0.42, y0 + 0.3, z + 0.42, 'ft_ashlar')
-    cyl(T, x, z, r, y0 + 0.3, y1 - 0.28, 'ft_marble_w', n=14, caps='')
-    T.box(x - 0.36, y1 - 0.28, z - 0.36, x + 0.36, y1 - 0.1, z + 0.36, 'ft_ashlar'); T.box(x - 0.46, y1 - 0.1, z - 0.46, x + 0.46, y1, z + 0.46, 'ft_ashlar')
-
-def arch_bay(T, W, xa, xb, y_spring, y_top, z, depth, axis, nrm, mat='ft_plaster_b'):
-    """segmentbue mellem to søjler (i planen z = const for axis 'x', ellers x = const) + fyld op til loftet. xa..xb = søjlernes indersider."""
-    n = 12; span = xb - xa; rise = min(0.62, (y_top - y_spring) - 0.05); R = (span * span / 4 + rise * rise) / (2 * rise)
-    pts = []
+def arch_door(T, fr, ac, dw, dh, rnd, mat_door='ft_door'):
+    """stenomramning med rundbue og mørk trædør (fladt på facaden)"""
+    r = dw / 2; spring = dh - r
+    for (x0_, x1_) in ((ac - dw / 2 - 0.14, ac - dw / 2), (ac + dw / 2, ac + dw / 2 + 0.14)): obox(T, fr, x0_, x1_, 0, 0.09, 0.0, spring, 'ft_ashlar', faces='fltr')
+    vquad(T, fr, ac - dw / 2, ac + dw / 2, 0.02, 0.0, spring, mat_door, 0.0)
+    n = 8; pts_o = []; pts_i = []
     for k in range(n + 1):
-        t = k / n; x = xa + span * t; yy = y_spring + rise - (R - math.sqrt(max(R * R - (x - (xa + xb) / 2) ** 2, 0)))
-        pts.append((x, yy))
-    for (nz, off) in ((1, depth / 2), (-1, -depth / 2)):                                           # forside + bagside
-        for k in range(n):
-            (x1_, y1_), (x2_, y2_) = pts[k], pts[k + 1]
-            q = [(x1_, y1_, z + off), (x2_, y2_, z + off), (x2_, y_top, z + off), (x1_, y_top, z + off)] if axis == 'x' else [(z + off, y1_, x1_), (z + off, y2_, x2_), (z + off, y_top, x2_), (z + off, y_top - 0 + 0, x1_)]
-            if axis == 'x': W.poly(q, mat, want=(0, 0, nz), col=[(0.2, 0, 0, 1)] * 4)
-            else: W.poly([(z + off, y1_, x1_), (z + off, y2_, x2_), (z + off, y_top, x2_), (z + off, y_top, x1_)], mat, want=(nz, 0, 0), col=[(0.2, 0, 0, 1)] * 4)
-    for k in range(n):                                                                           # intrados (undersiden af buen)
-        (x1_, y1_), (x2_, y2_) = pts[k], pts[k + 1]
-        if axis == 'x': W.poly([(x1_, y1_, z - depth / 2), (x2_, y2_, z - depth / 2), (x2_, y2_, z + depth / 2), (x1_, y1_, z + depth / 2)], mat, want=(0, -1, 0), col=[(0.2, 0, 0, 1)] * 4)
-        else: W.poly([(z - depth / 2, y1_, x1_), (z - depth / 2, y2_, x2_), (z + depth / 2, y2_, x2_), (z + depth / 2, y1_, x1_)], mat, want=(0, -1, 0), col=[(0.2, 0, 0, 1)] * 4)
+        t = math.pi * k / n; pts_i.append((ac - math.cos(t) * r, spring + math.sin(t) * r)); pts_o.append((ac - math.cos(t) * (r + 0.14), spring + math.sin(t) * (r + 0.14)))
+    for k in range(n):
+        (a0, y0), (a1, y1) = pts_i[k], pts_i[k + 1]; (b0, z0), (b1, z1) = pts_o[k], pts_o[k + 1]
+        with T.part():
+            T.poly([fr.P(a0, 0.02, y0), fr.P(a1, 0.02, y1), fr.P(ac, 0.02, spring)], mat_door, uv=[(0, 0), (1, 0), (0.5, 0.5)], want=(fr.n[0], 0, fr.n[1]))
+            T.poly([fr.P(a0, 0.09, y0), fr.P(b0, 0.09, z0), fr.P(b1, 0.09, z1), fr.P(a1, 0.09, y1)], 'ft_ashlar', uv=[(0, 0), (0.2, 0), (0.2, 0.2), (0, 0.2)], want=(fr.n[0], 0, fr.n[1]))
+    obox(T, fr, ac - 0.05, ac + 0.05, 0.0, 0.1, dh + 0.14, dh + 0.3, 'ft_sand', faces='fkltrd')            # sluttesten
+    obox(T, fr, ac - dw / 2, ac + dw / 2, 0.0, 0.05, 1.0, 1.06, 'ft_iron', faces='fltrd'); obox(T, fr, ac - dw / 2, ac + dw / 2, 0.0, 0.05, 1.8, 1.86, 'ft_iron', faces='fltrd')
 
-def arcades(D, S):
-    T = S['trim']; W = S['walls']; YE = D['levels']['YE']
-    cols = [c for c in D['cyls'] if c[5] == 'column']
-    for (x, z, r, y0, y1, st) in cols:
-        column(T, x, z, y0, y1, r)
-    # buer: grupper søjler på en linje
-    lines = {}
-    for (x, z, r, y0, y1, st) in cols:
-        if abs(z - round(z)) < 3 and z in (-35.8, -26.2): lines.setdefault(('z', z), []).append(x)
-        if x in (-31.7, -10.3): lines.setdefault(('x', x), []).append(z)
-    for (ax, line), lst in lines.items():
-        lst.sort(); top = YE + (3.2 if (ax == 'z' and line == -35.8) else 3.7)
-        for a, b in zip(lst[:-1], lst[1:]):
-            if b - a > 3.4: continue
-            arch_bay(T, W, a + 0.3, b - 0.3, YE + 2.45, top, line, 0.5, 'x' if ax == 'z' else 'z', 1)
-    # altan-rækværk (smedejern) – baluster hvert 0,16 m
-    for r_ in D['rails']:
-        x0, z0, x1, z1, base, h, st = r_
-        if st != 'iron': continue
-        L = max(x1 - x0, z1 - z0)
-        if L < 0.5: continue
-        if (x1 - x0) >= (z1 - z0):
-            zc = (z0 + z1) / 2; T.box(x0, base + h - 0.06, zc - 0.05, x1, base + h, zc + 0.05, 'ft_iron'); T.box(x0, base, zc - 0.04, x1, base + 0.08, zc + 0.04, 'ft_iron')
-            k = int(L / 0.16)
-            for q in range(k + 1): xx = x0 + L * q / max(1, k); T.box(xx - 0.012, base, zc - 0.012, xx + 0.012, base + h - 0.06, zc + 0.012, 'ft_iron')
+def wall_lantern(S, fr, a, y, rnd):
+    """smedejernslanterne på arm: hænger over hovedhøjde (≥ 2,2 m), 0,3 m ud"""
+    T = S['trim']; n = fr.n; x, z = fr.W(a, 0.32)
+    obox(T, fr, a - 0.02, a + 0.02, 0.0, 0.34, y + 0.2, y + 0.24, 'ft_iron', faces='fkltrd')
+    with T.part():
+        r = 0.09; yb, yt = y - 0.14, y + 0.18
+        for k in range(4):
+            a0 = math.pi / 4 + k * math.pi / 2; a1 = a0 + math.pi / 2; am = (a0 + a1) / 2
+            T.poly([(x + math.cos(a0) * r, yb, z + math.sin(a0) * r), (x + math.cos(a1) * r, yb, z + math.sin(a1) * r), (x + math.cos(a1) * r, yt, z + math.sin(a1) * r), (x + math.cos(a0) * r, yt, z + math.sin(a0) * r)], 'ft_iron', uv=[(0, 0), (1, 0), (1, 1), (0, 1)], want=(math.cos(am), 0, math.sin(am)))
+    cyl(T, x, z, 0.11, yt, yt + 0.06, 'ft_iron', n=4, caps='tb', r1=0.03)
+    LAMPS.append(dict(x=round(x, 2), y=round(y, 2), z=round(z, 2), w=150.0, i=1.2, range=7.0))
+
+def facade(l, S, rnd):
+    p0, p1 = l['front']; u = l['dir']; n = l['nout']; L = l['L']; fr = Fr(p0, u, n)
+    he = l['he']; rp = l['rp']; style = l['style']; floors = l['floors']
+    wall_top = he + rp['pitch'] * rp['over']
+    uoff = rnd.uniform(0, 7.0); first, last = l['first'], l['last']
+    W, T = S['walls'], S['trim']
+    pm = PLASTER[style][rnd.randrange(len(PLASTER[style]))] if style in PLASTER else 'ft_plaster_a'
+    if style == 'hedge':                                           # klippet cypres-/buksbomshæk på lav stensokkel
+        vquad(W, fr, 0, L, 0, 0, 0.45, 'ft_stone', uoff)
+        pts_col = [fr.P(0, 0, 0.45), fr.P(L, 0, 0.45), fr.P(L, 0, he), fr.P(0, 0, he)]
+        vquad(W, fr, 0, L, 0, 0.45, he, 'ft_hedge', uoff, col=[blend_at(p_, 0.0) for p_ in pts_col]); return
+    if style in ('swall', 'terrace'):
+        mat = 'ft_rubble' if style == 'swall' else 'ft_ashlar'
+        vquad(W, fr, 0, L, 0, 0, he - 0.2, mat, uoff, col=None)
+        obox(T, fr, 0, L, 0, 0.1, he - 0.24, he, 'ft_ashlar', faces='fltrt', uoff=uoff)                                  # kronesten
+        nb = max(1, int(round(L / 4.8))); bay = L / nb                                                                   # lisener hver ~4,8 m (≤ 0,1 m)
+        for k in range(nb + 1):
+            a = k * bay; obox(T, fr, max(0.0, a - 0.28), min(L, a + 0.28), 0, 0.09, 0.0, he - 0.2, 'ft_sand', faces='fltr', uoff=uoff)
+        for k in range(nb):                                                                                              # blinde buer mellem lisenerne (stenramme 0,06 m)
+            ac = (k + 0.5) * bay; w = min(2.6, bay - 1.0)
+            if w < 1.2 or he < 3.0: continue
+            ys = 1.9
+            for xx in (ac - w / 2 - 0.1, ac + w / 2): obox(T, fr, xx, xx + 0.1, 0, 0.05, 0.0, ys, 'ft_sand', faces='fltr', uoff=uoff)
+            nseg = 8; r = w / 2 + 0.1
+            for q in range(nseg):
+                a0 = math.pi * q / nseg; a1 = math.pi * (q + 1) / nseg
+                T.poly([fr.P(ac - math.cos(a0) * (r - 0.1), 0.05, ys + math.sin(a0) * (r - 0.1)), fr.P(ac - math.cos(a1) * (r - 0.1), 0.05, ys + math.sin(a1) * (r - 0.1)), fr.P(ac - math.cos(a1) * r, 0.05, ys + math.sin(a1) * r), fr.P(ac - math.cos(a0) * r, 0.05, ys + math.sin(a0) * r)], 'ft_sand', uv=[(0, 0), (0.1, 0), (0.1, 0.1), (0, 0.1)], want=(fr.n[0], 0, fr.n[1]))
+        if L > 3.0 and rnd.random() < 0.55:                                                                              # vedbend / vin ned ad muren (kun over hovedhøjde: 1,6–2,9 m)
+            from ft_plants import card as _card
+            k = rnd.uniform(0.5, 1.6)
+            while k < L - 0.6:
+                cx, cz = fr.W(k, 0.05); _card(S['fol'], 'fol_ivy', (cx, he - 0.55, cz), (u[0], 0.0, u[1]), (0.0, 1.0, 0.0), rnd.uniform(0.9, 1.5), rnd.uniform(1.0, 1.6)); k += rnd.uniform(2.2, 4.2)
+        return
+    if style == 'hallwall':
+        vquad(W, fr, 0, L, 0, 0, 1.5, 'ft_stone', uoff); vquad(W, fr, 0, L, 0, 1.5, he, pm, uoff)
+        obox(T, fr, 0, L, 0, 0.1, 1.5, 1.62, 'ft_ashlar', faces='ftlr', uoff=uoff); obox(T, fr, 0, L, 0, 0.14, he - 0.28, he, 'ft_ashlar', faces='fltrd', uoff=uoff)
+        nb = max(1, int(round(L / 3.4))); bay = L / nb
+        for k in range(nb):                                                                                               # blinde buer (stenramme, 0,06 m)
+            ac = (k + 0.5) * bay; w = min(2.0, bay - 0.7)
+            if w < 0.8: continue
+            for xx in (ac - w / 2 - 0.08, ac + w / 2): obox(T, fr, xx, xx + 0.08, 0, 0.06, 0.0, 3.0, 'ft_ashlar', faces='fltr')
+            obox(T, fr, ac - w / 2 - 0.08, ac + w / 2 + 0.08, 0, 0.06, 3.0, 3.18, 'ft_ashlar', faces='fltrd')
+        if L > 4.5: wall_lantern(S, fr, L * rnd.uniform(0.3, 0.7), 3.1, rnd)
+        return
+    if style == 'twall':
+        vquad(W, fr, 0, L, 0, 0, he, 'ft_ashlar', uoff)
+        obox(T, fr, 0, L, 0, 0.1, 3.0, 3.22, 'ft_sand', faces='ftlr', uoff=uoff); obox(T, fr, 0, L, 0, 0.16, he - 0.3, he, 'ft_sand', faces='fltrd', uoff=uoff)
+        nsl = max(0, int(L / 3.2))
+        for k in range(nsl):
+            a = (k + 0.5) * L / nsl; vquad(T, fr, a - 0.07, a + 0.07, 0.012, 1.4, 2.3, 'ft_pane')
+            obox(T, fr, a - 0.1, a - 0.07, 0, 0.05, 1.4, 2.3, 'ft_sand', faces='fltr'); obox(T, fr, a + 0.07, a + 0.1, 0, 0.05, 1.4, 2.3, 'ft_sand', faces='fltr')
+        return
+    # ---- huse og lader
+    base_h = 0.75 if style != 'fienile' else 0.0
+    floor_h = 3.15 if floors == 2 else None
+    if style == 'fienile':
+        vquad(W, fr, 0, L, 0, 0, wall_top, 'ft_stone', uoff)
+    else:
+        vquad(W, fr, 0, L, 0, 0, base_h, 'ft_stone', uoff); vquad(W, fr, 0, L, 0, base_h, wall_top, pm, uoff)
+        obox(T, fr, 0, L, 0, 0.08, base_h, base_h + 0.1, 'ft_ashlar', faces='ftlr', uoff=uoff)                         # sokkelbånd
+    if L < 0.9: return
+    if floor_h: obox(T, fr, 0, L, 0, 0.1, floor_h - 0.07, floor_h + 0.05, 'ft_ashlar', faces='fltrd', uoff=uoff)        # etagebånd
+    obox(T, fr, 0, L, 0, 0.17, wall_top - 0.34, wall_top, 'ft_ashlar' if style != 'villa' else 'ft_sand', faces='fltrd', uoff=uoff)   # gesims under tagfoden (over hovedhøjde)
+    if (first or last) and style in ('villa', 'casa'):                                                                  # hjørnesten (quoins)
+        for (a0, a1) in (((0.0, 0.5),) if first else ()) + (((L - 0.5, L),) if last else ()):
+            yy = base_h; k = 0
+            while yy < wall_top - 0.4:
+                obox(T, fr, a0, a1, 0, 0.05, yy, yy + 0.5, 'ft_sand', faces='fltr', uoff=uoff + k); yy += 0.55; k += 1
+    # bugter: døre og vinduer
+    nb = max(1, int(round(L / 3.0))); bay = L / nb
+    door_bay = rnd.randrange(nb) if L >= 3.2 and style != 'fienile' else (rnd.randrange(nb) if nb >= 1 and L >= 4.0 else -1)
+    for k in range(nb):
+        a0, a1 = k * bay, (k + 1) * bay; ac = (a0 + a1) / 2; bw = bay - 0.5
+        if style == 'fienile':
+            if k == door_bay:                                              # stor staldport (rundbue) – lukket, med tunge plankedøre
+                dw = min(2.4, bw); arch_door(T, fr, ac, dw, 3.1, rnd, 'ft_beam')
+            else:
+                ww = min(0.9, bw); vquad(T, fr, ac - ww / 2, ac + ww / 2, 0.012, 3.4, 4.3, 'ft_pane')
+                obox(T, fr, ac - ww / 2 - 0.1, ac + ww / 2 + 0.1, 0, 0.08, 4.3, 4.43, 'ft_ashlar', faces='fltrd'); obox(T, fr, ac - ww / 2 - 0.1, ac + ww / 2 + 0.1, 0, 0.1, 3.3, 3.4, 'ft_ashlar', faces='fltrd')
+                for xx in (ac - ww / 2 - 0.1, ac + ww / 2): obox(T, fr, xx, xx + 0.1, 0, 0.08, 3.4, 4.3, 'ft_ashlar', faces='fltr')
+            continue
+        if k == door_bay:
+            dw = min(1.25, bw); dh = 2.35; arch_door(T, fr, ac, dw, dh, rnd); DOORS_LOG.append((fr.W(ac, 0.3), l))
+            if rnd.random() < 0.7: wall_lantern(S, fr, ac + dw / 2 + 0.55, 2.55, rnd)
+            continue
+        gy0 = base_h + 0.35
+        if floors == 2 or style == 'casa':
+            ww = min(1.1, bw); window(T, fr, ac, ww, 1.45, gy0 + 0.55, rnd)
         else:
-            xc = (x0 + x1) / 2; T.box(xc - 0.05, base + h - 0.06, z0, xc + 0.05, base + h, z1, 'ft_iron'); T.box(xc - 0.04, base, z0, xc + 0.04, base + 0.08, z1, 'ft_iron')
-            k = int(L / 0.16)
-            for q in range(k + 1): zz = z0 + L * q / max(1, k); T.box(xc - 0.012, base, zz - 0.012, xc + 0.012, base + h - 0.06, zz + 0.012, 'ft_iron')
+            ww = min(1.0, bw); window(T, fr, ac, ww, 1.25, gy0 + 0.45, rnd)
+        if floor_h:
+            uh = 1.5; window(T, fr, ac, min(1.0, bw), uh, floor_h + 0.55, rnd)
+    # blomsterkrukker (terrakotta) på facaden: kun små, ≤ 0.1 m
+    if style in ('casa', 'casetta') and L > 3.5 and rnd.random() < 0.5:
+        from ft_plants import card as _card
+        a = L * rnd.uniform(0.25, 0.75); cx, cz = fr.W(a, 0.12)
+        _card(S['fol'], 'fol_rose', (cx, 1.0, cz), (u[0], 0.0, u[1]), (0.0, 1.0, 0.0), 0.9, 1.5)
 
-# --------------------------------------------------------------------------- duetårn (colombaia)
+def roof(l, S, rnd):
+    """tag over parcellens stykker + udhæng mod gaden. Fælles tagprofil sikrer sammenhæng over hjørner/skillevægge. Flade stilarter får en kronesten-/hæktop."""
+    style = l['style']; he = l['he']
+    if style in ('hedge', 'swall', 'terrace', 'hallwall', 'twall'):
+        mat = {'hedge': 'ft_hedge', 'swall': 'ft_ashlar', 'terrace': 'ft_ashlar', 'hallwall': 'ft_timber', 'twall': 'ft_ashlar'}[style]
+        for pc in l['pieces']:
+            pts = [(x, he, z) for (x, z) in pc]
+            if len(pts) >= 3: S['trim'].poly(pts, mat, col=[(0.0, 0.0, 0.0, 1.0)] * len(pts), want=(0, 1, 0))
+        return
+    p0, p1 = l['front']; u = l['dir']; n = l['nout']; nw = (-n[0], -n[1]); L = l['L']; rp = l['rp']; he = l['he']
+    pitch, sr, over = rp['pitch'], rp['sr'], rp['over']
+    F, T = S['far'], S['trim']
+    def s_of(p): return nw[0] * (p[0] - p0[0]) + nw[1] * (p[1] - p0[1])
+    def a_of(p): return u[0] * (p[0] - p0[0]) + u[1] * (p[1] - p0[1])
+    def y_of(s): return roof_y(he, rp, s)
+    sz = tsz('ft_roof'); cs = math.sqrt(1 + pitch * pitch); uoff = hash2(round(p0[0] * 10), round(p0[1] * 10)) * 5.0
+    tile = 'ft_roof'
+    def face(poly, front):
+        pts = []; uv = []; col = []
+        for (x, z) in poly:
+            s = s_of((x, z)); y = y_of(s); pts.append((x, y, z)); a = a_of((x, z))
+            uv.append(((a + uoff) / sz, ((s + over) * cs if front else ((sr + over) + (s - sr)) * cs) / sz)); col.append(blend_at((x, y, z), 0.8))
+        if len(pts) >= 3: F.poly(pts, tile, uv=uv, col=col, want=(0, 1, 0))
+    for pc in l['pieces']:
+        fr_poly = clip_poly(pc, lambda p: sr - s_of(p), True)
+        rr_poly = clip_poly(pc, lambda p: s_of(p) - sr, True)
+        if len(fr_poly) >= 3 and abs(polygon_area([(q[0], 0, q[1]) for q in fr_poly])) > 1e-4: face(fr_poly, True)
+        if len(rr_poly) >= 3 and abs(polygon_area([(q[0], 0, q[1]) for q in rr_poly])) > 1e-4: face(rr_poly, False)
+        xs = []
+        for i in range(len(pc)):
+            a, b = pc[i], pc[(i + 1) % len(pc)]; sa, sb = s_of(a) - sr, s_of(b) - sr
+            if (sa > 1e-6 and sb < -1e-6) or (sa < -1e-6 and sb > 1e-6):
+                t = sa / (sa - sb); xs.append((a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t))
+            elif abs(sa) <= 1e-6: xs.append(a)
+        if len(xs) >= 2:
+            xs.sort(key=a_of); ra, rb = xs[0], xs[-1]
+            if math.hypot(rb[0] - ra[0], rb[1] - ra[1]) > 0.4:
+                fr2 = Fr(ra, u, n); yr = y_of(sr); Lr = math.hypot(rb[0] - ra[0], rb[1] - ra[1])
+                obox(T, fr2, 0, Lr, -0.2, 0.2, yr - 0.02, yr + 0.16, 'ft_roof_old', faces='fkltr')                           # kamtegl
+    quad = l['quad']; q0 = quad[-1] if len(quad) == 4 else quad[2]; q1 = quad[2] if len(quad) == 4 else quad[2]
+    def endvec(p, q):
+        v = (q[0] - p[0], q[1] - p[1]); ln = math.hypot(*v)
+        return (v[0] / ln, v[1] / ln) if ln > 1e-9 else nw
+    e0 = endvec(p0, q0); e1 = endvec(p1, q1)
+    c0 = max(0.3, e0[0] * nw[0] + e0[1] * nw[1]); c1 = max(0.3, e1[0] * nw[0] + e1[1] * nw[1])
+    o0 = (p0[0] - e0[0] * over / c0, p0[1] - e0[1] * over / c0); o1 = (p1[0] - e1[0] * over / c1, p1[1] - e1[1] * over / c1)
+    poly = [o0, o1, p1, p0]
+    ok = (a_of(o1) - a_of(o0)) > 0.05 and polygon_area([(q[0], 0, q[1]) for q in poly]) != 0
+    cr1 = (o1[0] - o0[0]) * (p1[1] - o1[1]) - (o1[1] - o0[1]) * (p1[0] - o1[0]); cr2 = (p1[0] - o1[0]) * (p0[1] - p1[1]) - (p1[1] - o1[1]) * (p0[0] - p1[0])
+    cr3 = (p0[0] - p1[0]) * (o0[1] - p0[1]) - (p0[1] - p1[1]) * (o0[0] - p0[0]); cr4 = (o0[0] - p0[0]) * (o1[1] - o0[1]) - (o0[1] - p0[1]) * (o1[0] - o0[0])
+    if not (ok and (cr1 > 0) == (cr2 > 0) == (cr3 > 0) == (cr4 > 0)):
+        o0 = (p0[0] + n[0] * over, p0[1] + n[1] * over); o1 = (p1[0] + n[0] * over, p1[1] + n[1] * over); poly = [o0, o1, p1, p0]
+    pts = []; uv = []; col = []
+    for (x, z) in poly:
+        s = s_of((x, z)); y = y_of(s); pts.append((x, y, z)); uv.append(((a_of((x, z)) + uoff) / sz, ((s + over) * cs) / sz)); col.append(blend_at((x, y, z), 0.8))
+    F.poly(pts, tile, uv=uv, col=col, want=(0, 1, 0))
+    wall_top = he + pitch * over
+    yo = he - 0.2
+    T.poly([(o0[0], yo, o0[1]), (o1[0], yo, o1[1]), (p1[0], wall_top - 0.2, p1[1]), (p0[0], wall_top - 0.2, p0[1])], 'ft_timber', uv=[(a_of(o0) / 1.6, 0), (a_of(o1) / 1.6, 0), (a_of(p1) / 1.6, over / 1.6), (a_of(p0) / 1.6, over / 1.6)], want=(0, -1, 0))
+    T.poly([(o0[0], yo, o0[1]), (o1[0], yo, o1[1]), (o1[0], he + 0.03, o1[1]), (o0[0], he + 0.03, o0[1])], 'ft_roof_old', uv=[(0, 0), (L / 1.6, 0), (L / 1.6, 0.2), (0, 0.2)], want=(n[0], 0, n[1]))
+    if L > 1.5:                                                                     # synlige spærender (hver 0,7 m) under udhænget
+        k = max(1, int(L / 0.7)); ds = L / k; fr = Fr(p0, u, n)
+        for i in range(k):
+            a = ds * (i + 0.5); obox(T, fr, a - 0.05, a + 0.05, over - 0.45, over - 0.04, yo - 0.1, yo + 0.1, 'ft_timber', faces='fltd', uoff=0)
+
+def seam(sm, S):
+    """gavlvæg mellem to tage med forskellig højde: puds + tagkant langs tagets linje"""
+    W, T = S['walls'], S['trim']; pts = [tuple(p) for p in sm['pts']]; n = sm['n']
+    W.poly(pts, PLASTER.get(sm['style'], ['ft_plaster_a'])[0], want=(n[0], 0, n[1]))
+    A, Bp, Bl, Al = pts; off = (n[0] * 0.025, 0.0, n[1] * 0.025)
+    sh = lambda p, dy=0.0: (p[0] + off[0], p[1] + dy, p[2] + off[2])
+    T.poly([sh(A), sh(Bp), sh(Bp, -0.18), sh(A, -0.18)], 'ft_roof_old', uv=[(0, 0), (1, 0), (1, 1), (0, 1)], want=(n[0], 0, n[1]))
+    dxs, dzs = Bp[0] - A[0], Bp[2] - A[2]; Ls = math.hypot(dxs, dzs)
+    for P0, P1 in ((A, Al), (Bp, Bl)):
+        h = P0[1] - P1[1]
+        if h > 0.5:
+            L = Ls or 1.0; ux, uz = dxs / L, dzs / L; sgn = 1 if P0 is A else -1; w = 0.18
+            q = [(P0[0] + off[0], P0[1] - 0.18, P0[2] + off[2]), (P0[0] + off[0] + ux * w * sgn, P0[1] - 0.18, P0[2] + off[2] + uz * w * sgn), (P1[0] + off[0] + ux * w * sgn, P1[1], P1[2] + off[2] + uz * w * sgn), (P1[0] + off[0], P1[1], P1[2] + off[2])]
+            T.poly(q, 'ft_sand', uv=[(0, 0), (0.1, 0), (0.1, h / 1.6), (0, h / 1.6)], want=(n[0], 0, n[1]))
+
+# --------------------------------------------------------------------------- tårnet (Udkigstårn): dæk, gange, trappe, gitre, loft, lamper
 def tower(D, S):
-    T = S['trim']; W = S['walls']; M = S['far']
-    for d in D['decor']:
-        if d['t'] != 'tower': continue
-        pts = d['pts']; y0 = d['y']; e = y0 + 10.2; n = len(pts)
-        cx_ = sum(p[0] for p in pts) / n; cz_ = sum(p[1] for p in pts) / n
-        for i in range(n):
-            a, b = pts[i], pts[(i + 1) % n]; mx, mz = (a[0] + b[0]) / 2 - cx_, (a[1] + b[1]) / 2 - cz_
-            W.poly([(a[0], y0, a[1]), (b[0], y0, b[1]), (b[0], e, b[1]), (a[0], e, a[1])], 'ft_rubble', want=(mx, 0, mz), col=[(0.2, 0, 0, 1)] * 4)
-        # gesims, buevinduer (dueåbninger) på hver anden side
-        for i in range(n):
-            a, b = pts[i], pts[(i + 1) % n]; L = math.hypot(b[0] - a[0], b[1] - a[1]); u = ((b[0] - a[0]) / L, (b[1] - a[1]) / L); nn = (u[1], -u[0])
-            mx, mz = (a[0] + b[0]) / 2 - cx_, (a[1] + b[1]) / 2 - cz_
-            if nn[0] * mx + nn[1] * mz < 0: nn = (-nn[0], -nn[1])
-            fr = Fr(a, u, nn); obox(T, fr, -0.1, L + 0.1, 0, 0.3, e - 0.35, e, 'ft_ashlar', faces='fkltrd')
-            obox(T, fr, L / 2 - 0.55, L / 2 + 0.55, 0, 0.12, y0 + 7.6, y0 + 9.2, 'ft_ashlar', faces='fkltrd'); vquad(T, fr, L / 2 - 0.4, L / 2 + 0.4, 0.14, y0 + 7.7, y0 + 9.1, 'ft_pane')
-            obox(T, fr, L / 2 - 0.6, L / 2 + 0.6, 0, 0.3, y0 + 9.1, y0 + 9.3, 'ft_ashlar', faces='fkltrd')
-        # kegletag
-        rz = 3.4; apex = (cx_, e + rz, cz_)
-        for i in range(n):
-            a, b = pts[i], pts[(i + 1) % n]; o = 0.45
-            ao = (cx_ + (a[0] - cx_) * (1 + o / 2.3), cz_ + (a[1] - cz_) * (1 + o / 2.3)); bo = (cx_ + (b[0] - cx_) * (1 + o / 2.3), cz_ + (b[1] - cz_) * (1 + o / 2.3))
-            M.poly([(ao[0], e - 0.2, ao[1]), (bo[0], e - 0.2, bo[1]), apex], 'ft_roof', uv=[(0, 0), (1.5, 0), (0.75, 2.2)], want=((a[0] + b[0]) / 2 - cx_, 1, (a[1] + b[1]) / 2 - cz_), col=[(0.15, 0, 0, 1)] * 3)
-        T.box(cx_ - 0.1, e + rz, cz_ - 0.1, cx_ + 0.1, e + rz + 0.9, cz_ + 0.1, 'ft_iron')
-
-# --------------------------------------------------------------------------- pergola (smal gang mod trappehullet)
-def pergola(D, S):
-    T = S['trim']; F = S['fol']; YP = D['levels']['YP']
-    # to rækker stolper (fra layoutets 'pergola_post'-cylindre) forbundet af tværbjælker + langbjælker; vinranker som løvkort
-    posts = sorted([c for c in D['cyls'] if c[5] == 'pergola_post'], key=lambda c: c[1])
-    xs = sorted(set(round(c[0], 1) for c in posts)); zs = sorted(set(round(c[1], 1) for c in posts))
-    if len(xs) < 2: return
-    ytop = YP + 3.1
-    for (x, z, r, y0, y1, st) in posts: cyl(T, x, z, 0.14, y0, y1, 'ft_timber', n=8, caps='t')
-    for z in zs: T.box(xs[0] - 0.4, ytop, z - 0.07, xs[-1] + 0.4, ytop + 0.18, z + 0.07, 'ft_timber')
-    for x in xs: T.box(x - 0.07, ytop + 0.18, zs[0] - 0.4, x + 0.07, ytop + 0.3, zs[-1] + 0.4, 'ft_timber')
-    k = 0; z = zs[0] - 0.3
-    while z < zs[-1] + 0.4: T.box(xs[0] - 0.3, ytop + 0.3, z - 0.025, xs[-1] + 0.3, ytop + 0.36, z + 0.025, 'ft_timber'); z += 0.45
-    return (xs, zs, ytop)
-
-# --------------------------------------------------------------------------- lysskakter + kælder-ribber
-def skylights(D, S):
-    T = S['trim']; YP = D['levels']['YP']; C = D['levels']['CEILC']
-    for d in D['decor']:
-        if d['t'] != 'skylight': continue
-        x0, z0, x1, z1 = d['x0'], d['z0'], d['x1'], d['z1']
-        for (a, b, c, e_, nrm) in ((x0, z0, x1, z0, (0, 0, 1)), (x0, z1, x1, z1, (0, 0, -1)), (x0, z0, x0, z1, (1, 0, 0)), (x1, z0, x1, z1, (-1, 0, 0))):
-            T.poly([(a, C, b), (c, C, e_), (c, YP, e_), (a, YP, b)], 'ft_ashlar', want=nrm, col=[(0.2, 0, 0, 1)] * 4)                            # skaktens sider (dækkets tykkelse)
-        T.box(x0 - 0.16, YP, z0 - 0.16, x1 + 0.16, YP + 0.1, z0 - 0.02, 'ft_ashlar'); T.box(x0 - 0.16, YP, z1 + 0.02, x1 + 0.16, YP + 0.1, z1 + 0.16, 'ft_ashlar')
-        T.box(x0 - 0.16, YP, z0 - 0.02, x0 - 0.02, YP + 0.1, z1 + 0.02, 'ft_ashlar'); T.box(x1 + 0.02, YP, z0 - 0.02, x1 + 0.16, YP + 0.1, z1 + 0.02, 'ft_ashlar')
-
-def cellar(D, S, G):
-    """hvælvribber af mursten mellem piller og vægge (højde = loftet), samt trækonsoller. Buer i planerne x = const og z = const."""
-    T = S['trim']; C = D['levels']['CEILC']; YC = D['levels']['YC']
-    piers = [c for c in D['cyls'] if c[5] == 'pier']
-    for (x, z, r, y0, y1, st) in piers:
-        T.box(x - 0.55, YC, z - 0.55, x + 0.55, YC + 0.35, z + 0.55, 'ft_stone'); T.box(x - 0.52, C - 0.5, z - 0.52, x + 0.52, C, z + 0.52, 'ft_stone')
-        cyl(T, x, z, 0.5, YC + 0.35, C - 0.5, 'ft_vault', n=10, caps='')
-    # ribber mellem pillerne (N-S og E-W) og mod væggene: segmentbue under loftet
-    xs = sorted(set(c[0] for c in piers)); zs = sorted(set(c[1] for c in piers))
-    def rib(a0, a1, line, axis):
-        n = 10; span = a1 - a0; rise = 0.75; ys = C - rise
-        for k in range(n):
-            t0, t1 = k / n, (k + 1) / n
-            def yy(t): return C - (rise * (1 - (2 * t - 1) ** 2)) * 0 - 0.0
-            y0_ = ys + rise * (2 * t0 - 1) ** 2 * 1.0; y1_ = ys + rise * (2 * t1 - 1) ** 2 * 1.0
-            p0 = a0 + span * t0; p1 = a0 + span * t1
-            if axis == 'x': T.poly([(p0, y0_, line - 0.3), (p1, y1_, line - 0.3), (p1, y1_, line + 0.3), (p0, y0_, line + 0.3)], 'ft_vault', want=(0, -1, 0), col=[(0.2, 0, 0, 1)] * 4)
-            else: T.poly([(line - 0.3, y0_, p0), (line - 0.3, y1_, p1), (line + 0.3, y1_, p1), (line + 0.3, y0_, p0)], 'ft_vault', want=(0, -1, 0), col=[(0.2, 0, 0, 1)] * 4)
-    for (x, z, r, y0, y1, st) in piers:
-        for (x2, z2, *_r) in piers:
-            if x2 > x + 0.5 and abs(z2 - z) < 0.6 and x2 - x < 20: rib(x, x2, z, 'x')
-            if z2 > z + 0.5 and abs(x2 - x) < 0.6 and z2 - z < 20: rib(z, z2, x, 'z')
-
-def lamps(D, S):
-    """lamper: (x, z, højde over gulv, watt) – bagt som varme punktlys (kælder, hal, bibliotek, stald, arkader, trapper); små jernlamper tegnes ved kælderlamperne"""
-    T = S['trim']; L = D['levels']; YC, YB, YE = L['YC'], L['YB'], L['YE']
-    LIST = [  # (x, z, base, h, w)
-        (13, -8, YC, 2.3, 450), (18, -20.5, YC, 2.3, 450), (22, -6.8, YC, 2.3, 450), (26, -20.5, YC, 2.3, 450), (31, -6.8, YC, 2.3, 450), (34.5, -14, YC, 2.3, 450), (23, -14, YC, 2.3, 350), (28, -11, YC, 2.3, 300), (31, -19.5, YC, 2.3, 350),
-        (12, -19.5, YB, 1.9, 250), (17, -19.5, YB, 1.9, 250), (6, -19.5, YC, 2.0, 250), (6, -14, YC, 1.4, 150), (32, -6.5, YC, 1.2, 250),
-        (11, -30, 2.3, 1.2, 160), (11, -26, YB, 1.8, 200),
-        (-23, -42, YE, 4.8, 700), (-23, -47, YE, 4.8, 500), (-5, -33, YE, 3.0, 300), (-5, -25, YE, 3.0, 300), (-1, -29, YE, 3.0, 220), (-40, -32, YE, 2.8, 260), (-40, -26, YE, 2.8, 260),
-        (-28, -36.8, YE, 2.5, 160), (-18, -36.8, YE, 2.5, 160), (-12, -36.8, YE, 2.5, 160), (-28, -25.4, YE, 2.7, 120), (-16, -25.4, YE, 2.7, 120), (-32.6, -30.5, YE, 2.6, 120), (-9.6, -30.5, YE, 2.6, 120)]
-    for (x, z, base, h, w) in LIST:
-        yy = base + h
-        if base == YC or (base == YB and h < 2.2): T.box(x - 0.06, yy - 0.3, z - 0.06, x + 0.06, yy + 0.1, z + 0.06, 'ft_iron'); T.box(x - 0.14, yy, z - 0.14, x + 0.14, yy + 0.26, z + 0.14, 'ft_brass')
-        LAMPS.append(dict(x=x, y=yy + 0.15, z=z, w=w, i=1.4, range=9.0))
-
-# --------------------------------------------------------------------------- indvendig udsmykning (fodlister, panel, billeder, loftsbjælker)
-def interiors(D, S, G):
-    """pudsede indervægge får fodliste + træpanel + lister + indrammede billeder; lofter i stuer/haller får synlige bjælker. Kun flade (≤ 5 cm) pynt på væggene – ingen usynlige hitbokser."""
-    import ft_ground
-    T = S['trim']; rnd = random.Random(77); UB, UK = G.UB, G.UK
-    WALLS = {'ft_plaster_a', 'ft_plaster_b', 'ft_ochre_a', 'ft_ochre_b'}
-    PIC = ['ft_book0', 'ft_book1', 'ft_book3', 'ft_book4', 'ft_curtain', 'ft_book5']
-    nrun = npic = nbeam = 0
-    for (axis, line, a0, a1, y0, y1, mat, nrm) in getattr(G, 'face_runs', []):
-        if mat not in WALLS or y1 - y0 < 2.0 or a1 - a0 < 0.9: continue
-        am = (a0 + a1) / 2; px, pz = (am, line + nrm * 0.3) if axis == 'x' else (line + nrm * 0.3, am)
-        j, i = G.cz(pz), G.cx(px)
-        if not (0 <= j < G.NZ and 0 <= i < G.NX) or G.K[j, i] != 1 or np.isnan(UB[j, i]) or UK[j, i] != 0: continue          # kun under et loft (indendørs)
-        L = a1 - a0; fr = Fr((a0, line), (1, 0), (0, nrm)) if axis == 'x' else Fr((line, a0), (0, 1), (nrm, 0))
-        obox(T, fr, 0, L, 0, 0.04, y0, y0 + 0.17, 'ft_timber', faces='fltrt')                           # fodliste
-        obox(T, fr, 0, L, 0, 0.022, y0 + 0.17, y0 + 1.05, 'ft_deck', faces='fltr')                       # panel
-        obox(T, fr, 0, L, 0, 0.06, y0 + 1.05, y0 + 1.12, 'ft_beam', faces='fltrt')                       # panellist
-        hc = float(UB[j, i]) - y0
-        if hc > 3.0 and y1 - y0 > 2.6: obox(T, fr, 0, L, 0, 0.07, float(UB[j, i]) - 0.2, float(UB[j, i]), 'ft_plaster_b', faces='fltrd')    # kronlist under loftet
-        nrun += 1
-        if L > 3.0 and hc > 2.9:
-            n = int(L // 2.9); gap = L / n
-            for k in range(n):
-                a = gap * (k + 0.5); w, h = rnd.choice(((0.7, 0.9), (0.9, 0.65), (0.6, 0.8), (1.1, 0.8))); yc = y0 + 1.95
-                obox(T, fr, a - w / 2 - 0.05, a + w / 2 + 0.05, 0, 0.05, yc - h / 2 - 0.05, yc + h / 2 + 0.05, 'ft_beam', faces='fltrtd')
-                vquad(T, fr, a - w / 2, a + w / 2, 0.052, yc - h / 2, yc + h / 2, rnd.choice(PIC)); npic += 1
-    # loftsbjælker: på tværs af korteste led, hver 2,4 m
-    UBn = np.nan_to_num(UB, nan=-99.0); valid = (~np.isnan(UB)) & (UK == 0) & ((UB - G.H) > 2.4) & (G.K == 1)
-    valid &= np.array([[G.styles[int(G.STYLE[j, i])] in ('plaster', 'ochre', 'stone') for i in range(G.NX)] for j in range(G.NZ)])
-    key = np.full(UB.shape, -1, np.int64); ys = {}
-    for j in range(G.NZ):
-        for i in range(G.NX):
-            if valid[j, i]: key[j, i] = ys.setdefault((round(float(UB[j, i]), 2),), len(ys))
-    inv = {v: k for k, v in ys.items()}
-    for (i0, j0, i1, j1, k) in ft_ground.rects(key, valid):
-        yb = inv[k][0]; x0, z0, x1, z1 = G.x(i0), G.z(j0), G.x(i1), G.z(j1); w, d = x1 - x0, z1 - z0
-        if min(w, d) < 3.0: continue
-        if w >= d:
-            xx = math.ceil(x0 / 2.4) * 2.4
-            while xx < x1 - 0.2:
-                if xx > x0 + 0.2: T.box(xx - 0.11, yb - 0.3, z0, xx + 0.11, yb, z1, 'ft_beam'); nbeam += 1
-                xx += 2.4
+    TW = D['tower']; T, W = S['trim'], S['walls']; y = TW['deck']; x0, x1, z0, z1, zs = TW['x0'], TW['x1'], TW['z0'], TW['z1'], TW['slab_z1']
+    # dæk (planker) + undersiden (bjælkeloft)
+    nz = int((zs - z0) / 0.2)
+    for k in range(nz): T.box(x0, y - 0.05, z0 + k * (zs - z0) / nz, x1, y, z0 + (k + 1) * (zs - z0) / nz - 0.01, 'ft_deck', faces='t')
+    ex0 = TW['east_x0']; ne = int((z1 - zs) / 0.2)
+    for k in range(ne): T.box(ex0, y - 0.05, zs + k * (z1 - zs) / ne, x1, y, zs + (k + 1) * (z1 - zs) / ne - 0.01, 'ft_deck', faces='t')
+    W.box(x0, 2.9, z0, x1, y - 0.05, zs, 'ft_plaster_b', faces='tb'); T.box(x0, 2.9, zs - 0.02, x1, y, zs + 0.0, 'ft_timber', faces='s')
+    W.box(ex0, 2.9, zs, x1, y - 0.05, z1, 'ft_plaster_b', faces='tb'); T.box(ex0, 2.9, zs, ex0 + 0.0, y, z1, 'ft_timber', faces='w')
+    for k in range(int((x1 - x0) / 1.8) + 1):                                                 # bjælker under loftet
+        xx = x0 + 0.3 + k * 1.8
+        if xx < x1 - 0.2: T.box(xx - 0.1, 2.62, z0, xx + 0.1, 2.9, zs, 'ft_beam')
+    # kamme (merlons) og gitterhuller mod nord
+    for (mx0, mz0, mx1, mz1) in TW['merlons']:
+        T.box(mx0, y, mz0, mx1, 5.6, mz1, 'ft_ashlar', faces='nsewt'); T.box(mx0 - 0.04, 5.45, mz0 - 0.04, mx1 + 0.04, 5.6, mz1 + 0.04, 'ft_sand', faces='nsewt')
+    for (gx0, gz0, gx1, gz1) in TW['grilles']:
+        nb = max(2, int((gx1 - gx0) / 0.14))
+        for k in range(nb + 1):
+            xx = gx0 + k * (gx1 - gx0) / nb; T.box(xx - 0.012, y, gz0 + 0.02, xx + 0.012, y + 2.4, gz0 + 0.06, 'ft_iron', faces='nsewt')
+        for yy in (y + 0.05, y + 1.2, y + 2.35): T.box(gx0, yy, gz0 + 0.02, gx1, yy + 0.04, gz0 + 0.07, 'ft_iron', faces='nsewtb')
+    T.box(x0, y + 2.4, TW['z0'], x1, 5.6 if False else y + 2.4, TW['z0'] + 0.5, 'ft_sand', faces='t') if False else None
+    # trappen (17 trin op mod øst) langs sydvæggen
+    sx0, sz0, sx1, sz1 = TW['stair']; n = 17; run = (sx1 - sx0) / n; rise = y / n
+    for i in range(n):
+        xa, xb = sx0 + i * run, sx0 + (i + 1) * run; top = (i + 1) * rise
+        T.box(xa, 0.0, sz0, xb, top, sz1, 'ft_ashlar', faces='nsewt')                                   # massive trin (intet hulrum under)
+    # rækværk (1,1 m) langs dækkets sydkant + østkant
+    for (rx0, rz0, rx1, rz1, rb, rh) in D['rails']:
+        if rb < y - 0.01 or rz1 < 9.3 and rz0 < 9.3: continue                                    # (nordkanten er gitterhullerne ovenfor)
+        Lr = math.hypot(rx1 - rx0, rz1 - rz0)
+        if rh > 1.5:                                                                               # højt jerngitter (østkanten): lodrette stænger hver 0,14 m
+            nbar = max(2, int(Lr / 0.14))
+            for k in range(nbar + 1):
+                t = k / nbar; px, pz = rx0 + (rx1 - rx0) * t, rz0 + (rz1 - rz0) * t; T.box(px - 0.012, rb, pz - 0.012, px + 0.012, rb + rh, pz + 0.012, 'ft_iron', faces='nsewt')
+            for yy in (rb + 0.05, rb + rh * 0.5, rb + rh - 0.06): T.box(min(rx0, rx1) - 0.02, yy, min(rz0, rz1) - 0.02, max(rx0, rx1) + 0.02, yy + 0.04, max(rz0, rz1) + 0.02, 'ft_iron', faces='nsewtb')
         else:
-            zz = math.ceil(z0 / 2.4) * 2.4
-            while zz < z1 - 0.2:
-                if zz > z0 + 0.2: T.box(x0, yb - 0.3, zz - 0.11, x1, yb, zz + 0.11, 'ft_beam'); nbeam += 1
-                zz += 2.4
-    print('[interior] vægstrækninger %d · billeder %d · bjælker %d' % (nrun, npic, nbeam))
+            nbp = max(2, int(Lr / 1.2) + 1)
+            for k in range(nbp):
+                t = k / (nbp - 1); px, pz = rx0 + (rx1 - rx0) * t, rz0 + (rz1 - rz0) * t
+                T.box(px - 0.035, rb, pz - 0.035, px + 0.035, rb + rh, pz + 0.035, 'ft_iron', faces='nsewt')
+            for yy in (rb + rh * 0.45, rb + rh - 0.05): T.box(min(rx0, rx1) - 0.03, yy, min(rz0, rz1) - 0.03, max(rx0, rx1) + 0.03, yy + 0.05, max(rz0, rz1) + 0.03, 'ft_iron', faces='nsewtb')
+    LAMPS.append(dict(x=(x0 + x1) / 2, y=2.3, z=(z0 + zs) / 2, w=320.0, i=1.4, range=8.0)); LAMPS.append(dict(x=ex0 + 1.4, y=2.3, z=(zs + z1) / 2 + 0.6, w=240.0, i=1.2, range=7.0))
+
+# --------------------------------------------------------------------------- B-hallen (tinaiaen): gavltag med bjælker, loft, galleri med trappe og rækværk, buer ved indgangene
+def hall(D, S):
+    H = D['hall']; G = D['gallery']; T, W, F = S['trim'], S['walls'], S['far']
+    x0, z0, x1, z1 = H['rect']; e = H['eave']; wt = H['wall_t']; rh = H['ridge_h']
+    ax0, az0, ax1, az1 = x0 - 0.6, z0 - wt - 0.2, x1 + wt + 0.2, z1 + wt + 0.2
+    cz = (z0 + z1) / 2; ridge = e + rh + 0.15
+    sz = tsz('ft_roof'); cs = math.sqrt(1 + (rh / (cz - az0)) ** 2)
+    def tri(a, b, c, mat='ft_roof'): F.poly([a, b, c], mat, uv=[(a[0] / sz, a[2] / sz), (b[0] / sz, b[2] / sz), (c[0] / sz, c[2] / sz)], want=(0, 1, 0))
+    yeave = e - 0.1
+    def quad(a, b, c, d, mat='ft_roof'): F.poly([a, b, c, d], mat, uv=[(a[0] / sz, 0), (b[0] / sz, 0), (c[0] / sz, (cz - az0) * cs / sz), (d[0] / sz, (cz - az0) * cs / sz)], want=(0, 1, 0))
+    quad((ax0, yeave, az0), (ax1, yeave, az0), (ax1, ridge, cz), (ax0, ridge, cz)); quad((ax1, yeave, az1), (ax0, yeave, az1), (ax0, ridge, cz), (ax1, ridge, cz))
+    T.box(ax0, ridge - 0.02, cz - 0.2, ax1, ridge + 0.18, cz + 0.2, 'ft_roof_old', faces='nsewt')
+    # gavl mod vest (over indgangen): puds-trekant + stenramme
+    W.poly([(x0, e, z0 - 0.0), (x0, e, z1), (x0, e + rh * (1 - 0.0), cz)], 'ft_plaster_b', want=(-1, 0, 0)) if False else None
+    for (px, nx_) in ((ax0 + 0.6, -1), (ax1 - 0.2, 1)):
+        W.poly([(px, e, z0 - wt), (px, e, z1 + wt), (px, ridge - 0.1, cz)], 'ft_plaster_b', want=(nx_, 0, 0))
+    # loft (flade planker) og bjælker i hallen
+    nzp = int((z1 - z0) / 0.2)
+    W.box(x0 + 0.1, e - 0.06, z0, x1, e, z1, 'ft_deck', faces='b')                                                  # sammenhængende loft (ingen sprækker mod himlen)
+    xx = x0 + 1.2
+    while xx < x1 - 0.5:
+        T.box(xx - 0.14, e - 0.38, z0, xx + 0.14, e - 0.05, z1, 'ft_beam'); xx += 3.2
+    for zz in (z0 + 2.0, cz, z1 - 2.0): T.box(x0 + 0.1, e - 0.28, zz - 0.11, x1, e - 0.05, zz + 0.11, 'ft_beam')
+    # tagets bjælker/spær synlige over loftet er skjult; udhæng-spærender mod nord/syd
+    for k in range(int((ax1 - ax0) / 0.8)):
+        xk = ax0 + 0.4 + k * 0.8; T.box(xk - 0.05, e - 0.28, az0, xk + 0.05, e - 0.05, az0 + 0.8, 'ft_timber', faces='nsewtb') if False else None
+    # galleri: planker, bjælker, rækværk, trappe (kollision i layout)
+    gx0, gx1, gz0, gz1, gy = G['x0'], G['x1'], G['z0'], G['z1'], G['y']
+    nzp = int((gz1 - gz0) / 0.16)
+    for k in range(nzp): T.box(gx0, gy - 0.07, gz0 + k * (gz1 - gz0) / nzp, gx1, gy, gz0 + (k + 1) * (gz1 - gz0) / nzp - 0.012, 'ft_deck', faces='t')
+    T.box(gx0, gy - 0.3, gz0, gx1, gy - 0.07, gz1, 'ft_beam', faces='nsewtb')
+    for px in (30.0, 36.0, 42.0, 48.0, 52.8): T.box(px - 0.17, 0.0, -37.25, px + 0.17, gy - 0.3, gz1 - 0.0 - 0.0, 'ft_timber', faces='nsewt')
+    nposts = int((gx1 - gx0) / 1.3) + 1
+    for k in range(nposts):
+        xk = gx0 + k * (gx1 - gx0) / (nposts - 1); T.box(xk - 0.04, gy, gz1 - 0.1, xk + 0.04, gy + 1.0, gz1 - 0.02, 'ft_iron', faces='nsewt')
+    for yy in (gy + 0.5, gy + 0.95): T.box(gx0, yy, gz1 - 0.08, gx1, yy + 0.05, gz1 - 0.03, 'ft_iron', faces='nsewtb')
+    T.box(gx1 - 0.08, gy, gz0, gx1 - 0.02, gy + 1.0, gz1, 'ft_iron', faces='nsewtb')
+    sx0, sx1 = G['sx0'], G['sx1']; n = 15; run = (sx1 - sx0) / n; rise = gy / n
+    for i in range(n):
+        xa, xb = sx0 + i * run, sx0 + (i + 1) * run; top = (i + 1) * rise; T.box(xa, 0.0, gz0, xb, top - 0.05, gz1, 'ft_beam', faces='nsew'); T.box(xa, top - 0.05, gz0, xb, top, gz1, 'ft_deck', faces='nsewt')
+    for zz in (gz0, gz1 - 0.08): T.box(sx0, 0.0, zz, sx1, 0.1, zz + 0.08, 'ft_timber', faces='nsewt')
+    for k in range(6):
+        xk = sx0 + k * (sx1 - sx0) / 5; yy = (k / 5) * gy; T.box(xk - 0.04, yy, gz1 - 0.1, xk + 0.04, yy + 0.95, gz1 - 0.02, 'ft_iron', faces='nsewt')
+    # lysekroner (jern + lys) og væglamper
+    for xk in (33.0, 40.0, 47.0, 54.0):
+        cx_, cz_ = xk, cz; T.box(cx_ - 0.02, e - 1.0, cz_ - 0.02, cx_ + 0.02, e - 0.05, cz_ + 0.02, 'ft_iron')
+        cyl(T, cx_, cz_, 0.34, e - 1.12, e - 1.06, 'ft_iron', n=10, caps='tb'); cyl(T, cx_, cz_, 0.06, e - 1.06, e - 0.85, 'ft_brass', n=6, caps='tb')
+        LAMPS.append(dict(x=cx_, y=e - 1.0, z=cz_, w=900.0, i=1.8, range=12.0))
+    # indgangsbuer (stenbue-ramme over hallens vestlige åbning) – hele åbningen er gangareal, buen sidder over hovedhøjde (≥ 3,4 m)
+    T.box(x0 - 0.2, 3.6, z0 - 0.0, x0 + 0.1, 3.9, z1, 'ft_ashlar', faces='nsewtb')
 
 def build(D, S):
-    G = S['G']
-    for b in D['buildings']:
-        roof(b, S); facades(b, S, G)
-        if b['style'] == 'shed': shed_details(b, S, G)
-    chimneys(D, S); openings(D, S, G); arcades(D, S); tower(D, S); pergola(D, S); skylights(D, S); cellar(D, S, G); lamps(D, S); interiors(D, S, G)
+    for l in D['lots']:
+        rnd = random.Random(1000 + l['ring'] * 7919 + l['edge'] * 131 + 17)
+        facade(l, S, rnd); roof(l, S, rnd)
+    for sm in D['seams']: seam(sm, S)
+    tower(D, S); hall(D, S)

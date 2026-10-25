@@ -93,7 +93,7 @@ def lemon(B, F, x, z, y0, rnd, h=2.8, R=1.3):
 # ---------------------------------------------------------------- stenfyr (parasolkrone)
 def stone_pine(B, F, x, z, y0, rnd, h=10.0, R=4.4, lod=False):
     if lod: return pine_low(B, F, x, z, y0, rnd, h, R)
-    a0 = rnd.uniform(0, 6.28); pts = [(x + math.sin(i * 1.3 + a0) * 0.35 + math.cos(a0) * 0.9 * (i / 8) ** 2, y0 + h * 0.78 * i / 8, z + math.cos(i * 1.1 + a0) * 0.3 + math.sin(a0) * 0.9 * (i / 8) ** 2) for i in range(9)]
+    a0 = rnd.uniform(0, 6.28); pts = [(x + math.sin(i * 1.3 + a0) * 0.35 * min(1.0, i / 3.0) + math.cos(a0) * 0.9 * (i / 8) ** 2, y0 + h * 0.78 * i / 8, z + math.cos(i * 1.1 + a0) * 0.3 * min(1.0, i / 3.0) + math.sin(a0) * 0.9 * (i / 8) ** 2) for i in range(9)]
     tube(B, pts, 0.42, 0.18, seg=8); top = pts[-1]; nb = 6
     for b in range(nb):
         ang = a0 + b * 2 * math.pi / nb + rnd.uniform(-0.3, 0.3); L = R * rnd.uniform(0.55, 0.85)
